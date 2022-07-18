@@ -77,6 +77,19 @@ public abstract class Decoder {
           default:
             throw new TsFileDecodingException(String.format(ERROR_MSG, encoding, dataType));
         }
+      case TIM:
+        switch (dataType) {
+          case INT32:
+            return new TIMDecoder.IntTIMDecoder();
+          case INT64:
+          case VECTOR:
+            return new TIMDecoder.LongTIMDecoder();
+          case FLOAT:
+          case DOUBLE:
+            return new FloatDecoder(TSEncoding.valueOf(encoding.toString()), dataType);
+          default:
+            throw new TsFileDecodingException(String.format(ERROR_MSG, encoding, dataType));
+        }
       case GORILLA_V1:
         switch (dataType) {
           case FLOAT:
