@@ -321,7 +321,7 @@ public abstract class TSEncodingBuilder {
 
     @Override
     /**
-     * TS_2DIFF could specify <b>max_point_number</b> in given JSON Object, which means the maximum
+     * TIM could specify <b>max_point_number</b> in given JSON Object, which means the maximum
      * decimal digits for float or double data.
      */
     public void initFromProps(Map<String, String> props) {

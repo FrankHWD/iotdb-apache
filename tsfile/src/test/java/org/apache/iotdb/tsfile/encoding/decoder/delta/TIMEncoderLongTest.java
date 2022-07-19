@@ -107,11 +107,8 @@ public class TIMEncoderLongTest {
   public void testRegularEncoding() throws IOException {
     reader.reset();
     List<String> dates = getBetweenDate("1970-01-08", "1978-01-08");
-
     DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd");
-
     ROW_NUM = dates.size();
-
     long[] data = new long[ROW_NUM];
     for (int i = 0; i < dates.size(); i++) {
       try {
@@ -121,7 +118,6 @@ public class TIMEncoderLongTest {
         e.printStackTrace();
       }
     }
-
     shouldReadAndWrite(data, ROW_NUM);
   }
 

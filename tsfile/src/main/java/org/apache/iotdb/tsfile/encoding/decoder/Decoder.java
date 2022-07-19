@@ -69,7 +69,6 @@ public abstract class Decoder {
           case INT32:
             return new DeltaBinaryDecoder.IntDeltaDecoder();
           case INT64:
-            return new DeltaBinaryDecoder.LongDeltaDecoder();
           case VECTOR:
             return new DeltaBinaryDecoder.LongDeltaDecoder();
           case FLOAT:
@@ -83,6 +82,7 @@ public abstract class Decoder {
           case INT32:
             return new TIMDecoder.IntTIMDecoder();
           case INT64:
+            return new TIMDecoder.LongTIMDecoder();
           case VECTOR:
             return new TIMDecoder.LongTIMDecoder();
           case FLOAT:
