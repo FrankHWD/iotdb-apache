@@ -198,6 +198,7 @@ public class IoTDBDatabaseMetadata implements DatabaseMetaData {
       "TRACING",
       "TTL",
       "TASK",
+      "TIM",
       "TIME",
       "TAGS",
       "TRUE",
