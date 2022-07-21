@@ -188,6 +188,9 @@ public abstract class TIMEncoder extends Encoder {
         return;
       }
       values.add(value);
+      System.out.print(values.size());
+      System.out.print("OK \n");
+      writeIndex++;
       if (writeIndex == blockSize) {
         for (int i = 1; i <= blockSize; i++) {
           diffs.add(values.get(i) - values.get(i - 1));
@@ -195,6 +198,7 @@ public abstract class TIMEncoder extends Encoder {
         Collections.sort(diffs);
         grid = diffs.get(blockSize / 2); // cal median
 
+        writeIndex = 0;
         for (int i = 1; i <= blockSize; i++) {
           calcDelta(values.get(i));
           previousValue = values.get(i);
@@ -365,6 +369,7 @@ public abstract class TIMEncoder extends Encoder {
         return;
       }
       values.add(value);
+      writeIndex++;
       if (writeIndex == blockSize) {
         for (int i = 1; i <= blockSize; i++) {
           diffs.add(values.get(i) - values.get(i - 1));
@@ -372,6 +377,7 @@ public abstract class TIMEncoder extends Encoder {
         Collections.sort(diffs);
         grid = diffs.get(blockSize / 2); // cal median
 
+        writeIndex = 0;
         for (int i = 1; i <= blockSize; i++) {
           calcDelta(values.get(i));
           previousValue = values.get(i);
