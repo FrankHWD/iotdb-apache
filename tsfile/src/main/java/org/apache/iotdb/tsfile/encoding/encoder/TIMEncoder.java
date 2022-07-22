@@ -78,6 +78,8 @@ public abstract class TIMEncoder extends Encoder {
 
   protected abstract int calculateBitWidthsForDeltaBlockBuffer();
 
+  protected abstract void processDiff();
+
   /** write all data into {@code encodingBlockBuffer}. */
   private void writeDataWithMinWidth() {
     for (int i = 0; i < writeIndex; i++) {
@@ -97,6 +99,11 @@ public abstract class TIMEncoder extends Encoder {
     if (writeIndex == -1) {
       return;
     }
+
+    if (writeIndex < blockSize) {
+      processDiff();
+    }
+
     // since we store the min delta, the deltas will be converted to be the
     // difference to min delta and all positive
     this.out = out;
@@ -188,22 +195,25 @@ public abstract class TIMEncoder extends Encoder {
         return;
       }
       values.add(value);
-      System.out.print(values.size());
-      System.out.print("OK \n");
       writeIndex++;
       if (writeIndex == blockSize) {
-        for (int i = 1; i <= blockSize; i++) {
-          diffs.add(values.get(i) - values.get(i - 1));
-        }
-        Collections.sort(diffs);
-        grid = diffs.get(blockSize / 2); // cal median
-
-        writeIndex = 0;
-        for (int i = 1; i <= blockSize; i++) {
-          calcDelta(values.get(i));
-          previousValue = values.get(i);
-        }
+        processDiff();
         flush(out);
+      }
+    }
+
+    protected void processDiff() {
+      int dSize = blockSize;
+      for (int i = 1; i <= dSize; i++) {
+        diffs.add(values.get(i) - values.get(i - 1));
+      }
+      Collections.sort(diffs);
+      grid = diffs.get(dSize / 2); // cal median
+
+      writeIndex = 0;
+      for (int i = 1; i <= dSize; i++) {
+        calcDelta(values.get(i));
+        previousValue = values.get(i);
       }
     }
 
@@ -240,6 +250,7 @@ public abstract class TIMEncoder extends Encoder {
     protected void writeHeader() throws IOException {
       ReadWriteIOUtils.write(minDiffBase, out);
       ReadWriteIOUtils.write(firstValue, out);
+      ReadWriteIOUtils.write(grid, out);
     }
 
     @Override
@@ -371,18 +382,23 @@ public abstract class TIMEncoder extends Encoder {
       values.add(value);
       writeIndex++;
       if (writeIndex == blockSize) {
-        for (int i = 1; i <= blockSize; i++) {
-          diffs.add(values.get(i) - values.get(i - 1));
-        }
-        Collections.sort(diffs);
-        grid = diffs.get(blockSize / 2); // cal median
-
-        writeIndex = 0;
-        for (int i = 1; i <= blockSize; i++) {
-          calcDelta(values.get(i));
-          previousValue = values.get(i);
-        }
+        processDiff();
         flush(out);
+      }
+    }
+
+    protected void processDiff() {
+      int dSize = writeIndex;
+      for (int i = 1; i <= dSize; i++) {
+        diffs.add(values.get(i) - values.get(i - 1));
+      }
+      Collections.sort(diffs);
+      grid = diffs.get(dSize / 2); // cal median
+
+      writeIndex = 0;
+      for (int i = 1; i <= dSize; i++) {
+        calcDelta(values.get(i));
+        previousValue = values.get(i);
       }
     }
 
