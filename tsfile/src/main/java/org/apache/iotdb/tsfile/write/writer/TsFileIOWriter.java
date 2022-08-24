@@ -40,6 +40,9 @@ import org.apache.iotdb.tsfile.read.common.Path;
 import org.apache.iotdb.tsfile.utils.BytesUtils;
 import org.apache.iotdb.tsfile.utils.PublicBAOS;
 import org.apache.iotdb.tsfile.utils.ReadWriteIOUtils;
+import org.apache.iotdb.tsfile.write.page.PageWriter;
+import org.apache.iotdb.tsfile.write.page.TimePageWriter;
+import org.apache.iotdb.tsfile.write.page.ValuePageWriter;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -247,6 +250,22 @@ public class TsFileIOWriter implements AutoCloseable {
    */
   @SuppressWarnings("squid:S3776") // Suppress high Cognitive Complexity warning
   public void endFile() throws IOException {
+    System.out.println("-------------------------------------");
+    long tRs = PageWriter.timeRawSize.get() + TimePageWriter.timeRawSize.get();
+    long tEs = PageWriter.timeEncodedSize.get() + TimePageWriter.timeEncodedSize.get();
+    long vRs = PageWriter.valueRawSize.get() + ValuePageWriter.valueRawSize.get();
+    long vEs = PageWriter.valueEncodedSize.get() + ValuePageWriter.valueEncodedSize.get();
+    long cps =
+        PageWriter.compressedSize.get()
+            + TimePageWriter.timeCompressedSize.get()
+            + ValuePageWriter.valueCompressedSize.get();
+    System.out.println("Time Raw Size: " + tRs);
+    System.out.println("Time Encoded Size: " + tEs);
+    System.out.println("Value Raw Size: " + vRs);
+    System.out.println("Value Raw Size: " + vEs);
+    System.out.println("Compressed Size: " + cps);
+    System.out.println("-------------------------------------");
+
     long metaOffset = out.getPosition();
 
     // serialize the SEPARATOR of MetaData
