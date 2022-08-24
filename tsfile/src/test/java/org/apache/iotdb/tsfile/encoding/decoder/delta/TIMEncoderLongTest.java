@@ -21,12 +21,14 @@ package org.apache.iotdb.tsfile.encoding.decoder.delta;
 import org.apache.iotdb.tsfile.encoding.decoder.TIMDecoder;
 import org.apache.iotdb.tsfile.encoding.encoder.TIMEncoder;
 
+import com.csvreader.CsvReader;
 import org.junit.Before;
 import org.junit.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -122,6 +124,23 @@ public class TIMEncoderLongTest {
   }
 
   @Test
+  public void testRealEncoding() throws IOException {
+    reader.reset();
+    String fileName = "E:\\thu\\zhongyan\\root.T000100010002.90003.csv";
+    CsvReader csvReader = new CsvReader(fileName, ',', StandardCharsets.UTF_8);
+    csvReader.readHeaders();
+
+    int num = 0;
+    long[] data = new long[12000000];
+    while (csvReader.readRecord()) {
+      long time = Long.parseLong(csvReader.get(0));
+      data[num] = time;
+      num += 1;
+    }
+    shouldReadAndWrite(data, ROW_NUM);
+  }
+
+  @Test
   public void testRegularWithMissingPoints() throws IOException {
     reader.reset();
     List<String> dates = getBetweenDate("1970-01-08", "1978-01-08");
@@ -191,7 +210,13 @@ public class TIMEncoderLongTest {
     buffer = ByteBuffer.wrap(page);
     int i = 0;
     while (reader.hasNext(buffer)) {
-      assertEquals(data[i++], reader.readLong(buffer));
+      long v = reader.readLong(buffer);
+      long real_data = data[i++];
+      // System.out.print(real_data);
+      // System.out.print(" ");
+      // System.out.println(v);
+      assertEquals(real_data, v);
+      // assertEquals(data[i++], reader.readLong(buffer));
     }
   }
 }
