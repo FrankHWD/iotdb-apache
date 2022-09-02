@@ -98,9 +98,10 @@ public abstract class TIMEncoder extends Encoder {
       writeValueToBytes(i);
     }
     int encodingLength = (int) Math.ceil((double) ((writeIndex - 1) * secondDiffWidth) / 8.0);
+    // System.out.println(encodingLength);
 
     // System.out.println((int) Math.ceil((double) ((writeIndex-1) * secondDiffWidth) / 8.0));
-    System.out.println((int) Math.ceil((double) (writeIndex * writeWidth) / 8.0));
+    // System.out.println((int) Math.ceil((double) (writeIndex * writeWidth) / 8.0));
 
     out.write(encodingBlockBuffer, 0, encodingLength);
 
