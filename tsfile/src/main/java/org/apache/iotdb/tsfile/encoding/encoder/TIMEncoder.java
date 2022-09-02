@@ -119,10 +119,11 @@ public abstract class TIMEncoder extends Encoder {
       }
     }
 
+    // System.out.println((int) Math.ceil((double) ((writeIndex-1) * secondGDiffWidth) / 8.0));
+    // System.out.println((int) Math.ceil((double) (writeIndex * gridWidth) / 8.0));
     // System.out.println((int) Math.ceil((double) ((writeIndex-1) * secondDDiffWidth) / 8.0));
     // System.out.println((int) Math.ceil((double) (writeIndex * writeWidth) / 8.0));
-    // System.out.println((int) Math.ceil((double) ((writeIndex-1) * secondGDiffWidth) / 8.0));
-    // System.out.println((int) Math.ceil((double) (writeIndex * writeWidth) / 8.0));
+    // System.out.println(encodingLength + encodingLength2);
     out.write(encodingBlockBuffer, 0, encodingLength + encodingLength2);
 
     // for (int i = 0; i < writeIndex; i++) {

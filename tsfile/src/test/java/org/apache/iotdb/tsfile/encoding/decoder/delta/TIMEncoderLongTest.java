@@ -141,6 +141,23 @@ public class TIMEncoderLongTest {
   }
 
   @Test
+  public void testModifyEncoding() throws IOException {
+    reader.reset();
+    String fileName = "E:\\thu\\zhongyan\\root.T000100010002.90003.timenew.csv";
+    CsvReader csvReader = new CsvReader(fileName, ',', StandardCharsets.UTF_8);
+    csvReader.readHeaders();
+
+    int num = 0;
+    long[] data = new long[12000000];
+    while (csvReader.readRecord()) {
+      long time = Long.parseLong(csvReader.get(0));
+      data[num] = time;
+      num += 1;
+    }
+    shouldReadAndWrite(data, ROW_NUM);
+  }
+
+  @Test
   public void testRegularWithMissingPoints() throws IOException {
     reader.reset();
     List<String> dates = getBetweenDate("1970-01-08", "1978-01-08");
