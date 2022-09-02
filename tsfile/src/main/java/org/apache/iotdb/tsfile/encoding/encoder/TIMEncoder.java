@@ -102,10 +102,11 @@ public abstract class TIMEncoder extends Encoder {
     }
     int encodingLength =
         (int) Math.ceil((double) ((rleGridCWidth + rleGridVWidth) * rleGridSize) / 8.0);
+    // System.out.println(encodingLength);
 
     // System.out.println((int) Math.ceil((double) (writeIndex * writeWidth) / 8.0));
-    // System.out.println(
-    //    (int) Math.ceil((double) ((rleGridCWidth + rleGridVWidth) * rleGridSize) / 8.0));
+    // System.out.println((int) Math.ceil((double) ((rleGridCWidth + rleGridVWidth) * rleGridSize) /
+    // 8.0));
 
     out.write(encodingBlockBuffer, 0, encodingLength);
   }
