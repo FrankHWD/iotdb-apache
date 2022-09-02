@@ -125,6 +125,7 @@ public abstract class TIMEncoder extends Encoder {
         (int) Math.ceil((double) ((rleWriteCWidth + rleWriteVWidth) * rleWriteSize) / 8.0);
     // int encodingLength = (int) Math.ceil((double) (writeIndex * (writeWidth + gridWidth)) / 8.0);
     // out.write(encodingBlockBuffer, 0, encodingLength);
+    // System.out.println(encodingLength);
     for (int i = 0; i < rleGridSize; i++) {
       writeRLEGridToBytes(i);
     }
@@ -132,6 +133,7 @@ public abstract class TIMEncoder extends Encoder {
         encodingLength
             + (int) Math.ceil((double) ((rleGridCWidth + rleGridVWidth) * rleGridSize) / 8.0);
     out.write(encodingBlockBuffer, 0, encodingLength2);
+    // System.out.println(encodingLength2);
 
     // System.out.println((int) Math.ceil((double) (writeIndex * writeWidth) / 8.0));
     // System.out.println((int) Math.ceil((double) ((rleWriteCWidth + rleWriteVWidth) *
@@ -139,9 +141,11 @@ public abstract class TIMEncoder extends Encoder {
     // System.out.println((int) Math.ceil((double) (writeIndex * gridWidth) / 8.0));
     // System.out.println((int) Math.ceil((double) ((rleGridCWidth + rleGridVWidth) * rleGridSize) /
     // 8.0));
-    // System.out.println((int) Math.ceil((double) (writeIndex * ( writeWidth + gridWidth)) / 8.0));
-    // System.out.println((int) Math.ceil((double) ((rleWriteCWidth + rleWriteVWidth) * rleWriteSize
-    // + (rleGridCWidth + rleGridVWidth) * rleGridSize) / 8.0));
+    // System.out.println(((int) Math.ceil((double) (writeIndex * writeWidth) / 8.0)) + (int)
+    // Math.ceil((double) (writeIndex * gridWidth) / 8.0));
+    // System.out.println( ((int) Math.ceil((double) ((rleWriteCWidth + rleWriteVWidth) *
+    // rleWriteSize) / 8.0)) +
+    //        ( (int) Math.ceil((double) ((rleGridCWidth + rleGridVWidth) * rleGridSize) / 8.0))  );
   }
 
   private void writeHeaderToBytes() throws IOException {
