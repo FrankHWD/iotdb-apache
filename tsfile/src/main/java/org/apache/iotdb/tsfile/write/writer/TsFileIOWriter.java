@@ -40,6 +40,9 @@ import org.apache.iotdb.tsfile.read.common.Path;
 import org.apache.iotdb.tsfile.utils.BytesUtils;
 import org.apache.iotdb.tsfile.utils.PublicBAOS;
 import org.apache.iotdb.tsfile.utils.ReadWriteIOUtils;
+import org.apache.iotdb.tsfile.write.page.PageWriter;
+import org.apache.iotdb.tsfile.write.page.TimePageWriter;
+import org.apache.iotdb.tsfile.write.page.ValuePageWriter;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -247,6 +250,42 @@ public class TsFileIOWriter implements AutoCloseable {
    */
   @SuppressWarnings("squid:S3776") // Suppress high Cognitive Complexity warning
   public void endFile() throws IOException {
+    System.out.println("-------------------------------------");
+    long tRaws = PageWriter.timeRawSize.get();
+    long tRaws2 = TimePageWriter.timeRawSize.get();
+    long tEncs = PageWriter.timeEncodedSize.get();
+    long tEncs2 = TimePageWriter.timeEncodedSize.get();
+    long vRaws = PageWriter.valueRawSize.get();
+    long vRaws2 = ValuePageWriter.valueRawSize.get();
+    long vEncs = PageWriter.valueEncodedSize.get();
+    long vEncs2 = ValuePageWriter.valueEncodedSize.get();
+    long CPs = PageWriter.compressedSize.get();
+    long tCPs = TimePageWriter.timeCompressedSize.get();
+    long vCPs = ValuePageWriter.valueCompressedSize.get();
+    System.out.println("Time Raw Size: " + tRaws);
+    System.out.println("Time Raw Size2: " + tRaws2);
+    System.out.println("Time Encoded Size: " + tEncs);
+    System.out.println("Time Encoded Size2: " + tEncs2);
+    System.out.println("Value Raw Size: " + vRaws);
+    System.out.println("Value Raw Size2: " + vRaws2);
+    System.out.println("Value Raw Size: " + vEncs);
+    System.out.println("Value Raw Size2: " + vEncs2);
+    System.out.println("Compressed Size: " + CPs);
+    System.out.println("Time Compressed Size: " + tCPs);
+    System.out.println("Value Compressed Size: " + vCPs);
+    System.out.println("-------------------------------------");
+    logger.info("Time Raw Size: " + tRaws);
+    logger.info("Time Raw Size2: " + tRaws2);
+    logger.info("Time Encoded Size: " + tEncs);
+    logger.info("Time Encoded Size2: " + tEncs2);
+    logger.info("Value Raw Size: " + vRaws);
+    logger.info("Value Raw Size2: " + vRaws2);
+    logger.info("Value Raw Size: " + vEncs);
+    logger.info("Value Raw Size2: " + vEncs2);
+    logger.info("Compressed Size: " + CPs);
+    logger.info("Time Compressed Size: " + tCPs);
+    logger.info("Value Compressed Size: " + vCPs);
+
     long metaOffset = out.getPosition();
 
     // serialize the SEPARATOR of MetaData
