@@ -355,6 +355,7 @@ public abstract class TIMEncoder extends Encoder {
     private long grid;
     private long minDiffBase;
     private long maxDiffBase;
+    private boolean isAllOne;
 
     /** we save all value in a list and calculate its bitwidth. */
     protected Vector<Long> values;
@@ -407,6 +408,7 @@ public abstract class TIMEncoder extends Encoder {
       previousValue = 0L;
       previousDiff = 0L;
       grid = 0;
+      isAllOne = true;
       minDiffBase = Long.MAX_VALUE;
       maxDiffBase = Long.MIN_VALUE;
       for (int i = 0; i < blockSize; i++) {
@@ -437,11 +439,13 @@ public abstract class TIMEncoder extends Encoder {
           encodingBlockBuffer,
           (writeWidth + gridWidth) * i,
           writeWidth);
-      BytesUtils.longToBytes(
-          gridNumBuffer[i],
-          encodingBlockBuffer,
-          (writeWidth + gridWidth) * i + writeWidth,
-          gridWidth);
+      if (!isAllOne) {
+        BytesUtils.longToBytes(
+            gridNumBuffer[i],
+            encodingBlockBuffer,
+            (writeWidth + gridWidth) * i + writeWidth,
+            gridWidth);
+      }
     }
 
     @Override
@@ -518,19 +522,17 @@ public abstract class TIMEncoder extends Encoder {
 
       Arrays.sort(diffMedBuffer);
       long medDiff = diffMedBuffer[dSize / 2];
+
+      isAllOne = true;
+      for (int i = 0; i < dSize; i++) {
+        if (gridNumBuffer[i] != 1) {
+          isAllOne = false;
+          break;
+        }
+      }
+
       // System.out.print("Med Diff is: ");
       // System.out.println(medDiff-minDiffBase);
-
-      // if (medDiff - minDiffBase == 396) {
-      // System.out.println(firstValue);
-      // System.out.println(grid);
-      // System.out.println(minDiffBase);
-      // for (int i = 0; i < dSize; i++) {
-      // System.out.println(values.get(i));
-      // System.out.println(diffBlockBuffer[i]);
-      // System.out.println(gridNumBuffer[i]);
-      // }
-      // }
 
       // long medDiff2 = medDiff - minDiffBase;
       // System.out.print("Med Diff adjusted is: ");
@@ -549,6 +551,7 @@ public abstract class TIMEncoder extends Encoder {
     @Override
     protected int calculateGridWidthsForDeltaBlockBuffer() {
       int gridWidth = 0;
+      if (isAllOne) return gridWidth;
       for (int i = 0; i < writeIndex; i++) {
         gridWidth = Math.max(gridWidth, getValueWidth(gridNumBuffer[i]));
       }
