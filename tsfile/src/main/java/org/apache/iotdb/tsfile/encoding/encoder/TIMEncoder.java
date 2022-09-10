@@ -712,17 +712,6 @@ public abstract class TIMEncoder extends Encoder {
       // System.out.print("Med Diff is: ");
       // System.out.println(medDiff-minDiffBase);
 
-      // if (medDiff - minDiffBase == 396) {
-      // System.out.println(firstValue);
-      // System.out.println(grid);
-      // System.out.println(minDiffBase);
-      // for (int i = 0; i < dSize; i++) {
-      // System.out.println(values.get(i));
-      // System.out.println(diffBlockBuffer[i]);
-      // System.out.println(gridNumBuffer[i]);
-      // }
-      // }
-
       long rleGridPre = gridNumBuffer[0];
       long count = 0;
       for (int i = 0; i < dSize; i++) {
@@ -743,11 +732,10 @@ public abstract class TIMEncoder extends Encoder {
       rleGridC.add(count);
       rleGridSize = rleGridV.size();
 
-      // for (int i = 0; i < rleGridSize; i++) {
-      //  System.out.print(rleGridV.get(i));
-      //  System.out.print(" ");
-      //  System.out.println(rleGridC.get(i));
-      // }
+      if (rleGridSize == 1 && rleGridV.get(0) == 1) {
+        rleGridV.set(0, 0L);
+        rleGridC.set(0, 0L);
+      }
 
       // long medDiff2 = medDiff - minDiffBase;
       // System.out.print("Med Diff adjusted is: ");
@@ -756,10 +744,6 @@ public abstract class TIMEncoder extends Encoder {
       long rleWritePre = diffBlockBuffer[0] - minDiffBase;
       long count2 = 0;
       for (int i = 0; i < dSize; i++) {
-        // System.out.println(values.get(i));
-        // System.out.println(diffBlockBuffer[i]-minDiffBase);
-        // System.out.println(gridNumBuffer[i]);
-
         if (diffBlockBuffer[i] - minDiffBase == rleWritePre) {
           count2 += 1;
         } else {
