@@ -26,7 +26,6 @@ import org.apache.iotdb.tsfile.utils.ReadWriteIOUtils;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 
 /**
  * This class is a decoder for decoding the byte array that encoded by {@code TIMEncoder}.TIMDecoder
@@ -174,9 +173,9 @@ public abstract class TIMDecoder extends Decoder {
         v = firstValue2;
       } else {
         v =
-                prevV
-                        + BytesUtils.bytesToInt(diffBuf, secondDiffWidth * (i - 1), secondDiffWidth)
-                        + minDiffBase2;
+            prevV
+                + BytesUtils.bytesToInt(diffBuf, secondDiffWidth * (i - 1), secondDiffWidth)
+                + minDiffBase2;
       }
       prevV = v;
       // v=v-minDiffBase;

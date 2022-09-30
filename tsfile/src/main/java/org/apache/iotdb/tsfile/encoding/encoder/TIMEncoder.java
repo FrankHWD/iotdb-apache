@@ -95,19 +95,6 @@ public abstract class TIMEncoder extends Encoder {
     // System.out.println((int) Math.ceil((double) (writeIndex * writeWidth) / 8.0));
 
     out.write(encodingBlockBuffer, 0, encodingLength);
-
-    // for (int i = 0; i < rleGridSize; i++) {
-    //  writeRLEGridToBytes(i);
-    // }
-
-    // int encodingLength =
-    //    (int) Math.ceil((double) ((rleGridCWidth + rleGridVWidth) * rleGridSize) / 8.0);
-
-    // System.out.println((int) Math.ceil((double) (writeIndex * writeWidth) / 8.0));
-    // System.out.println(
-    //    (int) Math.ceil((double) ((rleGridCWidth + rleGridVWidth) * rleGridSize) / 8.0));
-
-    // out.write(encodingBlockBuffer, 0, encodingLength);
   }
 
   private void writeHeaderToBytes() throws IOException {
@@ -166,9 +153,6 @@ public abstract class TIMEncoder extends Encoder {
 
     protected ArrayList<Integer> diffs;
 
-    ArrayList<Integer> rleGridV;
-    ArrayList<Integer> rleGridC;
-
     ArrayList<Integer> secondDiffs;
 
     public IntTIMEncoder() {
@@ -187,8 +171,6 @@ public abstract class TIMEncoder extends Encoder {
       encodingBlockBuffer = new byte[blockSize * 4];
       values = new Vector<>();
       diffs = new ArrayList<>();
-      rleGridV = new ArrayList<>();
-      rleGridC = new ArrayList<>();
       secondDiffs = new ArrayList<>();
       reset();
     }
@@ -261,22 +243,6 @@ public abstract class TIMEncoder extends Encoder {
         int secondDiff = diffBuffer[i] - diffBuffer[i - 1];
         secondDiffs.add(secondDiff - minDiffBase2);
       }
-
-      // int rleGridPre = diffBuffer[0];
-      // int count = 0;
-      // for (int i = 0; i < dSize; i++) {
-      //  if (diffBuffer[i] == rleGridPre) {
-      //    count += 1;
-      //  } else {
-      //    rleGridV.add(rleGridPre);
-      //    rleGridC.add(count);
-      //    count = 1;
-      //    rleGridPre = diffBuffer[i];
-      //  }
-      // }
-      // rleGridV.add(rleGridPre);
-      // rleGridC.add(count);
-      // rleGridSize = rleGridV.size();
     }
 
     @Override
@@ -295,8 +261,6 @@ public abstract class TIMEncoder extends Encoder {
       }
       values.clear();
       diffs.clear();
-      rleGridV.clear();
-      rleGridC.clear();
       secondDiffs.clear();
     }
 
@@ -367,9 +331,6 @@ public abstract class TIMEncoder extends Encoder {
 
     protected ArrayList<Long> diffs;
 
-    ArrayList<Long> rleGridV;
-    ArrayList<Long> rleGridC;
-
     ArrayList<Long> secondDiffs;
 
     public LongTIMEncoder() {
@@ -388,8 +349,6 @@ public abstract class TIMEncoder extends Encoder {
       encodingBlockBuffer = new byte[blockSize * 8];
       values = new Vector<>();
       diffs = new ArrayList<>();
-      rleGridV = new ArrayList<>();
-      rleGridC = new ArrayList<>();
       secondDiffs = new ArrayList<>();
       reset();
     }
@@ -420,8 +379,6 @@ public abstract class TIMEncoder extends Encoder {
       }
       values.clear();
       diffs.clear();
-      rleGridV.clear();
-      rleGridC.clear();
       secondDiffs.clear();
     }
 
