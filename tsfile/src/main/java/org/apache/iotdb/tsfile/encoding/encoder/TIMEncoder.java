@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Vector;
 
@@ -57,6 +58,10 @@ public abstract class TIMEncoder extends Encoder {
 
   protected int writeIndex = -1;
   protected int writeWidth = 0;
+  protected int firstValueArrayWidth = 0;
+  protected int segmentLengthArrayWidth = 0;
+  protected int minDiffBaseArrayWidth = 0;
+  protected int segmArraySize = 0;
 
   /**
    * constructor of TIMEncoder.
@@ -72,11 +77,19 @@ public abstract class TIMEncoder extends Encoder {
 
   protected abstract void writeValueToBytes(int i);
 
+  protected abstract void writeSegmentArrayToBytes(int i);
+
   // protected abstract void calcTwoDiff(int i);
 
   protected abstract void reset();
 
   protected abstract int calculateBitWidthsForDeltaBlockBuffer();
+
+  protected abstract int calculateFirstValueArrayWidthsForDeltaBlockBuffer();
+
+  protected abstract int calculateSegmentLengthArrayWidthsForDeltaBlockBuffer();
+
+  protected abstract int calculateMinDiffBaseArrayWidthsForDeltaBlockBuffer();
 
   protected abstract void processDiff();
 
@@ -85,14 +98,36 @@ public abstract class TIMEncoder extends Encoder {
     for (int i = 0; i < writeIndex; i++) {
       writeValueToBytes(i);
     }
-    int encodingLength = (int) Math.ceil((double) (writeIndex * writeWidth) / 8.0);
+    for (int i = 0; i < segmArraySize; i++) {
+      writeSegmentArrayToBytes(i);
+    }
+    int encodingLength =
+        (int)
+            Math.ceil(
+                (double)
+                        (writeIndex * writeWidth
+                            + (firstValueArrayWidth
+                                    + segmentLengthArrayWidth
+                                    + minDiffBaseArrayWidth)
+                                * segmArraySize)
+                    / 8.0);
     // System.out.println((int) Math.ceil((double) (writeIndex * writeWidth) / 8.0));
     out.write(encodingBlockBuffer, 0, encodingLength);
+    //for(int i=0;i<encodingLength;i++)
+    //{
+    //  System.out.print(encodingBlockBuffer[i]);
+    //  System.out.print(",");
+    //}
+    //System.out.println();
   }
 
   private void writeHeaderToBytes() throws IOException {
     ReadWriteIOUtils.write(writeIndex, out);
     ReadWriteIOUtils.write(writeWidth, out);
+    ReadWriteIOUtils.write(firstValueArrayWidth, out);
+    ReadWriteIOUtils.write(segmentLengthArrayWidth, out);
+    ReadWriteIOUtils.write(minDiffBaseArrayWidth, out);
+    ReadWriteIOUtils.write(segmArraySize, out);
     writeHeader();
   }
 
@@ -112,6 +147,9 @@ public abstract class TIMEncoder extends Encoder {
     //  calcTwoDiff(i);
     // }
     writeWidth = calculateBitWidthsForDeltaBlockBuffer();
+    firstValueArrayWidth = calculateFirstValueArrayWidthsForDeltaBlockBuffer();
+    segmentLengthArrayWidth = calculateSegmentLengthArrayWidthsForDeltaBlockBuffer();
+    minDiffBaseArrayWidth = calculateMinDiffBaseArrayWidthsForDeltaBlockBuffer();
     writeHeaderToBytes();
     writeDataWithMinWidth();
 
@@ -132,7 +170,6 @@ public abstract class TIMEncoder extends Encoder {
   public static class IntTIMEncoder extends TIMEncoder {
 
     private int[] diffBlockBuffer;
-    private int[] diffBuffer;
     private int firstValue;
     private int previousValue;
     private int previousDiff;
@@ -156,20 +193,10 @@ public abstract class TIMEncoder extends Encoder {
     public IntTIMEncoder(int size) {
       super(size);
       diffBlockBuffer = new int[this.blockSize];
-      diffBuffer = new int[this.blockSize];
       encodingBlockBuffer = new byte[blockSize * 4];
       values = new Vector<>();
       diffs = new ArrayList<>();
       reset();
-    }
-
-    @Override
-    protected int calculateBitWidthsForDeltaBlockBuffer() {
-      int width = 0;
-      for (int i = 0; i < writeIndex; i++) {
-        width = Math.max(width, getValueWidth(diffBlockBuffer[i]));
-      }
-      return width;
     }
 
     private void calcDelta(int value) {
@@ -178,7 +205,6 @@ public abstract class TIMEncoder extends Encoder {
         minDiffBase = diff;
       }
       previousDiff = diff;
-      diffBuffer[writeIndex] = diff;
       diffBlockBuffer[writeIndex++] = diff;
     }
 
@@ -231,7 +257,6 @@ public abstract class TIMEncoder extends Encoder {
       for (int i = 0; i < blockSize; i++) {
         encodingBlockBuffer[i] = 0;
         diffBlockBuffer[i] = 0;
-        diffBuffer[i] = 0;
       }
       values.clear();
       diffs.clear();
@@ -245,6 +270,9 @@ public abstract class TIMEncoder extends Encoder {
     protected void writeValueToBytes(int i) {
       BytesUtils.intToBytes(diffBlockBuffer[i], encodingBlockBuffer, writeWidth * i, writeWidth);
     }
+
+    @Override
+    protected void writeSegmentArrayToBytes(int i) {}
 
     // @Override
     // protected void calcTwoDiff(int i) {
@@ -273,12 +301,38 @@ public abstract class TIMEncoder extends Encoder {
       // The meaning of 24 is: index(4)+width(4)+minDiffBase(4)+firstValue(4)
       return (long) 24 + writeIndex * 4;
     }
+
+    @Override
+    protected int calculateBitWidthsForDeltaBlockBuffer() {
+      int width = 0;
+      for (int i = 0; i < writeIndex; i++) {
+        width = Math.max(width, getValueWidth(diffBlockBuffer[i]));
+      }
+      return width;
+    }
+
+    @Override
+    protected int calculateFirstValueArrayWidthsForDeltaBlockBuffer() {
+      int firstValueArrayWidth = 0;
+      return firstValueArrayWidth;
+    }
+
+    @Override
+    protected int calculateSegmentLengthArrayWidthsForDeltaBlockBuffer() {
+      int segmentLengthArrayWidth = 0;
+      return segmentLengthArrayWidth;
+    }
+
+    @Override
+    protected int calculateMinDiffBaseArrayWidthsForDeltaBlockBuffer() {
+      int MinDiffBaseArrayWidth = 0;
+      return MinDiffBaseArrayWidth;
+    }
   }
 
   public static class LongTIMEncoder extends TIMEncoder {
 
     private long[] diffBlockBuffer;
-    private long[] diffBuffer;
     private long firstValue;
     private long previousValue;
     private long previousDiff;
@@ -289,6 +343,10 @@ public abstract class TIMEncoder extends Encoder {
     protected Vector<Long> values;
 
     protected ArrayList<Long> diffs;
+
+    ArrayList<Long> firstValueArray;
+    ArrayList<Long> segmentLengthArray;
+    ArrayList<Long> minDiffBaseArray;
 
     public LongTIMEncoder() {
       this(BLOCK_DEFAULT_SIZE);
@@ -302,21 +360,13 @@ public abstract class TIMEncoder extends Encoder {
     public LongTIMEncoder(int size) {
       super(size);
       diffBlockBuffer = new long[this.blockSize];
-      diffBuffer = new long[this.blockSize];
       encodingBlockBuffer = new byte[blockSize * 8];
       values = new Vector<>();
       diffs = new ArrayList<>();
+      firstValueArray = new ArrayList<>();
+      segmentLengthArray = new ArrayList<>();
+      minDiffBaseArray = new ArrayList<>();
       reset();
-    }
-
-    private void calcDelta(long value) {
-      long diff = -previousValue + previousDiff + value - grid; // calculate diff
-      if (diff < minDiffBase) {
-        minDiffBase = diff;
-      }
-      previousDiff = diff;
-      diffBuffer[writeIndex] = diff;
-      diffBlockBuffer[writeIndex++] = diff;
     }
 
     @Override
@@ -324,15 +374,17 @@ public abstract class TIMEncoder extends Encoder {
       firstValue = 0L;
       previousValue = 0L;
       previousDiff = 0L;
-      grid = 0;
+      grid = 0L;
       minDiffBase = Long.MAX_VALUE;
       for (int i = 0; i < blockSize; i++) {
         encodingBlockBuffer[i] = 0;
         diffBlockBuffer[i] = 0L;
-        diffBuffer[i] = 0L;
       }
       values.clear();
       diffs.clear();
+      firstValueArray.clear();
+      segmentLengthArray.clear();
+      minDiffBaseArray.clear();
     }
 
     private int getValueWidth(long v) {
@@ -341,8 +393,38 @@ public abstract class TIMEncoder extends Encoder {
 
     @Override
     protected void writeValueToBytes(int i) {
+      BytesUtils.longToBytes(diffBlockBuffer[i], encodingBlockBuffer, writeWidth * i, writeWidth);
+    }
+
+    @Override
+    protected void writeSegmentArrayToBytes(int i) {
       BytesUtils.longToBytes(
-          diffBlockBuffer[i] - minDiffBase, encodingBlockBuffer, writeWidth * i, writeWidth);
+          firstValueArray.get(i),
+          encodingBlockBuffer,
+          writeWidth*writeIndex+(firstValueArrayWidth+segmentLengthArrayWidth+minDiffBaseArrayWidth)*i,
+          firstValueArrayWidth);
+      BytesUtils.longToBytes(
+          minDiffBaseArray.get(i),
+          encodingBlockBuffer,
+          writeWidth * writeIndex
+              + (firstValueArrayWidth + segmentLengthArrayWidth + minDiffBaseArrayWidth) * i
+              + firstValueArrayWidth,
+          minDiffBaseArrayWidth);
+      BytesUtils.longToBytes(
+              segmentLengthArray.get(i),
+              encodingBlockBuffer,
+              writeWidth * writeIndex
+                      + (firstValueArrayWidth + segmentLengthArrayWidth + minDiffBaseArrayWidth) * i
+                      + firstValueArrayWidth+minDiffBaseArrayWidth,
+              segmentLengthArrayWidth);
+      //for (int j = (writeWidth*writeIndex+(firstValueArrayWidth+segmentLengthArrayWidth+minDiffBaseArrayWidth)*i) / 8;
+      //     j < (writeWidth * writeIndex
+      //             + (firstValueArrayWidth + segmentLengthArrayWidth + minDiffBaseArrayWidth) * i
+      //             + firstValueArrayWidth+minDiffBaseArrayWidth + segmentLengthArrayWidth) / 8;j++) {
+      //  System.out.print(encodingBlockBuffer[j]);
+      //  System.out.print(',');
+      //}
+      //System.out.println();
     }
 
     // @Override
@@ -369,8 +451,8 @@ public abstract class TIMEncoder extends Encoder {
 
     @Override
     public long getMaxByteSize() {
-      // The meaning of 24 is: index(4)+width(4)+minDiffBase(8)+firstValue(8)+4+4+4
-      return (long) 24 + writeIndex * 8;
+      // The meaning of 24 is: index(4)*6+minDiffBase(8)+firstValue(8)+8
+      return (long) 48 + writeIndex * 8;
     }
 
     /**
@@ -405,20 +487,118 @@ public abstract class TIMEncoder extends Encoder {
       Collections.sort(diffs);
       grid = diffs.get(dSize / 2); // cal median
 
+      firstValueArray.add(values.get(0));
+
+      //if (dSize < blockSize) {
+      //  segmentLengthArray.add((long) (dSize + 1));
+      //  segmArraySize = segmentLengthArray.size();
+      //} else {
+        int count = 0;
+        for (int i = 1; i < dSize; i++) {
+          if ((values.get(i) - values.get(i - 1)) > 1.4 * grid
+              && i + 1 < dSize
+              && (values.get(i + 1) - values.get(i - 1)) > 2.4 * grid) {
+            firstValueArray.add(values.get(i));
+            //segmentLengthArray.add((long) (i));
+            segmentLengthArray.add((long) (i - count));
+            count = i;
+          }
+        }
+        segmentLengthArray.add((long) (dSize + 1 - count));
+        //segmentLengthArray.add((long) (dSize + 1));
+        segmArraySize = segmentLengthArray.size();
+      //}
+
       writeIndex = 0;
-      for (int i = 1; i <= dSize; i++) {
-        calcDelta(values.get(i));
-        previousValue = values.get(i);
+      int start = 0;
+      int end = 0;
+      for (int i = 0; i < segmArraySize; i++) {
+        start = end;
+        //end = (int) (end + segmentLengthArray.get(i));
+        Number num = segmentLengthArray.get(i);
+        end = end+num.intValue();
+
+        //Number num = segmentLengthArray.get(i);
+        //end = num.intValue();
+
+        // if (start + 1 == end) {
+        //  diffBlockBuffer[writeIndex++] = 0;
+        //  minDiffBase = 0;
+        // } else {
+        minDiffBase = Long.MAX_VALUE;
+        firstValue = firstValueArray.get(i);
+        previousValue = firstValue;
+        previousDiff = 0;
+
+        if (i != 0) {
+          diffBlockBuffer[writeIndex++] = 0;
+        }
+
+        for (int j = start + 1; j < end; j++) {
+          calcDelta(values.get(j));
+          previousValue = values.get(j);
+        }
+        for (int j = start; j < end - 1; j++) {
+          diffBlockBuffer[j] = diffBlockBuffer[j] - minDiffBase;
+        }
+        // }
+        minDiffBaseArray.add(minDiffBase);
       }
+      firstValue=firstValueArray.get(0);
+
+      // writeIndex = 0;
+      // for (int i = 1; i <= dSize; i++) {
+      //  calcDelta(values.get(i));
+      //  previousValue = values.get(i);
+      // }
+    }
+
+    private void calcDelta(long value) {
+      long diff = -previousValue + previousDiff + value - grid; // calculate diff
+      if (diff < minDiffBase) {
+        minDiffBase = diff;
+      }
+      previousDiff = diff;
+      diffBlockBuffer[writeIndex++] = diff;
     }
 
     @Override
     protected int calculateBitWidthsForDeltaBlockBuffer() {
       int width = 0;
       for (int i = 0; i < writeIndex; i++) {
-        width = Math.max(width, getValueWidth(diffBlockBuffer[i] - minDiffBase));
+        width = Math.max(width, getValueWidth(diffBlockBuffer[i]));
       }
       return width;
+    }
+
+    @Override
+    protected int calculateFirstValueArrayWidthsForDeltaBlockBuffer() {
+      int firstValueArrayWidth = 0;
+      for (int i = 0; i < firstValueArray.size(); i++) {
+        firstValueArrayWidth =
+            Math.max(firstValueArrayWidth, getValueWidth(firstValueArray.get(i)));
+      }
+      return firstValueArrayWidth;
+    }
+
+    @Override
+    protected int calculateSegmentLengthArrayWidthsForDeltaBlockBuffer() {
+      int segmentLengthArrayWidth = 0;
+      for (int i = 0; i < segmentLengthArray.size(); i++) {
+        segmentLengthArrayWidth =
+            Math.max(segmentLengthArrayWidth, getValueWidth(segmentLengthArray.get(i)));
+      }
+      return segmentLengthArrayWidth;
+    }
+
+    @Override
+    protected int calculateMinDiffBaseArrayWidthsForDeltaBlockBuffer() {
+      int MinDiffBaseArrayWidth = 0;
+      for (int i = 0; i < minDiffBaseArray.size(); i++) {
+        MinDiffBaseArrayWidth =
+            Math.max(MinDiffBaseArrayWidth, getValueWidth(minDiffBaseArray.get(i)));
+      }
+      return MinDiffBaseArrayWidth;
     }
   }
 }

@@ -26,6 +26,8 @@ import org.apache.iotdb.tsfile.utils.ReadWriteIOUtils;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Arrays;
 
 /**
  * This class is a decoder for decoding the byte array that encoded by {@code TIMEncoder}.TIMDecoder
@@ -44,9 +46,17 @@ public abstract class TIMDecoder extends Decoder {
 
   protected int nextReadIndex = 0;
   /** max bit length of all value in a pack. */
-  protected int packWidth;
+  protected int writeWidth;
   /** data number in this pack. */
-  protected int packNum;
+  protected int writeIndex;
+
+  protected int firstValueArrayWidth;
+
+  protected int segmentLengthArrayWidth;
+
+  protected int minDiffBaseArrayWidth;
+
+  protected int segmArraySize;
 
   /** how many bytes data takes after encoding. */
   protected int encodingLength;
@@ -117,26 +127,26 @@ public abstract class TIMDecoder extends Decoder {
      * @return int
      */
     protected int loadIntBatch(ByteBuffer buffer) {
-      packNum = ReadWriteIOUtils.readInt(buffer);
-      packWidth = ReadWriteIOUtils.readInt(buffer);
+      writeIndex = ReadWriteIOUtils.readInt(buffer);
+      writeWidth = ReadWriteIOUtils.readInt(buffer);
       count++;
       readHeader(buffer);
 
-      encodingLength = ceil(packNum * packWidth);
+      encodingLength = ceil(writeIndex * writeWidth);
       diffBuf = new byte[encodingLength];
       buffer.get(diffBuf);
       allocateDataArray();
 
       previous = firstValue;
       previousDiff = 0;
-      readIntTotalCount = packNum;
+      readIntTotalCount = writeIndex;
       nextReadIndex = 0;
       readPack();
       return firstValue;
     }
 
     private void readPack() {
-      for (int i = 0; i < packNum; i++) {
+      for (int i = 0; i < writeIndex; i++) {
         readValue(i);
         previous = data[i];
       }
@@ -151,12 +161,12 @@ public abstract class TIMDecoder extends Decoder {
 
     @Override
     protected void allocateDataArray() {
-      data = new int[packNum];
+      data = new int[writeIndex];
     }
 
     @Override
     protected void readValue(int i) {
-      int v = BytesUtils.bytesToInt(diffBuf, packWidth * i, packWidth);
+      int v = BytesUtils.bytesToInt(diffBuf, writeWidth * i, writeWidth);
 
       // data[i] = previous + minDiffBase + v;
       data[i] = previous - previousDiff + grid + minDiffBase + v;
@@ -179,6 +189,10 @@ public abstract class TIMDecoder extends Decoder {
     private long minDiffBase;
 
     private long grid;
+
+    ArrayList<Long> firstValueArray;
+    ArrayList<Long> segmentLengthArray;
+    ArrayList<Long> minDiffBaseArray;
 
     public LongTIMDecoder() {
       super();
@@ -204,29 +218,108 @@ public abstract class TIMDecoder extends Decoder {
      * @return long value
      */
     protected long loadIntBatch(ByteBuffer buffer) {
-      packNum = ReadWriteIOUtils.readInt(buffer);
-      packWidth = ReadWriteIOUtils.readInt(buffer);
+      writeIndex = ReadWriteIOUtils.readInt(buffer);
+      writeWidth = ReadWriteIOUtils.readInt(buffer);
+      firstValueArrayWidth = ReadWriteIOUtils.readInt(buffer);
+      segmentLengthArrayWidth = ReadWriteIOUtils.readInt(buffer);
+      minDiffBaseArrayWidth = ReadWriteIOUtils.readInt(buffer);
+      segmArraySize = ReadWriteIOUtils.readInt(buffer);
       count++;
       readHeader(buffer);
 
-      encodingLength = ceil(packNum * packWidth);
+      encodingLength =
+          ceil(
+              writeIndex * writeWidth
+                  + (firstValueArrayWidth + segmentLengthArrayWidth + minDiffBaseArrayWidth)
+                      * segmArraySize);
       diffBuf = new byte[encodingLength];
       buffer.get(diffBuf);
       allocateDataArray();
 
+      //for(int i=0;i<encodingLength;i++)
+      //{
+      //  System.out.print(encodingBlockBuffer[i]);
+      //  System.out.print(",");
+      //}
+      //System.out.println();
+
+      firstValueArray = new ArrayList<>();
+      segmentLengthArray = new ArrayList<>();
+      minDiffBaseArray = new ArrayList<>();
+
+      for (int i = 0; i < segmArraySize; i++) {
+        long firstValueArray_c =
+            BytesUtils.bytesToLong(
+                diffBuf,
+                writeIndex*writeWidth+(firstValueArrayWidth+segmentLengthArrayWidth+minDiffBaseArrayWidth)*i,
+                firstValueArrayWidth);
+        long minDiffBaseArray_c =
+            BytesUtils.bytesToLong(
+                diffBuf,
+                writeIndex * writeWidth
+                    + (firstValueArrayWidth + segmentLengthArrayWidth + minDiffBaseArrayWidth) * i
+                    + firstValueArrayWidth,
+                minDiffBaseArrayWidth);
+        long segmentLengthArray_c =
+                BytesUtils.bytesToLong(
+                        diffBuf,
+                        writeIndex * writeWidth
+                                + (firstValueArrayWidth + segmentLengthArrayWidth + minDiffBaseArrayWidth) * i
+                                + firstValueArrayWidth+minDiffBaseArrayWidth,
+                        segmentLengthArrayWidth);
+        firstValueArray.add(firstValueArray_c);
+        segmentLengthArray.add(segmentLengthArray_c);
+        minDiffBaseArray.add(minDiffBaseArray_c);
+        //for (int j = (writeWidth*writeIndex+(firstValueArrayWidth+segmentLengthArrayWidth+minDiffBaseArrayWidth)*i) / 8;
+        //     j < (writeWidth * writeIndex
+        //             + (firstValueArrayWidth + segmentLengthArrayWidth + minDiffBaseArrayWidth) * i
+        //             + firstValueArrayWidth+minDiffBaseArrayWidth + segmentLengthArrayWidth) / 8;j++) {
+        //  System.out.print(diffBuf[j]);
+        //  System.out.print(',');
+        //}
+        //System.out.println();
+      }
       previous = firstValue;
       previousDiff = 0;
-      readIntTotalCount = packNum;
+      readIntTotalCount = writeIndex;
       nextReadIndex = 0;
       readPack();
       return firstValue;
     }
 
     private void readPack() {
-      for (int i = 0; i < packNum; i++) {
-        readValue(i);
-        previous = data[i];
+      int start = 0;
+      int end = 0;
+      for (int i = 0; i < segmArraySize; i++) {
+        start = end;
+        end = (int) (end + segmentLengthArray.get(i));
+
+        //Number num = segmentLengthArray.get(i);
+        //end = num.intValue();
+
+        // if (start + 1 == end) {
+        //  data[start] = firstValueArray.get(i);
+        // } else {
+
+        minDiffBase = minDiffBaseArray.get(i);
+        previous = firstValueArray.get(i);
+        previousDiff = 0;
+
+        if (i != 0) {
+          data[start-1] = firstValueArray.get(i);
+        }
+
+        for (int j = start; j < end-1; j++) {
+          readValue(j);
+          previous = data[j];
+        }
+        // }
       }
+
+      // for (int i = 0; i < writeIndex; i++) {
+      //  readValue(i);
+      //  previous = data[i];
+      // }
     }
 
     @Override
@@ -244,15 +337,15 @@ public abstract class TIMDecoder extends Decoder {
 
     @Override
     protected void allocateDataArray() {
-      data = new long[packNum];
+      data = new long[writeIndex];
     }
 
     @Override
-    protected void readValue(int i) {
-      long v = BytesUtils.bytesToLong(diffBuf, packWidth * i, packWidth);
+    protected void readValue(int j) {
+      long v = BytesUtils.bytesToLong(diffBuf, writeWidth * j, writeWidth);
 
       // data[i] = previous + minDiffBase + v;
-      data[i] = previous - previousDiff + grid + minDiffBase + v;
+      data[j] = previous - previousDiff + grid + minDiffBase + v;
       previousDiff = minDiffBase + v;
     }
 
