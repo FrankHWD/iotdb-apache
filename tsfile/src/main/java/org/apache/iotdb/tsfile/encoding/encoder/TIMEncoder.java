@@ -66,6 +66,7 @@ public abstract class TIMEncoder extends Encoder {
   protected int encodingLength2 = 0;
   protected int secondGDiffWidth = 0;
   protected int secondDDiffWidth = 0;
+  protected boolean isAllOne = true;
   // protected int sumDiff = 0;
   // protected int sumCount = 0;
 
@@ -105,10 +106,13 @@ public abstract class TIMEncoder extends Encoder {
 
   /** write all data into {@code encodingBlockBuffer}. */
   private void writeDataWithMinWidth() {
-    encodingLength = (int) Math.ceil((double) ((writeIndex - 1) * secondGDiffWidth) / 8.0);
-    if (secondGDiffWidth != 0) {
-      for (int i = 0; i < writeIndex - 1; i++) {
-        writeGValueToBytes(i);
+    encodingLength = 0;
+    if (!isAllOne) {
+      encodingLength = (int) Math.ceil((double) ((writeIndex - 1) * secondGDiffWidth) / 8.0);
+      if (secondGDiffWidth != 0) {
+        for (int i = 0; i < writeIndex - 1; i++) {
+          writeGValueToBytes(i);
+        }
       }
     }
 
@@ -515,6 +519,7 @@ public abstract class TIMEncoder extends Encoder {
       previousValue = 0L;
       previousDiff = 0L;
       grid = 0;
+      isAllOne = true;
       minDiffBase = Long.MAX_VALUE;
       minGDiffBase2 = Long.MAX_VALUE;
       minDDiffBase2 = Long.MAX_VALUE;
@@ -644,16 +649,26 @@ public abstract class TIMEncoder extends Encoder {
       // System.out.print("Med Diff is: ");
       // System.out.println(medDiff-minDiffBase);
 
-      for (int i = 1; i < dSize; i++) {
-        long secondGDiff = gridNumBuffer[i] - gridNumBuffer[i - 1];
-        if (secondGDiff < minGDiffBase2) {
-          minGDiffBase2 = secondGDiff;
+      isAllOne = true;
+      for (int i = 0; i < dSize; i++) {
+        if (gridNumBuffer[i] != 1) {
+          isAllOne = false;
+          break;
         }
       }
-      firstGValue2 = gridNumBuffer[0];
-      for (int i = 1; i < dSize; i++) {
-        long secondGDiff = gridNumBuffer[i] - gridNumBuffer[i - 1];
-        secondGDiffs.add(secondGDiff - minGDiffBase2);
+
+      if (!isAllOne) {
+        for (int i = 1; i < dSize; i++) {
+          long secondGDiff = gridNumBuffer[i] - gridNumBuffer[i - 1];
+          if (secondGDiff < minGDiffBase2) {
+            minGDiffBase2 = secondGDiff;
+          }
+        }
+        firstGValue2 = gridNumBuffer[0];
+        for (int i = 1; i < dSize; i++) {
+          long secondGDiff = gridNumBuffer[i] - gridNumBuffer[i - 1];
+          secondGDiffs.add(secondGDiff - minGDiffBase2);
+        }
       }
 
       for (int i = 1; i < dSize; i++) {
@@ -690,6 +705,7 @@ public abstract class TIMEncoder extends Encoder {
     @Override
     protected int calculateSecondGDiffWidthsForDeltaBlockBuffer() {
       int secondGDiffWidth = 0;
+      if (isAllOne) return secondGDiffWidth;
       for (int i = 0; i < writeIndex - 1; i++) {
         secondGDiffWidth = Math.max(secondGDiffWidth, getValueWidth(secondGDiffs.get(i)));
       }
