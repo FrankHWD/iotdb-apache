@@ -29,7 +29,6 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Vector;
 
@@ -113,12 +112,6 @@ public abstract class TIMEncoder extends Encoder {
                     / 8.0);
     // System.out.println((int) Math.ceil((double) (writeIndex * writeWidth) / 8.0));
     out.write(encodingBlockBuffer, 0, encodingLength);
-    //for(int i=0;i<encodingLength;i++)
-    //{
-    //  System.out.print(encodingBlockBuffer[i]);
-    //  System.out.print(",");
-    //}
-    //System.out.println();
   }
 
   private void writeHeaderToBytes() throws IOException {
@@ -401,7 +394,8 @@ public abstract class TIMEncoder extends Encoder {
       BytesUtils.longToBytes(
           firstValueArray.get(i),
           encodingBlockBuffer,
-          writeWidth*writeIndex+(firstValueArrayWidth+segmentLengthArrayWidth+minDiffBaseArrayWidth)*i,
+          writeWidth * writeIndex
+              + (firstValueArrayWidth + segmentLengthArrayWidth + minDiffBaseArrayWidth) * i,
           firstValueArrayWidth);
       BytesUtils.longToBytes(
           minDiffBaseArray.get(i),
@@ -411,20 +405,23 @@ public abstract class TIMEncoder extends Encoder {
               + firstValueArrayWidth,
           minDiffBaseArrayWidth);
       BytesUtils.longToBytes(
-              segmentLengthArray.get(i),
-              encodingBlockBuffer,
-              writeWidth * writeIndex
-                      + (firstValueArrayWidth + segmentLengthArrayWidth + minDiffBaseArrayWidth) * i
-                      + firstValueArrayWidth+minDiffBaseArrayWidth,
-              segmentLengthArrayWidth);
-      //for (int j = (writeWidth*writeIndex+(firstValueArrayWidth+segmentLengthArrayWidth+minDiffBaseArrayWidth)*i) / 8;
+          segmentLengthArray.get(i),
+          encodingBlockBuffer,
+          writeWidth * writeIndex
+              + (firstValueArrayWidth + segmentLengthArrayWidth + minDiffBaseArrayWidth) * i
+              + firstValueArrayWidth
+              + minDiffBaseArrayWidth,
+          segmentLengthArrayWidth);
+      // for (int j =
+      // (writeWidth*writeIndex+(firstValueArrayWidth+segmentLengthArrayWidth+minDiffBaseArrayWidth)*i) / 8;
       //     j < (writeWidth * writeIndex
       //             + (firstValueArrayWidth + segmentLengthArrayWidth + minDiffBaseArrayWidth) * i
-      //             + firstValueArrayWidth+minDiffBaseArrayWidth + segmentLengthArrayWidth) / 8;j++) {
+      //             + firstValueArrayWidth+minDiffBaseArrayWidth + segmentLengthArrayWidth) /
+      // 8;j++) {
       //  System.out.print(encodingBlockBuffer[j]);
       //  System.out.print(',');
-      //}
-      //System.out.println();
+      // }
+      // System.out.println();
     }
 
     // @Override
@@ -489,37 +486,37 @@ public abstract class TIMEncoder extends Encoder {
 
       firstValueArray.add(values.get(0));
 
-      //if (dSize < blockSize) {
+      // if (dSize < blockSize) {
       //  segmentLengthArray.add((long) (dSize + 1));
       //  segmArraySize = segmentLengthArray.size();
-      //} else {
-        int count = 0;
-        for (int i = 1; i < dSize; i++) {
-          if ((values.get(i) - values.get(i - 1)) > 1.4 * grid
-              && i + 1 < dSize
-              && (values.get(i + 1) - values.get(i - 1)) > 2.4 * grid) {
-            firstValueArray.add(values.get(i));
-            //segmentLengthArray.add((long) (i));
-            segmentLengthArray.add((long) (i - count));
-            count = i;
-          }
+      // } else {
+      int count = 0;
+      for (int i = 1; i < dSize; i++) {
+        if ((values.get(i) - values.get(i - 1)) > 1.4 * grid
+            && i + 1 < dSize
+            && (values.get(i + 1) - values.get(i - 1)) > 2.4 * grid) {
+          firstValueArray.add(values.get(i));
+          // segmentLengthArray.add((long) (i));
+          segmentLengthArray.add((long) (i - count));
+          count = i;
         }
-        segmentLengthArray.add((long) (dSize + 1 - count));
-        //segmentLengthArray.add((long) (dSize + 1));
-        segmArraySize = segmentLengthArray.size();
-      //}
+      }
+      segmentLengthArray.add((long) (dSize + 1 - count));
+      // segmentLengthArray.add((long) (dSize + 1));
+      segmArraySize = segmentLengthArray.size();
+      // }
 
       writeIndex = 0;
       int start = 0;
       int end = 0;
       for (int i = 0; i < segmArraySize; i++) {
         start = end;
-        //end = (int) (end + segmentLengthArray.get(i));
+        // end = (int) (end + segmentLengthArray.get(i));
         Number num = segmentLengthArray.get(i);
-        end = end+num.intValue();
+        end = end + num.intValue();
 
-        //Number num = segmentLengthArray.get(i);
-        //end = num.intValue();
+        // Number num = segmentLengthArray.get(i);
+        // end = num.intValue();
 
         // if (start + 1 == end) {
         //  diffBlockBuffer[writeIndex++] = 0;
@@ -533,6 +530,9 @@ public abstract class TIMEncoder extends Encoder {
         if (i != 0) {
           diffBlockBuffer[writeIndex++] = 0;
         }
+        if (start + 1 == end) {
+          minDiffBase = 0;
+        }
 
         for (int j = start + 1; j < end; j++) {
           calcDelta(values.get(j));
@@ -544,7 +544,7 @@ public abstract class TIMEncoder extends Encoder {
         // }
         minDiffBaseArray.add(minDiffBase);
       }
-      firstValue=firstValueArray.get(0);
+      firstValue = firstValueArray.get(0);
 
       // writeIndex = 0;
       // for (int i = 1; i <= dSize; i++) {

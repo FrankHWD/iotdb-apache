@@ -27,7 +27,6 @@ import org.apache.iotdb.tsfile.utils.ReadWriteIOUtils;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
-import java.util.Arrays;
 
 /**
  * This class is a decoder for decoding the byte array that encoded by {@code TIMEncoder}.TIMDecoder
@@ -236,12 +235,12 @@ public abstract class TIMDecoder extends Decoder {
       buffer.get(diffBuf);
       allocateDataArray();
 
-      //for(int i=0;i<encodingLength;i++)
-      //{
+      // for(int i=0;i<encodingLength;i++)
+      // {
       //  System.out.print(encodingBlockBuffer[i]);
       //  System.out.print(",");
-      //}
-      //System.out.println();
+      // }
+      // System.out.println();
 
       firstValueArray = new ArrayList<>();
       segmentLengthArray = new ArrayList<>();
@@ -251,7 +250,8 @@ public abstract class TIMDecoder extends Decoder {
         long firstValueArray_c =
             BytesUtils.bytesToLong(
                 diffBuf,
-                writeIndex*writeWidth+(firstValueArrayWidth+segmentLengthArrayWidth+minDiffBaseArrayWidth)*i,
+                writeIndex * writeWidth
+                    + (firstValueArrayWidth + segmentLengthArrayWidth + minDiffBaseArrayWidth) * i,
                 firstValueArrayWidth);
         long minDiffBaseArray_c =
             BytesUtils.bytesToLong(
@@ -261,23 +261,27 @@ public abstract class TIMDecoder extends Decoder {
                     + firstValueArrayWidth,
                 minDiffBaseArrayWidth);
         long segmentLengthArray_c =
-                BytesUtils.bytesToLong(
-                        diffBuf,
-                        writeIndex * writeWidth
-                                + (firstValueArrayWidth + segmentLengthArrayWidth + minDiffBaseArrayWidth) * i
-                                + firstValueArrayWidth+minDiffBaseArrayWidth,
-                        segmentLengthArrayWidth);
+            BytesUtils.bytesToLong(
+                diffBuf,
+                writeIndex * writeWidth
+                    + (firstValueArrayWidth + segmentLengthArrayWidth + minDiffBaseArrayWidth) * i
+                    + firstValueArrayWidth
+                    + minDiffBaseArrayWidth,
+                segmentLengthArrayWidth);
         firstValueArray.add(firstValueArray_c);
         segmentLengthArray.add(segmentLengthArray_c);
         minDiffBaseArray.add(minDiffBaseArray_c);
-        //for (int j = (writeWidth*writeIndex+(firstValueArrayWidth+segmentLengthArrayWidth+minDiffBaseArrayWidth)*i) / 8;
+        // for (int j =
+        // (writeWidth*writeIndex+(firstValueArrayWidth+segmentLengthArrayWidth+minDiffBaseArrayWidth)*i) / 8;
         //     j < (writeWidth * writeIndex
-        //             + (firstValueArrayWidth + segmentLengthArrayWidth + minDiffBaseArrayWidth) * i
-        //             + firstValueArrayWidth+minDiffBaseArrayWidth + segmentLengthArrayWidth) / 8;j++) {
+        //             + (firstValueArrayWidth + segmentLengthArrayWidth + minDiffBaseArrayWidth) *
+        // i
+        //             + firstValueArrayWidth+minDiffBaseArrayWidth + segmentLengthArrayWidth) /
+        // 8;j++) {
         //  System.out.print(diffBuf[j]);
         //  System.out.print(',');
-        //}
-        //System.out.println();
+        // }
+        // System.out.println();
       }
       previous = firstValue;
       previousDiff = 0;
@@ -294,8 +298,8 @@ public abstract class TIMDecoder extends Decoder {
         start = end;
         end = (int) (end + segmentLengthArray.get(i));
 
-        //Number num = segmentLengthArray.get(i);
-        //end = num.intValue();
+        // Number num = segmentLengthArray.get(i);
+        // end = num.intValue();
 
         // if (start + 1 == end) {
         //  data[start] = firstValueArray.get(i);
@@ -306,10 +310,10 @@ public abstract class TIMDecoder extends Decoder {
         previousDiff = 0;
 
         if (i != 0) {
-          data[start-1] = firstValueArray.get(i);
+          data[start - 1] = firstValueArray.get(i);
         }
 
-        for (int j = start; j < end-1; j++) {
+        for (int j = start; j < end - 1; j++) {
           readValue(j);
           previous = data[j];
         }
