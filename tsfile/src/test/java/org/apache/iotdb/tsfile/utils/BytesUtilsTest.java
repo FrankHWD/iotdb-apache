@@ -20,6 +20,7 @@ package org.apache.iotdb.tsfile.utils;
 
 import org.apache.iotdb.tsfile.constant.TestConstant;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
@@ -139,6 +140,23 @@ public class BytesUtilsTest {
     byte[] bs = new byte[width * 2];
     BytesUtils.longToBytes(l, bs, 0, width);
     assertEquals(l, BytesUtils.bytesToLong(bs, 0, width));
+  }
+
+  @Test
+  public void test1() {
+    long val1 = 1600650710304L;
+    int width1 = 64 - Long.numberOfLeadingZeros(val1);
+    long val2 = -16L;
+    int width2 = 64 - Long.numberOfLeadingZeros(val2);
+    byte[] buffer = new byte[1000];
+
+    BytesUtils.longToBytes(val1, buffer, 0, width1);
+    long res_val1_1 = BytesUtils.bytesToLong(buffer, 0, width1);
+
+    BytesUtils.longToBytes(val2, buffer, width1, width2);
+    long res_val1_2 = BytesUtils.bytesToLong(buffer, 0, width1);
+
+    Assert.assertEquals(res_val1_1, res_val1_2);
   }
 
   @Test
