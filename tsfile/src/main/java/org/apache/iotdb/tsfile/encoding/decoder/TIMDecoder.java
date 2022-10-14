@@ -153,7 +153,7 @@ public abstract class TIMDecoder extends Decoder {
 
     @Override
     protected void readHeader(ByteBuffer buffer) {
-      minDiffBase = ReadWriteIOUtils.readInt(buffer);
+      // minDiffBase = ReadWriteIOUtils.readInt(buffer);
       firstValue = ReadWriteIOUtils.readInt(buffer);
       grid = ReadWriteIOUtils.readInt(buffer);
     }
@@ -217,11 +217,15 @@ public abstract class TIMDecoder extends Decoder {
      * @return long value
      */
     protected long loadIntBatch(ByteBuffer buffer) {
+      firstValueArray = new ArrayList<>();
+      segmentLengthArray = new ArrayList<>();
+      minDiffBaseArray = new ArrayList<>();
+
       writeIndex = ReadWriteIOUtils.readInt(buffer);
       writeWidth = ReadWriteIOUtils.readInt(buffer);
       firstValueArrayWidth = ReadWriteIOUtils.readInt(buffer);
       segmentLengthArrayWidth = ReadWriteIOUtils.readInt(buffer);
-      minDiffBaseArrayWidth = ReadWriteIOUtils.readInt(buffer);
+      // minDiffBaseArrayWidth = ReadWriteIOUtils.readInt(buffer);
       segmArraySize = ReadWriteIOUtils.readInt(buffer);
       count++;
       readHeader(buffer);
@@ -229,59 +233,27 @@ public abstract class TIMDecoder extends Decoder {
       encodingLength =
           ceil(
               writeIndex * writeWidth
-                  + (firstValueArrayWidth + segmentLengthArrayWidth + minDiffBaseArrayWidth)
-                      * segmArraySize);
+                  + (firstValueArrayWidth + segmentLengthArrayWidth) * segmArraySize);
       diffBuf = new byte[encodingLength];
       buffer.get(diffBuf);
       allocateDataArray();
-
-      // for(int i=0;i<encodingLength;i++)
-      // {
-      //  System.out.print(encodingBlockBuffer[i]);
-      //  System.out.print(",");
-      // }
-      // System.out.println();
-
-      firstValueArray = new ArrayList<>();
-      segmentLengthArray = new ArrayList<>();
-      minDiffBaseArray = new ArrayList<>();
 
       for (int i = 0; i < segmArraySize; i++) {
         long firstValueArray_c =
             BytesUtils.bytesToLong(
                 diffBuf,
-                writeIndex * writeWidth
-                    + (firstValueArrayWidth + segmentLengthArrayWidth + minDiffBaseArrayWidth) * i,
+                writeIndex * writeWidth + (firstValueArrayWidth + segmentLengthArrayWidth) * i,
                 firstValueArrayWidth);
-        long minDiffBaseArray_c =
-            BytesUtils.bytesToLong(
-                diffBuf,
-                writeIndex * writeWidth
-                    + (firstValueArrayWidth + segmentLengthArrayWidth + minDiffBaseArrayWidth) * i
-                    + firstValueArrayWidth,
-                minDiffBaseArrayWidth);
         long segmentLengthArray_c =
             BytesUtils.bytesToLong(
                 diffBuf,
                 writeIndex * writeWidth
-                    + (firstValueArrayWidth + segmentLengthArrayWidth + minDiffBaseArrayWidth) * i
+                    + (firstValueArrayWidth + segmentLengthArrayWidth) * i
                     + firstValueArrayWidth
                     + minDiffBaseArrayWidth,
                 segmentLengthArrayWidth);
         firstValueArray.add(firstValueArray_c);
         segmentLengthArray.add(segmentLengthArray_c);
-        minDiffBaseArray.add(minDiffBaseArray_c);
-        // for (int j =
-        // (writeWidth*writeIndex+(firstValueArrayWidth+segmentLengthArrayWidth+minDiffBaseArrayWidth)*i) / 8;
-        //     j < (writeWidth * writeIndex
-        //             + (firstValueArrayWidth + segmentLengthArrayWidth + minDiffBaseArrayWidth) *
-        // i
-        //             + firstValueArrayWidth+minDiffBaseArrayWidth + segmentLengthArrayWidth) /
-        // 8;j++) {
-        //  System.out.print(diffBuf[j]);
-        //  System.out.print(',');
-        // }
-        // System.out.println();
       }
       previous = firstValue;
       previousDiff = 0;
@@ -334,9 +306,13 @@ public abstract class TIMDecoder extends Decoder {
 
     @Override
     protected void readHeader(ByteBuffer buffer) {
-      minDiffBase = ReadWriteIOUtils.readLong(buffer);
+      // minDiffBase = ReadWriteIOUtils.readLong(buffer);
       firstValue = ReadWriteIOUtils.readLong(buffer);
       grid = ReadWriteIOUtils.readLong(buffer);
+      for (int i = 0; i < segmArraySize; i++) {
+        long minDiffBaseArray_c = ReadWriteIOUtils.readLong(buffer);
+        minDiffBaseArray.add(minDiffBaseArray_c);
+      }
     }
 
     @Override
