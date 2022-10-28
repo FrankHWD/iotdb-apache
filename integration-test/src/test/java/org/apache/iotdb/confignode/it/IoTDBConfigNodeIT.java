@@ -41,6 +41,7 @@ import org.apache.iotdb.confignode.rpc.thrift.TDataNodeRemoveResp;
 import org.apache.iotdb.confignode.rpc.thrift.TShowClusterResp;
 import org.apache.iotdb.confignode.rpc.thrift.TShowConfigNodesResp;
 import org.apache.iotdb.confignode.rpc.thrift.TShowDataNodesResp;
+import org.apache.iotdb.consensus.ConsensusFactory;
 import org.apache.iotdb.db.qp.logical.sys.AuthorOperator;
 import org.apache.iotdb.it.env.ConfigFactory;
 import org.apache.iotdb.it.env.ConfigNodeWrapper;
@@ -67,6 +68,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static org.apache.iotdb.confignode.it.utils.ConfigNodeTestUtils.checkNodeConfig;
+import static org.apache.iotdb.confignode.it.utils.ConfigNodeTestUtils.getClusterNodeInfos;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
@@ -79,7 +82,6 @@ public class IoTDBConfigNodeIT {
   protected static String originalConfigNodeConsensusProtocolClass;
   protected static String originalSchemaRegionConsensusProtocolClass;
   protected static String originalDataRegionConsensusProtocolClass;
-
   private final int retryNum = 30;
 
   @Before
@@ -91,12 +93,10 @@ public class IoTDBConfigNodeIT {
     originalDataRegionConsensusProtocolClass =
         ConfigFactory.getConfig().getDataRegionConsensusProtocolClass();
 
+    ConfigFactory.getConfig().setConfigNodeConsesusProtocolClass(ConsensusFactory.RatisConsensus);
     ConfigFactory.getConfig()
-        .setConfigNodeConsesusProtocolClass("org.apache.iotdb.consensus.ratis.RatisConsensus");
-    ConfigFactory.getConfig()
-        .setSchemaRegionConsensusProtocolClass("org.apache.iotdb.consensus.ratis.RatisConsensus");
-    ConfigFactory.getConfig()
-        .setDataRegionConsensusProtocolClass("org.apache.iotdb.consensus.ratis.RatisConsensus");
+        .setSchemaRegionConsensusProtocolClass(ConsensusFactory.RatisConsensus);
+    ConfigFactory.getConfig().setDataRegionConsensusProtocolClass(ConsensusFactory.RatisConsensus);
 
     EnvFactory.getEnv().initBeforeClass();
   }
@@ -110,64 +110,6 @@ public class IoTDBConfigNodeIT {
         .setSchemaRegionConsensusProtocolClass(originalSchemaRegionConsensusProtocolClass);
     ConfigFactory.getConfig()
         .setDataRegionConsensusProtocolClass(originalDataRegionConsensusProtocolClass);
-  }
-
-  private TShowClusterResp getClusterNodeInfos(
-      IConfigNodeRPCService.Iface client, int expectedConfigNodeNum, int expectedDataNodeNum)
-      throws TException, InterruptedException {
-    TShowClusterResp clusterNodes = null;
-    for (int i = 0; i < retryNum; i++) {
-      clusterNodes = client.showCluster();
-      if (clusterNodes.getConfigNodeListSize() == expectedConfigNodeNum
-          && clusterNodes.getDataNodeListSize() == expectedDataNodeNum) {
-        break;
-      }
-      Thread.sleep(1000);
-    }
-
-    assertEquals(expectedConfigNodeNum, clusterNodes.getConfigNodeListSize());
-    assertEquals(expectedDataNodeNum, clusterNodes.getDataNodeListSize());
-
-    return clusterNodes;
-  }
-
-  private void checkNodeConfig(
-      List<TConfigNodeLocation> configNodeList,
-      List<TDataNodeLocation> dataNodeList,
-      List<ConfigNodeWrapper> configNodeWrappers,
-      List<DataNodeWrapper> dataNodeWrappers) {
-    // check ConfigNode
-    for (TConfigNodeLocation configNodeLocation : configNodeList) {
-      boolean found = false;
-      for (ConfigNodeWrapper configNodeWrapper : configNodeWrappers) {
-        if (configNodeWrapper.getIp().equals(configNodeLocation.getInternalEndPoint().getIp())
-            && configNodeWrapper.getPort() == configNodeLocation.getInternalEndPoint().getPort()
-            && configNodeWrapper.getConsensusPort()
-                == configNodeLocation.getConsensusEndPoint().getPort()) {
-          found = true;
-          break;
-        }
-      }
-      assertTrue(found);
-    }
-
-    // check DataNode
-    for (TDataNodeLocation dataNodeLocation : dataNodeList) {
-      boolean found = false;
-      for (DataNodeWrapper dataNodeWrapper : dataNodeWrappers) {
-        if (dataNodeWrapper.getIp().equals(dataNodeLocation.getClientRpcEndPoint().getIp())
-            && dataNodeWrapper.getPort() == dataNodeLocation.getClientRpcEndPoint().getPort()
-            && dataNodeWrapper.getInternalPort() == dataNodeLocation.getInternalEndPoint().getPort()
-            && dataNodeWrapper.getSchemaRegionConsensusPort()
-                == dataNodeLocation.getSchemaRegionConsensusEndPoint().getPort()
-            && dataNodeWrapper.getDataRegionConsensusPort()
-                == dataNodeLocation.getDataRegionConsensusEndPoint().getPort()) {
-          found = true;
-          break;
-        }
-      }
-      assertTrue(found);
-    }
   }
 
   @Test

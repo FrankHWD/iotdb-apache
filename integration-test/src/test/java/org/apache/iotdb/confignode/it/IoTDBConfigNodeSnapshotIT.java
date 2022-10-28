@@ -25,7 +25,6 @@ import org.apache.iotdb.commons.client.sync.SyncConfigNodeIServiceClient;
 import org.apache.iotdb.commons.exception.IllegalPathException;
 import org.apache.iotdb.commons.path.PartialPath;
 import org.apache.iotdb.commons.path.PathDeserializeUtil;
-import org.apache.iotdb.commons.path.PathPatternTree;
 import org.apache.iotdb.commons.trigger.TriggerInformation;
 import org.apache.iotdb.commons.trigger.service.TriggerExecutableManager;
 import org.apache.iotdb.confignode.rpc.thrift.TCreateTriggerReq;
@@ -36,6 +35,7 @@ import org.apache.iotdb.confignode.rpc.thrift.TSchemaPartitionReq;
 import org.apache.iotdb.confignode.rpc.thrift.TSchemaPartitionTableResp;
 import org.apache.iotdb.confignode.rpc.thrift.TSetStorageGroupReq;
 import org.apache.iotdb.confignode.rpc.thrift.TStorageGroupSchema;
+import org.apache.iotdb.consensus.ConsensusFactory;
 import org.apache.iotdb.it.env.ConfigFactory;
 import org.apache.iotdb.it.env.EnvFactory;
 import org.apache.iotdb.it.framework.IoTDBTestRunner;
@@ -44,7 +44,6 @@ import org.apache.iotdb.rpc.TSStatusCode;
 import org.apache.iotdb.trigger.api.enums.FailureStrategy;
 import org.apache.iotdb.trigger.api.enums.TriggerEvent;
 import org.apache.iotdb.trigger.api.enums.TriggerType;
-import org.apache.iotdb.tsfile.utils.PublicBAOS;
 
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.thrift.TException;
@@ -64,16 +63,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.apache.iotdb.confignode.it.utils.ConfigNodeTestUtils.generatePatternTreeBuffer;
+
 @RunWith(IoTDBTestRunner.class)
 @Category({ClusterIT.class})
 public class IoTDBConfigNodeSnapshotIT {
 
   protected static String originalConfigNodeConsensusProtocolClass;
-  private static final String testConfigNodeConsensusProtocolClass =
-      "org.apache.iotdb.consensus.ratis.RatisConsensus";
 
   protected static int originalRatisSnapshotTriggerThreshold;
-  private static final int testRatisSnapshotTriggerThreshold = 100;
+  private static final int testRatisSnapshotTriggerThreshold = 10;
 
   protected static long originalTimePartitionInterval;
   private static final long testTimePartitionInterval = 86400;
@@ -82,8 +81,7 @@ public class IoTDBConfigNodeSnapshotIT {
   public void setUp() throws Exception {
     originalConfigNodeConsensusProtocolClass =
         ConfigFactory.getConfig().getConfigNodeConsesusProtocolClass();
-    ConfigFactory.getConfig()
-        .setConfigNodeConsesusProtocolClass(testConfigNodeConsensusProtocolClass);
+    ConfigFactory.getConfig().setConfigNodeConsesusProtocolClass(ConsensusFactory.RatisConsensus);
 
     originalRatisSnapshotTriggerThreshold =
         ConfigFactory.getConfig().getRatisSnapshotTriggerThreshold();
@@ -107,22 +105,12 @@ public class IoTDBConfigNodeSnapshotIT {
     ConfigFactory.getConfig().setTimePartitionIntervalForRouting(originalTimePartitionInterval);
   }
 
-  private ByteBuffer generatePatternTreeBuffer(String path)
-      throws IllegalPathException, IOException {
-    PathPatternTree patternTree = new PathPatternTree();
-    patternTree.appendPathPattern(new PartialPath(path));
-    patternTree.constructTree();
-
-    PublicBAOS baos = new PublicBAOS();
-    patternTree.serialize(baos);
-    return ByteBuffer.wrap(baos.toByteArray());
-  }
-
   @Test
-  public void testPartitionInfoSnapshot() throws IOException, IllegalPathException, TException {
+  public void testPartitionInfoSnapshot()
+      throws IOException, IllegalPathException, TException, InterruptedException {
     final String sg = "root.sg";
     final int storageGroupNum = 10;
-    final int seriesPartitionSlotsNum = 100;
+    final int seriesPartitionSlotsNum = 10;
     final int timePartitionSlotsNum = 10;
 
     try (SyncConfigNodeIServiceClient client =
@@ -141,7 +129,8 @@ public class IoTDBConfigNodeSnapshotIT {
           TSeriesPartitionSlot seriesPartitionSlot = new TSeriesPartitionSlot(j);
 
           // Create SchemaPartition
-          ByteBuffer patternTree = generatePatternTreeBuffer(storageGroup + ".d" + j + ".s");
+          ByteBuffer patternTree =
+              generatePatternTreeBuffer(new String[] {storageGroup + ".d" + j + ".s"});
           TSchemaPartitionReq schemaPartitionReq = new TSchemaPartitionReq(patternTree);
           TSchemaPartitionTableResp schemaPartitionTableResp =
               client.getOrCreateSchemaPartitionTable(schemaPartitionReq);

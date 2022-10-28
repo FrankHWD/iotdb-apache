@@ -37,6 +37,7 @@ struct TDataNodeRegisterResp {
   5: optional binary templateInfo
   6: optional TRatisConfig ratisConfig
   7: optional list<binary> allTriggerInformation
+  8: optional list<binary> allUDFInformation
 }
 
 struct TGlobalConfig {
@@ -87,6 +88,11 @@ struct TRatisConfig {
   25: required i64 firstElectionTimeoutMin
   26: required i64 firstElectionTimeoutMax
 }
+
+struct TDataNodeUpdateReq{
+  1: required common.TDataNodeLocation dataNodeLocation
+}
+
 
 struct TDataNodeRemoveReq {
   1: required list<common.TDataNodeLocation> dataNodeLocations
@@ -305,11 +311,29 @@ struct TAddConsensusGroupReq {
 struct TCreateFunctionReq {
   1: required string udfName
   2: required string className
-  3: required list<string> uris
+  3: required string jarName
+  4: required binary jarFile
+  5: required string jarMD5
 }
 
 struct TDropFunctionReq {
   1: required string udfName
+}
+
+// Get UDF table from config node
+struct TGetUDFTableResp {
+  1: required common.TSStatus status
+  2: required list<binary> allUDFInformation
+}
+
+// Get jars of the corresponding trigger
+struct TGetUDFJarReq {
+  1: required list<string> jarNameList
+}
+
+struct TGetUDFJarResp {
+  1: required common.TSStatus status
+  2: required list<binary> jarList
 }
 
 // Trigger
@@ -344,21 +368,13 @@ struct TDropTriggerReq {
 
 struct TGetLocationForTriggerResp {
   1: required common.TSStatus status
-  2: required common.TDataNodeLocation dataNodeLocation
+  2: optional common.TDataNodeLocation dataNodeLocation
 }
 
 // Get trigger table from config node
 struct TGetTriggerTableResp {
   1: required common.TSStatus status
   2: required list<binary> allTriggerInformation
-}
-
-// Show cluster
-struct TShowClusterResp {
-  1: required common.TSStatus status
-  2: required list<common.TConfigNodeLocation> configNodeList
-  3: required list<common.TDataNodeLocation> dataNodeList
-  4: required map<i32, string> nodeStatus
 }
 
 // Get jars of the corresponding trigger
@@ -369,6 +385,14 @@ struct TGetTriggerJarReq {
 struct TGetTriggerJarResp {
   1: required common.TSStatus status
   2: required list<binary> jarList
+}
+
+// Show cluster
+struct TShowClusterResp {
+  1: required common.TSStatus status
+  2: required list<common.TConfigNodeLocation> configNodeList
+  3: required list<common.TDataNodeLocation> dataNodeList
+  4: required map<i32, string> nodeStatus
 }
 
 // Show datanodes
@@ -486,7 +510,12 @@ struct TShowPipeInfo {
   6: required string message
 }
 
-struct TPipeInfo {
+struct TGetAllPipeInfoResp{
+  1: required common.TSStatus status
+  2: optional list<binary> allPipeInfo
+}
+
+struct TCreatePipeReq {
     1: required string pipeName
     2: required string pipeSinkName
     3: required i64 startTime
@@ -526,6 +555,12 @@ struct TDeleteTimeSeriesReq{
   2: required binary pathPatternTree
 }
 
+struct TDeactivateSchemaTemplateReq{
+  1: required string queryId
+  2: required binary pathPatternTree
+  3: optional string templateName
+}
+
 service IConfigNodeRPCService {
 
   // ======================================================
@@ -550,6 +585,15 @@ service IConfigNodeRPCService {
    *         NODE_DELETE_FAILED_ERROR if failed to submit the DataNodeRemoveProcedure
    */
   TDataNodeRemoveResp removeDataNode(TDataNodeRemoveReq req)
+
+  /**
+   * Update the specified DataNode‘s location in the cluster when restart
+   *
+   * @return SUCCESS_STATUS if the DataNode updated successfully
+   *         DATANODE_NOT_EXIST if one of the DataNodes in the TDataNodeUpdateReq doesn't exist in the cluster
+   *         UPDATE_DATANODE_FAILED if failed to update the DataNode
+   */
+  TDataNodeRegisterResp updateDataNode(TDataNodeUpdateReq req)
 
   /**
    * Get one or more DataNodes' configuration
@@ -768,6 +812,16 @@ service IConfigNodeRPCService {
    */
   common.TSStatus dropFunction(TDropFunctionReq req)
 
+  /**
+   * Return the UDF table
+   */
+  TGetUDFTableResp getUDFTable()
+
+  /**
+   * Return the UDF jar list of the jar name list
+   */
+  TGetUDFJarResp getUDFJar(TGetUDFJarReq req)
+
   // ======================================================
   // Trigger
   // ======================================================
@@ -869,6 +923,7 @@ service IConfigNodeRPCService {
 
   TGetPathsSetTemplatesResp getPathsSetTemplate(string req)
 
+  common.TSStatus deactivateSchemaTemplate(TDeactivateSchemaTemplateReq req)
 
   /**
    * Generate a set of DeleteTimeSeriesProcedure to delete some specific TimeSeries
@@ -893,7 +948,7 @@ service IConfigNodeRPCService {
   TGetPipeSinkResp getPipeSink(TGetPipeSinkReq req)
 
   /** Create Pipe */
-  common.TSStatus createPipe(TPipeInfo req)
+  common.TSStatus createPipe(TCreatePipeReq req)
 
   /** Start Pipe */
   common.TSStatus startPipe(string pipeName)
@@ -906,6 +961,9 @@ service IConfigNodeRPCService {
 
   /** Show Pipe by name, if name is empty, show all Pipe */
   TShowPipeResp showPipe(TShowPipeReq req)
+
+  /* Get all pipe information. It is used for DataNode registration and restart*/
+  TGetAllPipeInfoResp getAllPipeInfo();
 
   // ======================================================
   // TestTools
