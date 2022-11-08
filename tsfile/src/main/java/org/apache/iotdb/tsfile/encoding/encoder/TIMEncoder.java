@@ -86,7 +86,6 @@ public abstract class TIMEncoder extends Encoder {
       writeValueToBytes(i);
     }
     int encodingLength = (int) Math.ceil((double) (writeIndex * writeWidth) / 8.0);
-    // System.out.println((int) Math.ceil((double) (writeIndex * writeWidth) / 8.0));
     out.write(encodingBlockBuffer, 0, encodingLength);
   }
 
@@ -132,7 +131,6 @@ public abstract class TIMEncoder extends Encoder {
   public static class IntTIMEncoder extends TIMEncoder {
 
     private int[] diffBlockBuffer;
-    private int[] diffBuffer;
     private int firstValue;
     private int previousValue;
     private int previousDiff;
@@ -156,69 +154,10 @@ public abstract class TIMEncoder extends Encoder {
     public IntTIMEncoder(int size) {
       super(size);
       diffBlockBuffer = new int[this.blockSize];
-      diffBuffer = new int[this.blockSize];
       encodingBlockBuffer = new byte[blockSize * 4];
       values = new Vector<>();
       diffs = new ArrayList<>();
       reset();
-    }
-
-    @Override
-    protected int calculateBitWidthsForDeltaBlockBuffer() {
-      int width = 0;
-      for (int i = 0; i < writeIndex; i++) {
-        width = Math.max(width, getValueWidth(diffBlockBuffer[i]));
-      }
-      return width;
-    }
-
-    private void calcDelta(int value) {
-      int diff = -previousValue + previousDiff + value - grid; // calculate diff
-      if (diff < minDiffBase) {
-        minDiffBase = diff;
-      }
-      previousDiff = diff;
-      diffBuffer[writeIndex] = diff;
-      diffBlockBuffer[writeIndex++] = diff;
-    }
-
-    /**
-     * input a integer.
-     *
-     * @param value value to encode
-     * @param out the ByteArrayOutputStream which data encode into
-     */
-    public void encodeValue(int value, ByteArrayOutputStream out) {
-      if (writeIndex == -1) {
-        writeIndex++;
-        firstValue = value;
-        previousValue = firstValue;
-        previousDiff = 0;
-        grid = 0;
-        values.add(value);
-        return;
-      }
-      values.add(value);
-      writeIndex++;
-      if (writeIndex == blockSize) {
-        processDiff();
-        flush(out);
-      }
-    }
-
-    protected void processDiff() {
-      int dSize = blockSize;
-      for (int i = 1; i <= dSize; i++) {
-        diffs.add(values.get(i) - values.get(i - 1));
-      }
-      Collections.sort(diffs);
-      grid = diffs.get(dSize / 2); // cal median
-
-      writeIndex = 0;
-      for (int i = 1; i <= dSize; i++) {
-        calcDelta(values.get(i));
-        previousValue = values.get(i);
-      }
     }
 
     @Override
@@ -231,7 +170,6 @@ public abstract class TIMEncoder extends Encoder {
       for (int i = 0; i < blockSize; i++) {
         encodingBlockBuffer[i] = 0;
         diffBlockBuffer[i] = 0;
-        diffBuffer[i] = 0;
       }
       values.clear();
       diffs.clear();
@@ -273,12 +211,68 @@ public abstract class TIMEncoder extends Encoder {
       // The meaning of 24 is: index(4)+width(4)+minDiffBase(4)+firstValue(4)
       return (long) 24 + writeIndex * 4;
     }
+
+    /**
+     * input a integer.
+     *
+     * @param value value to encode
+     * @param out the ByteArrayOutputStream which data encode into
+     */
+    public void encodeValue(int value, ByteArrayOutputStream out) {
+      if (writeIndex == -1) {
+        writeIndex++;
+        firstValue = value;
+        previousValue = firstValue;
+        previousDiff = 0;
+        grid = 0;
+        values.add(value);
+        return;
+      }
+      values.add(value);
+      writeIndex++;
+      if (writeIndex == blockSize) {
+        processDiff();
+        flush(out);
+      }
+    }
+
+    protected void processDiff() {
+      int dSize = blockSize;
+      for (int i = 1; i <= dSize; i++) {
+        diffs.add(values.get(i) - values.get(i - 1));
+      }
+      Collections.sort(diffs);
+      grid = diffs.get(dSize / 2); // cal median
+
+      writeIndex = 0;
+      for (int i = 1; i <= dSize; i++) {
+        calcDelta(values.get(i));
+        previousValue = values.get(i);
+      }
+    }
+
+    private void calcDelta(int value) {
+      int diff = -previousValue + previousDiff + value - grid; // calculate diff
+      if (diff < minDiffBase) {
+        minDiffBase = diff;
+      }
+      previousDiff = diff;
+      diffBlockBuffer[writeIndex++] = diff;
+    }
+
+    @Override
+    protected int calculateBitWidthsForDeltaBlockBuffer() {
+      int width = 0;
+      for (int i = 0; i < writeIndex; i++) {
+        width = Math.max(width, getValueWidth(diffBlockBuffer[i]));
+      }
+      return width;
+    }
   }
 
   public static class LongTIMEncoder extends TIMEncoder {
 
     private long[] diffBlockBuffer;
-    private long[] diffBuffer;
     private long firstValue;
     private long previousValue;
     private long previousDiff;
@@ -302,21 +296,10 @@ public abstract class TIMEncoder extends Encoder {
     public LongTIMEncoder(int size) {
       super(size);
       diffBlockBuffer = new long[this.blockSize];
-      diffBuffer = new long[this.blockSize];
       encodingBlockBuffer = new byte[blockSize * 8];
       values = new Vector<>();
       diffs = new ArrayList<>();
       reset();
-    }
-
-    private void calcDelta(long value) {
-      long diff = -previousValue + previousDiff + value - grid; // calculate diff
-      if (diff < minDiffBase) {
-        minDiffBase = diff;
-      }
-      previousDiff = diff;
-      diffBuffer[writeIndex] = diff;
-      diffBlockBuffer[writeIndex++] = diff;
     }
 
     @Override
@@ -329,7 +312,6 @@ public abstract class TIMEncoder extends Encoder {
       for (int i = 0; i < blockSize; i++) {
         encodingBlockBuffer[i] = 0;
         diffBlockBuffer[i] = 0L;
-        diffBuffer[i] = 0L;
       }
       values.clear();
       diffs.clear();
@@ -410,6 +392,15 @@ public abstract class TIMEncoder extends Encoder {
         calcDelta(values.get(i));
         previousValue = values.get(i);
       }
+    }
+
+    private void calcDelta(long value) {
+      long diff = -previousValue + previousDiff + value - grid; // calculate diff
+      if (diff < minDiffBase) {
+        minDiffBase = diff;
+      }
+      previousDiff = diff;
+      diffBlockBuffer[writeIndex++] = diff;
     }
 
     @Override
