@@ -56,7 +56,7 @@ public abstract class TIMEncoder extends Encoder {
   protected byte[] encodingBlockBuffer;
 
   protected int writeIndex = -1;
-  protected int writeWidth = 0;
+  // protected int writeWidth = 0;
   protected int rleGridVWidth = 0;
   protected int rleGridCWidth = 0;
   protected int rleGridSize = 0;
@@ -81,7 +81,7 @@ public abstract class TIMEncoder extends Encoder {
 
   protected abstract void reset();
 
-  protected abstract int calculateBitWidthsForDeltaBlockBuffer();
+  // protected abstract int calculateBitWidthsForDeltaBlockBuffer();
 
   protected abstract int calculaterleGridVWidthsForDeltaBlockBuffer();
 
@@ -102,18 +102,12 @@ public abstract class TIMEncoder extends Encoder {
     }
     int encodingLength =
         (int) Math.ceil((double) ((rleGridCWidth + rleGridVWidth) * rleGridSize) / 8.0);
-    // System.out.println(encodingLength);
-
-    // System.out.println((int) Math.ceil((double) (writeIndex * writeWidth) / 8.0));
-    // System.out.println((int) Math.ceil((double) ((rleGridCWidth + rleGridVWidth) * rleGridSize) /
-    // 8.0));
-
     out.write(encodingBlockBuffer, 0, encodingLength);
   }
 
   private void writeHeaderToBytes() throws IOException {
     ReadWriteIOUtils.write(writeIndex, out);
-    ReadWriteIOUtils.write(writeWidth, out);
+    // ReadWriteIOUtils.write(writeWidth, out);
     ReadWriteIOUtils.write(rleGridVWidth, out);
     ReadWriteIOUtils.write(rleGridCWidth, out);
     ReadWriteIOUtils.write(rleGridSize, out);
@@ -135,7 +129,8 @@ public abstract class TIMEncoder extends Encoder {
     // for (int i = 0; i < writeIndex; i++) {
     //  calcTwoDiff(i);
     // }
-    writeWidth = calculateBitWidthsForDeltaBlockBuffer();
+
+    // writeWidth = calculateBitWidthsForDeltaBlockBuffer();
     rleGridVWidth = calculaterleGridVWidthsForDeltaBlockBuffer();
     rleGridCWidth = calculaterleGridCWidthsForDeltaBlockBuffer();
     writeHeaderToBytes();
@@ -158,7 +153,7 @@ public abstract class TIMEncoder extends Encoder {
   public static class IntTIMEncoder extends TIMEncoder {
 
     private int[] diffBlockBuffer;
-    private int[] diffBuffer;
+    // private int[] diffBuffer;
     private int firstValue;
     private int previousValue;
     private int previousDiff;
@@ -185,7 +180,7 @@ public abstract class TIMEncoder extends Encoder {
     public IntTIMEncoder(int size) {
       super(size);
       diffBlockBuffer = new int[this.blockSize];
-      diffBuffer = new int[this.blockSize];
+      // diffBuffer = new int[this.blockSize];
       encodingBlockBuffer = new byte[blockSize * 4];
       values = new Vector<>();
       diffs = new ArrayList<>();
@@ -195,22 +190,69 @@ public abstract class TIMEncoder extends Encoder {
     }
 
     @Override
-    protected int calculateBitWidthsForDeltaBlockBuffer() {
-      int width = 0;
-      for (int i = 0; i < writeIndex; i++) {
-        width = Math.max(width, getValueWidth(diffBlockBuffer[i]));
+    protected void reset() {
+      firstValue = 0;
+      previousValue = 0;
+      previousDiff = 0;
+      grid = 0;
+      minDiffBase = Integer.MAX_VALUE;
+      for (int i = 0; i < blockSize; i++) {
+        encodingBlockBuffer[i] = 0;
+        diffBlockBuffer[i] = 0;
+        // diffBuffer[i] = 0;
       }
-      return width;
+      values.clear();
+      diffs.clear();
+      rleGridV.clear();
+      rleGridC.clear();
     }
 
-    private void calcDelta(int value) {
-      int diff = -previousValue + previousDiff + value - grid; // calculate diff
-      if (diff < minDiffBase) {
-        minDiffBase = diff;
-      }
-      previousDiff = diff;
-      diffBuffer[writeIndex] = diff;
-      diffBlockBuffer[writeIndex++] = diff;
+    private int getValueWidth(int v) {
+      return 32 - Integer.numberOfLeadingZeros(v);
+    }
+
+    // @Override
+    // protected void writeValueToBytes(int i) {
+    //  BytesUtils.intToBytes(diffBuffer[i], encodingBlockBuffer, writeWidth * i, writeWidth);
+    // }
+
+    @Override
+    protected void writeRLEGridToBytes(int i) {
+      BytesUtils.longToBytes(
+          rleGridV.get(i), encodingBlockBuffer, (rleGridVWidth + rleGridCWidth) * i, rleGridVWidth);
+      BytesUtils.longToBytes(
+          rleGridC.get(i),
+          encodingBlockBuffer,
+          (rleGridVWidth + rleGridCWidth) * i + rleGridVWidth,
+          rleGridCWidth);
+    }
+
+    // @Override
+    // protected void calcTwoDiff(int i) {
+    //  diffBuffer[i] = diffBuffer[i] - minDiffBase;
+    // }
+
+    @Override
+    protected void writeHeader() throws IOException {
+      ReadWriteIOUtils.write(minDiffBase, out);
+      ReadWriteIOUtils.write(firstValue, out);
+      ReadWriteIOUtils.write(grid, out);
+    }
+
+    @Override
+    public void encode(int value, ByteArrayOutputStream out) {
+      encodeValue(value, out);
+    }
+
+    @Override
+    public int getOneItemMaxSize() {
+      return 4;
+    }
+
+    @Override
+    public long getMaxByteSize() {
+      // The meaning of 24 is: index(4)+width(4)+minDiffBase(4)+firstValue(4)
+      return (long) 24 + writeIndex * 4;
     }
 
     /**
@@ -251,16 +293,16 @@ public abstract class TIMEncoder extends Encoder {
         previousValue = values.get(i);
       }
 
-      int rleGridPre = diffBuffer[0];
+      int rleGridPre = diffBlockBuffer[0];
       int count = 0;
       for (int i = 0; i < dSize; i++) {
-        if (diffBuffer[i] == rleGridPre) {
+        if (diffBlockBuffer[i] == rleGridPre) {
           count += 1;
         } else {
           rleGridV.add(rleGridPre);
           rleGridC.add(count);
           count = 1;
-          rleGridPre = diffBuffer[i];
+          rleGridPre = diffBlockBuffer[i];
         }
       }
       rleGridV.add(rleGridPre);
@@ -268,71 +310,24 @@ public abstract class TIMEncoder extends Encoder {
       rleGridSize = rleGridV.size();
     }
 
-    @Override
-    protected void reset() {
-      firstValue = 0;
-      previousValue = 0;
-      previousDiff = 0;
-      grid = 0;
-      minDiffBase = Integer.MAX_VALUE;
-      for (int i = 0; i < blockSize; i++) {
-        encodingBlockBuffer[i] = 0;
-        diffBlockBuffer[i] = 0;
-        diffBuffer[i] = 0;
+    private void calcDelta(int value) {
+      int diff = -previousValue + previousDiff + value - grid; // calculate diff
+      if (diff < minDiffBase) {
+        minDiffBase = diff;
       }
-      values.clear();
-      diffs.clear();
-      rleGridV.clear();
-      rleGridC.clear();
+      previousDiff = diff;
+      // diffBuffer[writeIndex] = diff;
+      diffBlockBuffer[writeIndex++] = diff;
     }
 
-    private int getValueWidth(int v) {
-      return 32 - Integer.numberOfLeadingZeros(v);
-    }
-
-    // @Override
-    // protected void writeValueToBytes(int i) {
-    //  BytesUtils.intToBytes(diffBlockBuffer[i], encodingBlockBuffer, writeWidth * i, writeWidth);
-    // }
-
-    @Override
-    protected void writeRLEGridToBytes(int i) {
-      BytesUtils.longToBytes(
-          rleGridV.get(i), encodingBlockBuffer, (rleGridVWidth + rleGridCWidth) * i, rleGridVWidth);
-      BytesUtils.longToBytes(
-          rleGridC.get(i),
-          encodingBlockBuffer,
-          (rleGridVWidth + rleGridCWidth) * i + rleGridVWidth,
-          rleGridCWidth);
-    }
-
-    // @Override
-    // protected void calcTwoDiff(int i) {
-    //  diffBlockBuffer[i] = diffBlockBuffer[i] - minDiffBase;
-    // }
-
-    @Override
-    protected void writeHeader() throws IOException {
-      ReadWriteIOUtils.write(minDiffBase, out);
-      ReadWriteIOUtils.write(firstValue, out);
-      ReadWriteIOUtils.write(grid, out);
-    }
-
-    @Override
-    public void encode(int value, ByteArrayOutputStream out) {
-      encodeValue(value, out);
-    }
-
-    @Override
-    public int getOneItemMaxSize() {
-      return 4;
-    }
-
-    @Override
-    public long getMaxByteSize() {
-      // The meaning of 24 is: index(4)+width(4)+minDiffBase(4)+firstValue(4)
-      return (long) 24 + writeIndex * 4;
-    }
+    //    @Override
+    //    protected int calculateBitWidthsForDeltaBlockBuffer() {
+    //      int width = 0;
+    //      for (int i = 0; i < writeIndex; i++) {
+    //        width = Math.max(width, getValueWidth(diffBuffer[i]));
+    //      }
+    //      return width;
+    //    }
 
     @Override
     protected int calculaterleGridVWidthsForDeltaBlockBuffer() {
@@ -356,7 +351,7 @@ public abstract class TIMEncoder extends Encoder {
   public static class LongTIMEncoder extends TIMEncoder {
 
     private long[] diffBlockBuffer;
-    private long[] diffBuffer;
+    // private long[] diffBuffer;
     private long firstValue;
     private long previousValue;
     private long previousDiff;
@@ -383,23 +378,13 @@ public abstract class TIMEncoder extends Encoder {
     public LongTIMEncoder(int size) {
       super(size);
       diffBlockBuffer = new long[this.blockSize];
-      diffBuffer = new long[this.blockSize];
+      // diffBuffer = new long[this.blockSize];
       encodingBlockBuffer = new byte[blockSize * 8];
       values = new Vector<>();
       diffs = new ArrayList<>();
       rleGridV = new ArrayList<>();
       rleGridC = new ArrayList<>();
       reset();
-    }
-
-    private void calcDelta(long value) {
-      long diff = -previousValue + previousDiff + value - grid; // calculate diff
-      if (diff < minDiffBase) {
-        minDiffBase = diff;
-      }
-      previousDiff = diff;
-      diffBuffer[writeIndex] = diff;
-      diffBlockBuffer[writeIndex++] = diff;
     }
 
     @Override
@@ -412,7 +397,7 @@ public abstract class TIMEncoder extends Encoder {
       for (int i = 0; i < blockSize; i++) {
         encodingBlockBuffer[i] = 0;
         diffBlockBuffer[i] = 0L;
-        diffBuffer[i] = 0L;
+        // diffBuffer[i] = 0L;
       }
       values.clear();
       diffs.clear();
@@ -426,7 +411,7 @@ public abstract class TIMEncoder extends Encoder {
 
     // @Override
     // protected void writeValueToBytes(int i) {
-    //  BytesUtils.longToBytes(diffBlockBuffer[i], encodingBlockBuffer, writeWidth * i, writeWidth);
+    //  BytesUtils.longToBytes(diffBuffer[i], encodingBlockBuffer, writeWidth * i, writeWidth);
     // }
 
     @Override
@@ -442,7 +427,7 @@ public abstract class TIMEncoder extends Encoder {
 
     // @Override
     // protected void calcTwoDiff(int i) {
-    //  diffBlockBuffer[i] = diffBlockBuffer[i] - minDiffBase;
+    //  diffBuffer[i] = diffBuffer[i] - minDiffBase;
     // }
 
     @Override
@@ -506,16 +491,16 @@ public abstract class TIMEncoder extends Encoder {
         previousValue = values.get(i);
       }
 
-      long rleGridPre = diffBuffer[0] - minDiffBase;
+      long rleGridPre = diffBlockBuffer[0] - minDiffBase;
       long count = 0;
       for (int i = 0; i < dSize; i++) {
-        if (diffBuffer[i] - minDiffBase == rleGridPre) {
+        if (diffBlockBuffer[i] - minDiffBase == rleGridPre) {
           count += 1;
         } else {
           rleGridV.add(rleGridPre);
           rleGridC.add(count);
           count = 1;
-          rleGridPre = diffBuffer[i] - minDiffBase;
+          rleGridPre = diffBlockBuffer[i] - minDiffBase;
         }
       }
       rleGridV.add(rleGridPre);
@@ -523,14 +508,24 @@ public abstract class TIMEncoder extends Encoder {
       rleGridSize = rleGridV.size();
     }
 
-    @Override
-    protected int calculateBitWidthsForDeltaBlockBuffer() {
-      int width = 0;
-      for (int i = 0; i < writeIndex; i++) {
-        width = Math.max(width, getValueWidth(diffBlockBuffer[i]));
+    private void calcDelta(long value) {
+      long diff = -previousValue + previousDiff + value - grid; // calculate diff
+      if (diff < minDiffBase) {
+        minDiffBase = diff;
       }
-      return width;
+      previousDiff = diff;
+      // diffBuffer[writeIndex] = diff;
+      diffBlockBuffer[writeIndex++] = diff;
     }
+
+    //    @Override
+    //    protected int calculateBitWidthsForDeltaBlockBuffer() {
+    //      int width = 0;
+    //      for (int i = 0; i < writeIndex; i++) {
+    //        width = Math.max(width, getValueWidth(diffBuffer[i]));
+    //      }
+    //      return width;
+    //    }
 
     @Override
     protected int calculaterleGridVWidthsForDeltaBlockBuffer() {
