@@ -19,23 +19,28 @@
 package org.apache.iotdb.db.mpp.plan.planner.plan.node.source;
 
 import org.apache.iotdb.common.rpc.thrift.TRegionReplicaSet;
-import org.apache.iotdb.db.metadata.path.MeasurementPath;
-import org.apache.iotdb.db.metadata.path.PathDeserializeUtil;
+import org.apache.iotdb.commons.path.MeasurementPath;
+import org.apache.iotdb.commons.path.PartialPath;
+import org.apache.iotdb.commons.path.PathDeserializeUtil;
 import org.apache.iotdb.db.mpp.plan.planner.plan.node.PlanNode;
 import org.apache.iotdb.db.mpp.plan.planner.plan.node.PlanNodeId;
 import org.apache.iotdb.db.mpp.plan.planner.plan.node.PlanNodeType;
+import org.apache.iotdb.db.mpp.plan.planner.plan.node.PlanNodeUtil;
 import org.apache.iotdb.db.mpp.plan.planner.plan.node.PlanVisitor;
+import org.apache.iotdb.tsfile.read.filter.basic.Filter;
 
 import com.google.common.collect.ImmutableList;
 
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Objects;
 
-public class LastQueryScanNode extends SourceNode {
+public class LastQueryScanNode extends SeriesSourceNode {
 
-  public static final List<String> LAST_QUERY_COLUMN_HEADERS =
-      ImmutableList.of("Time", "timeseries", "value", "dataType");
+  public static final List<String> LAST_QUERY_HEADER_COLUMNS =
+      ImmutableList.of("timeseries", "value", "dataType");
 
   // The path of the target series which will be scanned.
   private final MeasurementPath seriesPath;
@@ -97,7 +102,7 @@ public class LastQueryScanNode extends SourceNode {
 
   @Override
   public List<String> getOutputColumnNames() {
-    return LAST_QUERY_COLUMN_HEADERS;
+    return LAST_QUERY_HEADER_COLUMNS;
   }
 
   @Override
@@ -124,7 +129,9 @@ public class LastQueryScanNode extends SourceNode {
   public String toString() {
     return String.format(
         "LastQueryScanNode-%s:[SeriesPath: %s, DataRegion: %s]",
-        this.getPlanNodeId(), this.getSeriesPath(), this.getRegionReplicaSet());
+        this.getPlanNodeId(),
+        this.getSeriesPath(),
+        PlanNodeUtil.printRegionReplicaSet(getRegionReplicaSet()));
   }
 
   @Override
@@ -133,9 +140,25 @@ public class LastQueryScanNode extends SourceNode {
     seriesPath.serialize(byteBuffer);
   }
 
+  @Override
+  protected void serializeAttributes(DataOutputStream stream) throws IOException {
+    PlanNodeType.LAST_QUERY_SCAN.serialize(stream);
+    seriesPath.serialize(stream);
+  }
+
   public static LastQueryScanNode deserialize(ByteBuffer byteBuffer) {
     MeasurementPath partialPath = (MeasurementPath) PathDeserializeUtil.deserialize(byteBuffer);
     PlanNodeId planNodeId = PlanNodeId.deserialize(byteBuffer);
     return new LastQueryScanNode(planNodeId, partialPath);
+  }
+
+  @Override
+  public PartialPath getPartitionPath() {
+    return seriesPath;
+  }
+
+  @Override
+  public Filter getPartitionTimeFilter() {
+    return null;
   }
 }

@@ -27,14 +27,14 @@ RESTful 服务默认情况是关闭的
  * 开发者  
    
    找到sever模块中`org.apache.iotdb.db.conf.rest` 下面的`IoTDBRestServiceConfig`类，修改`enableRestService=true`即可。
- 
+
  * 使用者  
    
-   找到IoTDB安装目录下面的`conf/iotdb.properties`文件，将 `enable_rest_service` 设置为 `true` 以启用该模块。
-    
+   找到IoTDB安装目录下面的`conf/iotdb-rest.properties`文件，将 `enable_rest_service` 设置为 `true` 以启用该模块。
+   
    ```properties
     enable_rest_service=true
-    ```
+   ```
 
 ### 鉴权
 除了检活接口 `/ping`，RESTful 服务使用了基础（basic）鉴权，每次 URL 请求都需要在 header 中携带 `'Authorization': 'Basic ' + base64.encode(username + ':' + password)`。
@@ -835,7 +835,7 @@ curl -H "Content-Type:application/json" -H "Authorization:Basic cm9vdDpyb290" -X
 | dataTypes | array | 是  | 数据类型  |
 |  values | array | 是  | 值列，每一列中的值可以为 `null` |
 |  isAligned | boolean | 是  | 是否是对齐时间序列 |
-|  deviceId | boolean | 是  | 设备名称 |
+|  deviceId | string | 是  | 设备名称 |
 
 请求示例：
 ```shell

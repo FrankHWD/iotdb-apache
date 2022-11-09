@@ -74,10 +74,10 @@ for %%i in (%*) do (
 	)
 )
 
-IF EXIST "%IOTDB_CONF%\iotdb-env.bat" (
-    CALL "%IOTDB_CONF%\iotdb-env.bat" %1
+IF EXIST "%IOTDB_CONF%\datanode-env.bat" (
+    CALL "%IOTDB_CONF%\datanode-env.bat" %1
     ) ELSE (
-    echo "can't find %IOTDB_CONF%\iotdb-env.bat"
+    echo "can't find %IOTDB_CONF%\datanode-env.bat"
     )
 
 if NOT DEFINED MAIN_CLASS set MAIN_CLASS=org.apache.iotdb.db.service.IoTDB
@@ -86,7 +86,7 @@ if NOT DEFINED JAVA_HOME goto :err
 @REM -----------------------------------------------------------------------------
 @REM JVM Opts we'll use in legacy run or installation
 set JAVA_OPTS=-ea^
- -Dlogback.configurationFile="%IOTDB_CONF%\logback.xml"^
+ -Dlogback.configurationFile="%IOTDB_CONF%\logback-datanode.xml"^
  -DIOTDB_HOME="%IOTDB_HOME%"^
  -DTSFILE_HOME="%IOTDB_HOME%"^
  -DTSFILE_CONF="%IOTDB_CONF%"^

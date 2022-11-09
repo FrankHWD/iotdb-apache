@@ -27,6 +27,7 @@ import org.apache.iotdb.db.exception.StorageGroupNotReadyException;
 import org.apache.iotdb.db.exception.query.QueryProcessException;
 import org.apache.iotdb.db.exception.query.QueryTimeoutRuntimeException;
 import org.apache.iotdb.db.exception.sql.SQLParserException;
+import org.apache.iotdb.db.exception.sql.SemanticException;
 import org.apache.iotdb.rpc.RpcUtils;
 import org.apache.iotdb.rpc.TSStatusCode;
 import org.apache.iotdb.tsfile.exception.TsFileRuntimeException;
@@ -75,18 +76,28 @@ public class ErrorHandlingUtils {
     return e;
   }
 
-  public static TSStatus onQueryException(Exception e, String operation) {
+  public static TSStatus onQueryException(Exception e, String operation, TSStatusCode statusCode) {
     TSStatus status = tryCatchQueryException(e);
     if (status != null) {
       // ignore logging sg not ready exception
       if (status.getCode() != TSStatusCode.STORAGE_GROUP_NOT_READY.getStatusCode()) {
-        LOGGER.error(
-            "Status code: " + status.getCode() + ", Query Statement: " + operation + " failed", e);
+        String message =
+            String.format(
+                "Status code: %s, Query Statement: %s failed", status.getCode(), operation);
+        if (status.getCode() == TSStatusCode.SQL_PARSE_ERROR.getStatusCode()) {
+          LOGGER.error(message);
+        } else {
+          LOGGER.error(message, e);
+        }
       }
       return status;
     } else {
-      return onNPEOrUnexpectedException(e, operation, TSStatusCode.INTERNAL_SERVER_ERROR);
+      return onNPEOrUnexpectedException(e, operation, statusCode);
     }
+  }
+
+  public static TSStatus onQueryException(Exception e, String operation) {
+    return onQueryException(e, operation, TSStatusCode.INTERNAL_SERVER_ERROR);
   }
 
   public static TSStatus onQueryException(Exception e, OperationType operation) {
@@ -119,7 +130,15 @@ public class ErrorHandlingUtils {
       return RpcUtils.getStatus(((IoTDBException) t).getErrorCode(), rootCause.getMessage());
     } else if (t instanceof TsFileRuntimeException) {
       return RpcUtils.getStatus(TSStatusCode.TSFILE_PROCESSOR_ERROR, rootCause.getMessage());
+    } else if (t instanceof SemanticException) {
+      return RpcUtils.getStatus(TSStatusCode.SEMANTIC_ERROR, rootCause.getMessage());
     }
+
+    if (t instanceof RuntimeException && rootCause instanceof IoTDBException) {
+      return RpcUtils.getStatus(
+          ((IoTDBException) rootCause).getErrorCode(), rootCause.getMessage());
+    }
+
     return null;
   }
 

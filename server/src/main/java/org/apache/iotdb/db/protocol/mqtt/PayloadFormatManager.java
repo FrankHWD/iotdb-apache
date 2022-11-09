@@ -19,6 +19,7 @@ package org.apache.iotdb.db.protocol.mqtt;
 
 import org.apache.iotdb.commons.file.SystemFileFactory;
 import org.apache.iotdb.db.conf.IoTDBDescriptor;
+import org.apache.iotdb.db.utils.FilesUtils;
 
 import com.google.common.base.Preconditions;
 import org.apache.commons.io.FileUtils;
@@ -30,7 +31,6 @@ import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.ServiceLoader;
 
@@ -73,14 +73,6 @@ public class PayloadFormatManager {
     FileUtils.forceMkdir(file);
   }
 
-  private static URL[] getPlugInJarURLs() throws IOException {
-    HashSet<File> fileSet =
-        new HashSet<>(
-            FileUtils.listFiles(
-                SystemFileFactory.INSTANCE.getFile(mqttDir), new String[] {"jar"}, true));
-    return FileUtils.toURLs(fileSet.toArray(new File[0]));
-  }
-
   private static void buildMqttPluginMap() throws IOException {
     ServiceLoader<PayloadFormatter> payloadFormatters = ServiceLoader.load(PayloadFormatter.class);
     for (PayloadFormatter formatter : payloadFormatters) {
@@ -94,7 +86,7 @@ public class PayloadFormatManager {
       logger.info("PayloadFormatManager(), find MQTT Payload Plugin {}.", pluginName);
     }
 
-    URL[] jarURLs = getPlugInJarURLs();
+    URL[] jarURLs = FilesUtils.getPluginJarURLs(mqttDir);
     logger.debug("MQTT Plugin jarURLs: {}", jarURLs);
 
     for (URL jarUrl : jarURLs) {

@@ -22,18 +22,21 @@ package org.apache.iotdb.db.mpp.common.schematree.node;
 import org.apache.iotdb.tsfile.utils.ReadWriteIOUtils;
 import org.apache.iotdb.tsfile.write.schema.MeasurementSchema;
 
-import java.nio.ByteBuffer;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.Map;
 
 public class SchemaMeasurementNode extends SchemaNode {
 
   private String alias;
   private MeasurementSchema schema;
-  private String version;
 
-  public SchemaMeasurementNode(String name, MeasurementSchema schema, String version) {
+  private Map<String, String> tagMap;
+
+  public SchemaMeasurementNode(String name, MeasurementSchema schema) {
     super(name);
     this.schema = schema;
-    this.version = version;
   }
 
   public String getAlias() {
@@ -46,6 +49,10 @@ public class SchemaMeasurementNode extends SchemaNode {
 
   public MeasurementSchema getSchema() {
     return schema;
+  }
+
+  public Map<String, String> getTagMap() {
+    return tagMap;
   }
 
   @Override
@@ -68,8 +75,8 @@ public class SchemaMeasurementNode extends SchemaNode {
     this.schema = schema;
   }
 
-  public String getVersion() {
-    return version;
+  public void setTagMap(Map<String, String> tagMap) {
+    this.tagMap = tagMap;
   }
 
   @Override
@@ -88,23 +95,24 @@ public class SchemaMeasurementNode extends SchemaNode {
   }
 
   @Override
-  public void serialize(ByteBuffer buffer) {
-    ReadWriteIOUtils.write(getType(), buffer);
-    ReadWriteIOUtils.write(name, buffer);
+  public void serialize(OutputStream outputStream) throws IOException {
+    ReadWriteIOUtils.write(getType(), outputStream);
+    ReadWriteIOUtils.write(name, outputStream);
 
-    ReadWriteIOUtils.write(alias, buffer);
-    schema.serializeTo(buffer);
-    ReadWriteIOUtils.write(version, buffer);
+    ReadWriteIOUtils.write(alias, outputStream);
+    schema.serializeTo(outputStream);
+    ReadWriteIOUtils.write(tagMap, outputStream);
   }
 
-  public static SchemaMeasurementNode deserialize(ByteBuffer buffer) {
-    String name = ReadWriteIOUtils.readString(buffer);
-    String alias = ReadWriteIOUtils.readString(buffer);
-    MeasurementSchema schema = MeasurementSchema.deserializeFrom(buffer);
-    String version = ReadWriteIOUtils.readString(buffer);
+  public static SchemaMeasurementNode deserialize(InputStream inputStream) throws IOException {
+    String name = ReadWriteIOUtils.readString(inputStream);
+    String alias = ReadWriteIOUtils.readString(inputStream);
+    MeasurementSchema schema = MeasurementSchema.deserializeFrom(inputStream);
+    Map<String, String> tagMap = ReadWriteIOUtils.readMap(inputStream);
 
-    SchemaMeasurementNode measurementNode = new SchemaMeasurementNode(name, schema, version);
+    SchemaMeasurementNode measurementNode = new SchemaMeasurementNode(name, schema);
     measurementNode.setAlias(alias);
+    measurementNode.setTagMap(tagMap);
     return measurementNode;
   }
 }

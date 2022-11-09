@@ -46,12 +46,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.ReentrantLock;
 
 public class ProcedureExecutor<Env> {
   private static final Logger LOG = LoggerFactory.getLogger(ProcedureExecutor.class);
-
-  private final ConcurrentHashMap<Long, ReentrantLock> idLockMap = new ConcurrentHashMap<>();
 
   private final ConcurrentHashMap<Long, CompletedProcedureContainer<Env>> completed =
       new ConcurrentHashMap<>();
@@ -385,7 +382,7 @@ public class ProcedureExecutor<Env> {
       rootProcStack.release();
 
       if (proc.isSuccess()) {
-        LOG.info("{} finished in {} successfully.", proc, proc.elapsedTime());
+        LOG.info("{} finished in {}ms successfully.", proc, proc.elapsedTime());
         if (proc.getProcId() == rootProcId) {
           rootProcedureCleanup(proc);
         } else {
@@ -638,10 +635,7 @@ public class ProcedureExecutor<Env> {
    * @return procedure lock state
    */
   private ProcedureLockState executeRollback(Procedure<Env> procedure) {
-    ReentrantLock idLock =
-        idLockMap.computeIfAbsent(procedure.getProcId(), procId -> new ReentrantLock());
     try {
-      idLock.lock();
       procedure.doRollback(this.environment);
     } catch (IOException e) {
       LOG.error("Roll back failed for {}", procedure, e);
@@ -649,8 +643,6 @@ public class ProcedureExecutor<Env> {
       LOG.warn("Interrupted exception occured for {}", procedure, e);
     } catch (Throwable t) {
       LOG.error("CODE-BUG: runtime exception for {}", procedure, t);
-    } finally {
-      idLock.unlock();
     }
     cleanupAfterRollback(procedure);
     return ProcedureLockState.LOCK_ACQUIRED;
@@ -708,7 +700,7 @@ public class ProcedureExecutor<Env> {
    */
   private long pushProcedure(Procedure<Env> procedure) {
     final long currentProcId = procedure.getProcId();
-    RootProcedureStack stack = new RootProcedureStack();
+    RootProcedureStack<Env> stack = new RootProcedureStack<>();
     rollbackStack.put(currentProcId, stack);
     procedures.put(currentProcId, procedure);
     scheduler.addBack(procedure);
@@ -746,16 +738,12 @@ public class ProcedureExecutor<Env> {
           this.activeProcedure = procedure;
           int activeCount = activeExecutorCount.incrementAndGet();
           startTime.set(System.currentTimeMillis());
-          ReentrantLock idLock =
-              idLockMap.computeIfAbsent(procedure.getProcId(), id -> new ReentrantLock());
-          idLock.lock();
           executeProcedure(procedure);
           activeCount = activeExecutorCount.decrementAndGet();
           LOG.trace("Halt pid={}, activeCount={}", procedure.getProcId(), activeCount);
           this.activeProcedure = null;
           lastUpdated = System.currentTimeMillis();
           startTime.set(lastUpdated);
-          idLock.unlock();
         }
 
       } catch (Throwable throwable) {
@@ -870,6 +858,7 @@ public class ProcedureExecutor<Env> {
 
   public void join() {
     timeoutExecutor.awaitTermination();
+    workerMonitorExecutor.awaitTermination();
     for (WorkerThread workerThread : workerThreads) {
       workerThread.awaitTermination();
     }

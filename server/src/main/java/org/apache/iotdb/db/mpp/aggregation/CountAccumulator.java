@@ -19,12 +19,11 @@
 
 package org.apache.iotdb.db.mpp.aggregation;
 
+import org.apache.iotdb.db.mpp.execution.operator.window.IWindow;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.file.metadata.statistics.Statistics;
-import org.apache.iotdb.tsfile.read.common.TimeRange;
 import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.read.common.block.column.ColumnBuilder;
-import org.apache.iotdb.tsfile.read.common.block.column.TimeColumn;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -34,19 +33,30 @@ public class CountAccumulator implements Accumulator {
 
   public CountAccumulator() {}
 
-  // Column should be like: | Time | Value |
+  // Column should be like: | ControlColumn | Time | Value |
   @Override
-  public void addInput(Column[] column, TimeRange timeRange) {
-    TimeColumn timeColumn = (TimeColumn) column[0];
-    for (int i = 0; i < timeColumn.getPositionCount(); i++) {
-      long curTime = timeColumn.getLong(i);
-      if (curTime > timeRange.getMax() || curTime < timeRange.getMin()) {
-        break;
-      }
-      if (!column[1].isNull(i)) {
-        countValue++;
+  public int addInput(Column[] column, IWindow curWindow) {
+    int curPositionCount = column[0].getPositionCount();
+
+    if (!column[2].mayHaveNull() && curWindow.contains(column[1])) {
+      countValue += curPositionCount;
+    } else {
+      for (int i = 0; i < curPositionCount; i++) {
+        // skip null value in control column
+        if (column[0].isNull(i)) {
+          continue;
+        }
+        if (!curWindow.satisfy(column[0], i)) {
+          return i;
+        }
+        curWindow.mergeOnePoint();
+        if (!column[2].isNull(i)) {
+          countValue++;
+        }
       }
     }
+
+    return curPositionCount;
   }
 
   // partialResult should be like: | partialCountValue1 |
@@ -61,6 +71,9 @@ public class CountAccumulator implements Accumulator {
 
   @Override
   public void addStatistics(Statistics statistics) {
+    if (statistics == null) {
+      return;
+    }
     countValue += statistics.getCount();
   }
 

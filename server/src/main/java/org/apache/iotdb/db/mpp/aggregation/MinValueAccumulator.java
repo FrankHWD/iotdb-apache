@@ -19,13 +19,12 @@
 
 package org.apache.iotdb.db.mpp.aggregation;
 
+import org.apache.iotdb.db.mpp.execution.operator.window.IWindow;
 import org.apache.iotdb.tsfile.exception.write.UnSupportedDataTypeException;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.file.metadata.statistics.Statistics;
-import org.apache.iotdb.tsfile.read.common.TimeRange;
 import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.read.common.block.column.ColumnBuilder;
-import org.apache.iotdb.tsfile.read.common.block.column.TimeColumn;
 import org.apache.iotdb.tsfile.utils.TsPrimitiveType;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -41,22 +40,18 @@ public class MinValueAccumulator implements Accumulator {
     this.minResult = TsPrimitiveType.getByType(seriesDataType);
   }
 
-  // Column should be like: | Time | Value |
+  // Column should be like: | ControlColumn | Time | Value |
   @Override
-  public void addInput(Column[] column, TimeRange timeRange) {
+  public int addInput(Column[] column, IWindow curWindow) {
     switch (seriesDataType) {
       case INT32:
-        addIntInput(column, timeRange);
-        break;
+        return addIntInput(column, curWindow);
       case INT64:
-        addLongInput(column, timeRange);
-        break;
+        return addLongInput(column, curWindow);
       case FLOAT:
-        addFloatInput(column, timeRange);
-        break;
+        return addFloatInput(column, curWindow);
       case DOUBLE:
-        addDoubleInput(column, timeRange);
-        break;
+        return addDoubleInput(column, curWindow);
       case TEXT:
       case BOOLEAN:
       default:
@@ -95,6 +90,9 @@ public class MinValueAccumulator implements Accumulator {
 
   @Override
   public void addStatistics(Statistics statistics) {
+    if (statistics == null) {
+      return;
+    }
     switch (seriesDataType) {
       case INT32:
         updateIntResult((int) statistics.getMinValue());
@@ -202,17 +200,23 @@ public class MinValueAccumulator implements Accumulator {
     return minResult.getDataType();
   }
 
-  private void addIntInput(Column[] column, TimeRange timeRange) {
-    TimeColumn timeColumn = (TimeColumn) column[0];
-    for (int i = 0; i < timeColumn.getPositionCount(); i++) {
-      long curTime = timeColumn.getLong(i);
-      if (curTime > timeRange.getMax() || curTime < timeRange.getMin()) {
-        break;
+  private int addIntInput(Column[] column, IWindow curWindow) {
+    int curPositionCount = column[0].getPositionCount();
+
+    for (int i = 0; i < curPositionCount; i++) {
+      // skip null value in control column
+      if (column[0].isNull(i)) {
+        continue;
       }
-      if (!column[1].isNull(i)) {
-        updateIntResult(column[1].getInt(i));
+      if (!curWindow.satisfy(column[0], i)) {
+        return i;
+      }
+      curWindow.mergeOnePoint();
+      if (!column[2].isNull(i)) {
+        updateIntResult(column[2].getInt(i));
       }
     }
+    return curPositionCount;
   }
 
   private void updateIntResult(int minVal) {
@@ -222,17 +226,23 @@ public class MinValueAccumulator implements Accumulator {
     }
   }
 
-  private void addLongInput(Column[] column, TimeRange timeRange) {
-    TimeColumn timeColumn = (TimeColumn) column[0];
-    for (int i = 0; i < timeColumn.getPositionCount(); i++) {
-      long curTime = timeColumn.getLong(i);
-      if (curTime > timeRange.getMax() || curTime < timeRange.getMin()) {
-        break;
+  private int addLongInput(Column[] column, IWindow curWindow) {
+    int curPositionCount = column[0].getPositionCount();
+
+    for (int i = 0; i < curPositionCount; i++) {
+      // skip null value in control column
+      if (column[0].isNull(i)) {
+        continue;
       }
-      if (!column[1].isNull(i)) {
-        updateLongResult(column[1].getLong(i));
+      if (!curWindow.satisfy(column[0], i)) {
+        return i;
+      }
+      curWindow.mergeOnePoint();
+      if (!column[2].isNull(i)) {
+        updateLongResult(column[2].getLong(i));
       }
     }
+    return curPositionCount;
   }
 
   private void updateLongResult(long minVal) {
@@ -242,17 +252,23 @@ public class MinValueAccumulator implements Accumulator {
     }
   }
 
-  private void addFloatInput(Column[] column, TimeRange timeRange) {
-    TimeColumn timeColumn = (TimeColumn) column[0];
-    for (int i = 0; i < timeColumn.getPositionCount(); i++) {
-      long curTime = timeColumn.getLong(i);
-      if (curTime > timeRange.getMax() || curTime < timeRange.getMin()) {
-        break;
+  private int addFloatInput(Column[] column, IWindow curWindow) {
+    int curPositionCount = column[0].getPositionCount();
+
+    for (int i = 0; i < curPositionCount; i++) {
+      // skip null value in control column
+      if (column[0].isNull(i)) {
+        continue;
       }
-      if (!column[1].isNull(i)) {
-        updateFloatResult(column[1].getFloat(i));
+      if (!curWindow.satisfy(column[0], i)) {
+        return i;
+      }
+      curWindow.mergeOnePoint();
+      if (!column[2].isNull(i)) {
+        updateFloatResult(column[2].getFloat(i));
       }
     }
+    return curPositionCount;
   }
 
   private void updateFloatResult(float minVal) {
@@ -262,17 +278,23 @@ public class MinValueAccumulator implements Accumulator {
     }
   }
 
-  private void addDoubleInput(Column[] column, TimeRange timeRange) {
-    TimeColumn timeColumn = (TimeColumn) column[0];
-    for (int i = 0; i < timeColumn.getPositionCount(); i++) {
-      long curTime = timeColumn.getLong(i);
-      if (curTime > timeRange.getMax() || curTime < timeRange.getMin()) {
-        break;
+  private int addDoubleInput(Column[] column, IWindow curWindow) {
+    int curPositionCount = column[0].getPositionCount();
+
+    for (int i = 0; i < curPositionCount; i++) {
+      // skip null value in control column
+      if (column[0].isNull(i)) {
+        continue;
       }
-      if (!column[1].isNull(i)) {
-        updateDoubleResult(column[1].getDouble(i));
+      if (!curWindow.satisfy(column[0], i)) {
+        return i;
+      }
+      curWindow.mergeOnePoint();
+      if (!column[2].isNull(i)) {
+        updateDoubleResult(column[2].getDouble(i));
       }
     }
+    return curPositionCount;
   }
 
   private void updateDoubleResult(double minVal) {

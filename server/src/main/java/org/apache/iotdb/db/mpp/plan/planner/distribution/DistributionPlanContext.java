@@ -22,9 +22,44 @@ package org.apache.iotdb.db.mpp.plan.planner.distribution;
 import org.apache.iotdb.db.mpp.common.MPPQueryContext;
 
 public class DistributionPlanContext {
+  protected boolean isRoot;
   protected MPPQueryContext queryContext;
+  protected boolean forceAddParent;
+  // That the variable is true means there is some source series which is
+  // distributed in multi DataRegions
+  protected boolean oneSeriesInMultiRegion;
+  // That the variable is true means this query will be distributed in multi
+  // DataRegions
+  protected boolean queryMultiRegion;
 
   protected DistributionPlanContext(MPPQueryContext queryContext) {
+    this.isRoot = true;
     this.queryContext = queryContext;
+    this.forceAddParent = false;
+  }
+
+  protected DistributionPlanContext copy() {
+    return new DistributionPlanContext(queryContext);
+  }
+
+  protected DistributionPlanContext setRoot(boolean isRoot) {
+    this.isRoot = isRoot;
+    return this;
+  }
+
+  protected void setForceAddParent(boolean forceAddParent) {
+    this.forceAddParent = forceAddParent;
+  }
+
+  public void setOneSeriesInMultiRegion(boolean oneSeriesInMultiRegion) {
+    this.oneSeriesInMultiRegion = oneSeriesInMultiRegion;
+  }
+
+  public boolean isQueryMultiRegion() {
+    return queryMultiRegion;
+  }
+
+  public void setQueryMultiRegion(boolean queryMultiRegion) {
+    this.queryMultiRegion = queryMultiRegion;
   }
 }

@@ -19,26 +19,30 @@
 
 package org.apache.iotdb.db.mpp.plan.analyze;
 
+import org.apache.iotdb.commons.exception.MetadataException;
+import org.apache.iotdb.commons.path.PartialPath;
+import org.apache.iotdb.db.conf.IoTDBDescriptor;
+import org.apache.iotdb.db.exception.query.QueryProcessException;
 import org.apache.iotdb.db.exception.sql.SemanticException;
-import org.apache.iotdb.db.metadata.path.MeasurementPath;
-import org.apache.iotdb.db.mpp.common.schematree.SchemaTree;
+import org.apache.iotdb.db.mpp.common.schematree.ISchemaTree;
 import org.apache.iotdb.db.mpp.plan.planner.plan.node.write.BatchInsertNode;
 import org.apache.iotdb.db.mpp.plan.planner.plan.node.write.InsertNode;
+import org.apache.iotdb.tsfile.file.metadata.enums.CompressionType;
+import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
+import org.apache.iotdb.tsfile.file.metadata.enums.TSEncoding;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.List;
 
 public class SchemaValidator {
 
-  private static final ISchemaFetcher SCHEMA_FETCHER = ClusterSchemaFetcher.getInstance();
+  private static final ISchemaFetcher SCHEMA_FETCHER =
+      IoTDBDescriptor.getInstance().getConfig().isClusterMode()
+          ? ClusterSchemaFetcher.getInstance()
+          : StandaloneSchemaFetcher.getInstance();
 
-  private static final Set<MeasurementPath> BLACKLIST =
-      Collections.synchronizedSet(new HashSet<>());
+  public static ISchemaTree validate(InsertNode insertNode) {
 
-  public static SchemaTree validate(InsertNode insertNode) {
-
-    SchemaTree schemaTree;
+    ISchemaTree schemaTree;
     if (insertNode instanceof BatchInsertNode) {
       BatchInsertNode batchInsertNode = (BatchInsertNode) insertNode;
       schemaTree =
@@ -52,22 +56,27 @@ public class SchemaValidator {
           SCHEMA_FETCHER.fetchSchemaWithAutoCreate(
               insertNode.getDevicePath(),
               insertNode.getMeasurements(),
-              insertNode.getDataTypes(),
+              insertNode::getDataType,
               insertNode.isAligned());
     }
 
-    if (!BLACKLIST.isEmpty()) {
-      for (MeasurementPath measurementPath : schemaTree.getAllMeasurement()) {
-        if (BLACKLIST.contains(measurementPath)) {
-          schemaTree.pruneSingleMeasurement(measurementPath);
-        }
-      }
-    }
-
-    if (!insertNode.validateAndSetSchema(schemaTree)) {
-      throw new SemanticException("Data type mismatch");
+    try {
+      insertNode.validateAndSetSchema(schemaTree);
+    } catch (QueryProcessException | MetadataException e) {
+      throw new SemanticException(e);
     }
 
     return schemaTree;
+  }
+
+  public static ISchemaTree validate(
+      List<PartialPath> devicePaths,
+      List<String[]> measurements,
+      List<TSDataType[]> dataTypes,
+      List<TSEncoding[]> encodings,
+      List<CompressionType[]> compressionTypes,
+      List<Boolean> isAlignedList) {
+    return SCHEMA_FETCHER.fetchSchemaListWithAutoCreate(
+        devicePaths, measurements, dataTypes, encodings, compressionTypes, isAlignedList);
   }
 }

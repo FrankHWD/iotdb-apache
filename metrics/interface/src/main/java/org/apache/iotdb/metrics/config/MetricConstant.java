@@ -25,5 +25,13 @@ public class MetricConstant {
 
   static final String IOTDB_CONF = "IOTDB_CONF";
 
-  static final String CONFIG_NAME = "iotdb-metric.yml";
+  static final String IOTDB_HOME = "IOTDB_HOME";
+
+  static final String CONFIGNODE_CONF = "CONFIGNODE_CONF";
+
+  static final String CONFIGNODE_HOME = "CONFIGNODE_HOME";
+
+  static final String DATANODE_CONFIG_NAME = "iotdb-datanode-metric.yml";
+
+  static final String CONFIG_NODE_CONFIG_NAME = "iotdb-confignode-metric.yml";
 }

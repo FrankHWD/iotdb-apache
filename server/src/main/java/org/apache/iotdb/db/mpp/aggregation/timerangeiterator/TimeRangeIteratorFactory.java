@@ -19,7 +19,7 @@
 
 package org.apache.iotdb.db.mpp.aggregation.timerangeiterator;
 
-import static org.apache.iotdb.db.qp.utils.DatetimeUtils.MS_TO_MONTH;
+import static org.apache.iotdb.db.qp.utils.DateTimeUtils.MS_TO_MONTH;
 
 public class TimeRangeIteratorFactory {
 
@@ -28,8 +28,7 @@ public class TimeRangeIteratorFactory {
   /**
    * The method returns different implements of ITimeRangeIterator depending on the parameters.
    *
-   * <p>Note: interval and slidingStep stand for the milliseconds if not grouped by month, or the
-   * month count if grouped by month.
+   * <p>Note: interval and slidingStep is always stand for the milliseconds in this method.
    */
   public static ITimeRangeIterator getTimeRangeIterator(
       long startTime,
@@ -40,10 +39,13 @@ public class TimeRangeIteratorFactory {
       boolean isIntervalByMonth,
       boolean isSlidingStepByMonth,
       boolean leftCRightO,
-      boolean isPreAggr) {
-    long tmpInterval = isIntervalByMonth ? interval * MS_TO_MONTH : interval;
-    long tmpSlidingStep = isSlidingStepByMonth ? slidingStep * MS_TO_MONTH : slidingStep;
-    if (isPreAggr && tmpInterval > tmpSlidingStep) {
+      boolean outputPartialTimeWindow) {
+    long originInterval = interval;
+    long originSlidingStep = slidingStep;
+    interval = isIntervalByMonth ? interval / MS_TO_MONTH : interval;
+    slidingStep = isSlidingStepByMonth ? slidingStep / MS_TO_MONTH : slidingStep;
+
+    if (outputPartialTimeWindow && originInterval > originSlidingStep) {
       if (!isIntervalByMonth && !isSlidingStepByMonth) {
         return new PreAggrWindowIterator(
             startTime, endTime, interval, slidingStep, isAscending, leftCRightO);

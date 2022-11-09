@@ -19,6 +19,8 @@
 
 package org.apache.iotdb.db.mpp.execution.memory;
 
+import org.apache.iotdb.tsfile.utils.Pair;
+
 import com.google.common.util.concurrent.AbstractFuture;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -73,11 +75,13 @@ public class MemoryPool {
 
   public MemoryPool(String id, long maxBytes, long maxBytesPerQuery) {
     this.id = Validate.notNull(id);
-    Validate.isTrue(maxBytes > 0L, "max bytes should be greater than zero.");
+    Validate.isTrue(maxBytes > 0L, "max bytes should be greater than zero: %d", maxBytes);
     this.maxBytes = maxBytes;
     Validate.isTrue(
         maxBytesPerQuery > 0L && maxBytesPerQuery <= maxBytes,
-        "max bytes per query should be greater than zero while less than or equal to max bytes.");
+        "max bytes per query should be greater than zero while less than or equal to max bytes. maxBytesPerQuery: %d, maxBytes: %d",
+        maxBytesPerQuery,
+        maxBytes);
     this.maxBytesPerQuery = maxBytesPerQuery;
   }
 
@@ -89,11 +93,13 @@ public class MemoryPool {
     return maxBytes;
   }
 
-  public ListenableFuture<Void> reserve(String queryId, long bytes) {
+  /** @return if reserve succeed, pair.right will be true, otherwise false */
+  public Pair<ListenableFuture<Void>, Boolean> reserve(String queryId, long bytes) {
     Validate.notNull(queryId);
     Validate.isTrue(
         bytes > 0L && bytes <= maxBytesPerQuery,
-        "bytes should be greater than zero while less than or equal to max bytes per query.");
+        "bytes should be greater than zero while less than or equal to max bytes per query: %d",
+        bytes);
 
     ListenableFuture<Void> result;
     synchronized (this) {
@@ -101,21 +107,22 @@ public class MemoryPool {
           || maxBytesPerQuery - queryMemoryReservations.getOrDefault(queryId, 0L) < bytes) {
         result = MemoryReservationFuture.create(queryId, bytes);
         memoryReservationFutures.add((MemoryReservationFuture<Void>) result);
+        return new Pair<>(result, Boolean.FALSE);
       } else {
         reservedBytes += bytes;
         queryMemoryReservations.merge(queryId, bytes, Long::sum);
         result = Futures.immediateFuture(null);
+        return new Pair<>(result, Boolean.TRUE);
       }
     }
-
-    return result;
   }
 
   public boolean tryReserve(String queryId, long bytes) {
     Validate.notNull(queryId);
     Validate.isTrue(
         bytes > 0L && bytes <= maxBytesPerQuery,
-        "bytes should be greater than zero while less than or equal to max bytes per query.");
+        "bytes should be greater than zero while less than or equal to max bytes per query: %d",
+        bytes);
 
     if (maxBytes - reservedBytes < bytes
         || maxBytesPerQuery - queryMemoryReservations.getOrDefault(queryId, 0L) < bytes) {
@@ -153,6 +160,26 @@ public class MemoryPool {
     return ((MemoryReservationFuture<Void>) future).getBytes();
   }
 
+  /**
+   * Complete the specified memory reservation. If the reservation has finished, do nothing.
+   *
+   * @param future The future returned from {@link #reserve(String, long)}
+   * @return If the future has not complete, return the number of bytes being reserved. Otherwise,
+   *     return 0.
+   */
+  public synchronized long tryComplete(ListenableFuture<Void> future) {
+    Validate.notNull(future);
+    // If the future is not a MemoryReservationFuture, it must have been completed.
+    if (future.isDone()) {
+      return 0L;
+    }
+    Validate.isTrue(
+        future instanceof MemoryReservationFuture,
+        "invalid future type " + future.getClass().getSimpleName());
+    ((MemoryReservationFuture<Void>) future).set(null);
+    return ((MemoryReservationFuture<Void>) future).getBytes();
+  }
+
   public synchronized void free(String queryId, long bytes) {
     Validate.notNull(queryId);
     Validate.isTrue(bytes > 0L);
@@ -175,7 +202,7 @@ public class MemoryPool {
     Iterator<MemoryReservationFuture<Void>> iterator = memoryReservationFutures.iterator();
     while (iterator.hasNext()) {
       MemoryReservationFuture<Void> future = iterator.next();
-      if (future.isCancelled()) {
+      if (future.isCancelled() || future.isDone()) {
         continue;
       }
       long bytesToReserve = future.getBytes();

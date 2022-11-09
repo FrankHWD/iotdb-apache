@@ -19,6 +19,8 @@
 
 package org.apache.iotdb.db.mpp.aggregation;
 
+import org.apache.iotdb.db.mpp.execution.operator.window.IWindow;
+import org.apache.iotdb.db.mpp.execution.operator.window.TimeWindow;
 import org.apache.iotdb.db.mpp.plan.planner.plan.parameter.AggregationStep;
 import org.apache.iotdb.db.mpp.plan.planner.plan.parameter.InputLocation;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
@@ -28,23 +30,26 @@ import org.apache.iotdb.tsfile.read.common.block.TsBlock;
 import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.read.common.block.column.ColumnBuilder;
 
+import java.util.Collections;
 import java.util.List;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
 public class Aggregator {
 
-  private final Accumulator accumulator;
+  protected final Accumulator accumulator;
   // In some intermediate result input, inputLocation[] should include two columns
-  private List<InputLocation[]> inputLocationList;
-  private final AggregationStep step;
+  protected List<InputLocation[]> inputLocationList;
+  protected final AggregationStep step;
 
-  private TimeRange timeRange = new TimeRange(0, Long.MAX_VALUE);
+  protected IWindow curWindow;
 
   // Used for SeriesAggregateScanOperator
   public Aggregator(Accumulator accumulator, AggregationStep step) {
     this.accumulator = accumulator;
     this.step = step;
+    this.inputLocationList =
+        Collections.singletonList(new InputLocation[] {new InputLocation(0, 0)});
   }
 
   // Used for aggregateOperator
@@ -56,23 +61,23 @@ public class Aggregator {
   }
 
   // Used for SeriesAggregateScanOperator and RawDataAggregateOperator
-  public void processTsBlock(TsBlock tsBlock) {
+  public int processTsBlock(TsBlock tsBlock) {
     checkArgument(
         step.isInputRaw(),
         "Step in SeriesAggregateScanOperator and RawDataAggregateOperator can only process raw input");
-    if (inputLocationList == null) {
-      accumulator.addInput(tsBlock.getTimeAndValueColumn(0), timeRange);
-    } else {
-      for (InputLocation[] inputLocations : inputLocationList) {
-        checkArgument(
-            inputLocations[0].getTsBlockIndex() == 0,
-            "RawDataAggregateOperator can only process one tsBlock input.");
-        Column[] timeValueColumn = new Column[2];
-        timeValueColumn[0] = tsBlock.getTimeColumn();
-        timeValueColumn[1] = tsBlock.getColumn(inputLocations[0].getValueColumnIndex());
-        accumulator.addInput(timeValueColumn, timeRange);
-      }
+    int lastReadReadIndex = 0;
+    for (InputLocation[] inputLocations : inputLocationList) {
+      checkArgument(
+          inputLocations[0].getTsBlockIndex() == 0,
+          "RawDataAggregateOperator can only process one tsBlock input.");
+      Column[] controlTimeAndValueColumn = new Column[3];
+      controlTimeAndValueColumn[0] = curWindow.getControlColumn(tsBlock);
+      controlTimeAndValueColumn[1] = tsBlock.getTimeColumn();
+      controlTimeAndValueColumn[2] = tsBlock.getColumn(inputLocations[0].getValueColumnIndex());
+      lastReadReadIndex =
+          Math.max(lastReadReadIndex, accumulator.addInput(controlTimeAndValueColumn, curWindow));
     }
+    return lastReadReadIndex;
   }
 
   // Used for AggregateOperator
@@ -105,16 +110,9 @@ public class Aggregator {
     }
   }
 
-  public void processStatistics(Statistics statistics) {
-    accumulator.addStatistics(statistics);
-  }
-
-  /** Used for AlignedSeriesAggregateScanOperator. */
+  /** Used for SeriesAggregateScanOperator. */
   public void processStatistics(Statistics[] statistics) {
     for (InputLocation[] inputLocations : inputLocationList) {
-      checkArgument(
-          inputLocations[0].getTsBlockIndex() == 0,
-          "AlignedSeriesAggregateScanOperator can only process one tsBlock input.");
       int valueIndex = inputLocations[0].getValueColumnIndex();
       accumulator.addStatistics(statistics[valueIndex]);
     }
@@ -129,19 +127,21 @@ public class Aggregator {
   }
 
   public void reset() {
-    timeRange = new TimeRange(0, Long.MAX_VALUE);
+    curWindow = null;
     accumulator.reset();
   }
 
   public boolean hasFinalResult() {
-    return accumulator.hasFinalResult();
+    return curWindow.hasFinalResult(accumulator);
   }
 
-  public void setTimeRange(TimeRange timeRange) {
-    this.timeRange = timeRange;
+  public void updateTimeRange(TimeRange curTimeRange) {
+    reset();
+    this.curWindow = new TimeWindow(curTimeRange);
   }
 
-  public TimeRange getTimeRange() {
-    return timeRange;
+  public void updateWindow(IWindow curWindow) {
+    reset();
+    this.curWindow = curWindow;
   }
 }

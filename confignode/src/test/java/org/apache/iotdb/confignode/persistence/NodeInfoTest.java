@@ -18,10 +18,17 @@
  */
 package org.apache.iotdb.confignode.persistence;
 
-import org.apache.iotdb.common.rpc.thrift.TDataNodeInfo;
+import org.apache.iotdb.common.rpc.thrift.TConfigNodeLocation;
+import org.apache.iotdb.common.rpc.thrift.TDataNodeConfiguration;
 import org.apache.iotdb.common.rpc.thrift.TDataNodeLocation;
 import org.apache.iotdb.common.rpc.thrift.TEndPoint;
-import org.apache.iotdb.confignode.consensus.request.write.RegisterDataNodeReq;
+import org.apache.iotdb.common.rpc.thrift.TNodeResource;
+import org.apache.iotdb.commons.cluster.NodeStatus;
+import org.apache.iotdb.confignode.consensus.request.write.confignode.ApplyConfigNodePlan;
+import org.apache.iotdb.confignode.consensus.request.write.datanode.RegisterDataNodePlan;
+import org.apache.iotdb.confignode.consensus.request.write.statistics.UpdateLoadStatisticsPlan;
+import org.apache.iotdb.confignode.persistence.node.NodeInfo;
+import org.apache.iotdb.confignode.persistence.node.NodeStatistics;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.thrift.TException;
@@ -32,9 +39,6 @@ import org.junit.Test;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 
 import static org.apache.iotdb.db.constant.TestConstant.BASE_OUTPUT_PATH;
 
@@ -61,36 +65,40 @@ public class NodeInfoTest {
 
   @Test
   public void testSnapshot() throws TException, IOException {
-
-    RegisterDataNodeReq registerDataNodeReq =
-        new RegisterDataNodeReq(new TDataNodeInfo(generateTDataNodeLocation(1), 16, 34359738368L));
-    nodeInfo.registerDataNode(registerDataNodeReq);
-
-    registerDataNodeReq =
-        new RegisterDataNodeReq(new TDataNodeInfo(generateTDataNodeLocation(2), 16, 34359738368L));
-    nodeInfo.registerDataNode(registerDataNodeReq);
-
-    Set<TDataNodeLocation> drainingDataNodes_before = new HashSet<>();
-    // parameter i is used to be flag in generateTDataNodeLocation
-    for (int i = 3; i < 8; i++) {
-      drainingDataNodes_before.add(generateTDataNodeLocation(i));
-    }
-    nodeInfo.setDrainingDataNodes(drainingDataNodes_before);
-
-    int nextId = nodeInfo.getNextDataNodeId();
-    List<TDataNodeInfo> onlineDataNodes_before = nodeInfo.getOnlineDataNodes(-1);
-
+    registerConfigNodes();
+    registerDataNodes();
+    recordNodeStatistics();
     nodeInfo.processTakeSnapshot(snapshotDir);
-    nodeInfo.clear();
-    nodeInfo.processLoadSnapshot(snapshotDir);
 
-    Assert.assertEquals(nextId, nodeInfo.getNextDataNodeId());
+    NodeInfo nodeInfo1 = new NodeInfo();
+    nodeInfo1.processLoadSnapshot(snapshotDir);
+    Assert.assertEquals(nodeInfo, nodeInfo1);
+  }
 
-    Set<TDataNodeLocation> drainingDataNodes_after = nodeInfo.getDrainingDataNodes();
-    Assert.assertEquals(drainingDataNodes_before, drainingDataNodes_after);
+  private void registerConfigNodes() {
+    for (int i = 0; i < 3; i++) {
+      ApplyConfigNodePlan applyConfigNodePlan =
+          new ApplyConfigNodePlan(
+              new TConfigNodeLocation(
+                  10000 + i,
+                  new TEndPoint("127.0.0.1", 22200 + i),
+                  new TEndPoint("127.0.0.1", 22300 + i)));
+      nodeInfo.applyConfigNode(applyConfigNodePlan);
+    }
+  }
 
-    List<TDataNodeInfo> onlineDataNodes_after = nodeInfo.getOnlineDataNodes(-1);
-    Assert.assertEquals(onlineDataNodes_before, onlineDataNodes_after);
+  private void registerDataNodes() {
+    for (int i = 3; i < 6; i++) {
+      RegisterDataNodePlan registerDataNodePlan =
+          new RegisterDataNodePlan(generateTDataNodeConfiguration(i));
+      nodeInfo.registerDataNode(registerDataNodePlan);
+    }
+  }
+
+  private TDataNodeConfiguration generateTDataNodeConfiguration(int flag) {
+    TDataNodeLocation location = generateTDataNodeLocation(flag);
+    TNodeResource resource = new TNodeResource(16, 34359738368L);
+    return new TDataNodeConfiguration(location, resource);
   }
 
   private TDataNodeLocation generateTDataNodeLocation(int flag) {
@@ -99,6 +107,16 @@ public class NodeInfoTest {
         new TEndPoint("127.0.0.1", 6600 + flag),
         new TEndPoint("127.0.0.1", 7700 + flag),
         new TEndPoint("127.0.0.1", 8800 + flag),
-        new TEndPoint("127.0.0.1", 9900 + flag));
+        new TEndPoint("127.0.0.1", 9900 + flag),
+        new TEndPoint("127.0.0.1", 11000 + flag));
+  }
+
+  private void recordNodeStatistics() {
+    UpdateLoadStatisticsPlan updateLoadStatisticsPlan = new UpdateLoadStatisticsPlan();
+    for (int i = 0; i < 6; i++) {
+      updateLoadStatisticsPlan.putNodeStatistics(
+          i, new NodeStatistics(i, NodeStatus.Running, null));
+    }
+    nodeInfo.updateNodeStatistics(updateLoadStatisticsPlan);
   }
 }

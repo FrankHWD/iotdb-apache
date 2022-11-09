@@ -26,16 +26,14 @@ import org.apache.iotdb.db.engine.compaction.inner.utils.AlignedSeriesCompaction
 import org.apache.iotdb.db.engine.compaction.inner.utils.MultiTsFileDeviceIterator;
 import org.apache.iotdb.db.engine.compaction.inner.utils.SingleSeriesCompactionExecutor;
 import org.apache.iotdb.db.engine.compaction.performer.ISeqCompactionPerformer;
+import org.apache.iotdb.db.engine.compaction.task.CompactionTaskSummary;
 import org.apache.iotdb.db.engine.storagegroup.TsFileResource;
 import org.apache.iotdb.db.exception.StorageEngineException;
-import org.apache.iotdb.db.exception.metadata.PathNotExistException;
-import org.apache.iotdb.db.metadata.idtable.IDTableManager;
-import org.apache.iotdb.db.service.IoTDB;
+import org.apache.iotdb.db.rescon.SystemInfo;
 import org.apache.iotdb.tsfile.file.metadata.AlignedChunkMetadata;
 import org.apache.iotdb.tsfile.file.metadata.ChunkMetadata;
 import org.apache.iotdb.tsfile.read.TsFileSequenceReader;
 import org.apache.iotdb.tsfile.utils.Pair;
-import org.apache.iotdb.tsfile.write.schema.IMeasurementSchema;
 import org.apache.iotdb.tsfile.write.writer.TsFileIOWriter;
 
 import org.slf4j.Logger;
@@ -50,6 +48,7 @@ public class ReadChunkCompactionPerformer implements ISeqCompactionPerformer {
       LoggerFactory.getLogger(IoTDBConstant.COMPACTION_LOGGER_NAME);
   private TsFileResource targetResource;
   private List<TsFileResource> seqFiles;
+  private CompactionTaskSummary summary;
 
   public ReadChunkCompactionPerformer(List<TsFileResource> sourceFiles, TsFileResource targetFile) {
     this.seqFiles = sourceFiles;
@@ -65,20 +64,25 @@ public class ReadChunkCompactionPerformer implements ISeqCompactionPerformer {
   @Override
   public void perform()
       throws IOException, MetadataException, InterruptedException, StorageEngineException {
+    // size for file writer is 5% of per compaction task memory budget
+    long sizeForFileWriter =
+        (long)
+            (SystemInfo.getInstance().getMemorySizeForCompaction()
+                / IoTDBDescriptor.getInstance().getConfig().getConcurrentCompactionThread()
+                * IoTDBDescriptor.getInstance().getConfig().getChunkMetadataSizeProportion());
     try (MultiTsFileDeviceIterator deviceIterator = new MultiTsFileDeviceIterator(seqFiles);
-        TsFileIOWriter writer = new TsFileIOWriter(targetResource.getTsFile())) {
+        TsFileIOWriter writer =
+            new TsFileIOWriter(targetResource.getTsFile(), true, sizeForFileWriter)) {
       while (deviceIterator.hasNextDevice()) {
         Pair<String, Boolean> deviceInfo = deviceIterator.nextDevice();
         String device = deviceInfo.left;
         boolean aligned = deviceInfo.right;
 
-        writer.startChunkGroup(device);
         if (aligned) {
           compactAlignedSeries(device, targetResource, writer, deviceIterator);
         } else {
           compactNotAlignedSeries(device, targetResource, writer, deviceIterator);
         }
-        writer.endChunkGroup();
       }
 
       for (TsFileResource tsFileResource : seqFiles) {
@@ -100,6 +104,11 @@ public class ReadChunkCompactionPerformer implements ISeqCompactionPerformer {
     this.targetResource = targetFiles.get(0);
   }
 
+  @Override
+  public void setSummary(CompactionTaskSummary summary) {
+    this.summary = summary;
+  }
+
   private void compactAlignedSeries(
       String device,
       TsFileResource targetResource,
@@ -109,18 +118,35 @@ public class ReadChunkCompactionPerformer implements ISeqCompactionPerformer {
     checkThreadInterrupted();
     LinkedList<Pair<TsFileSequenceReader, List<AlignedChunkMetadata>>> readerAndChunkMetadataList =
         deviceIterator.getReaderAndChunkMetadataForCurrentAlignedSeries();
+    if (!checkAlignedSeriesExists(readerAndChunkMetadataList)) {
+      return;
+    }
+    writer.startChunkGroup(device);
     AlignedSeriesCompactionExecutor compactionExecutor =
         new AlignedSeriesCompactionExecutor(
             device, targetResource, readerAndChunkMetadataList, writer);
     compactionExecutor.execute();
+    writer.endChunkGroup();
   }
 
   private void checkThreadInterrupted() throws InterruptedException {
-    if (Thread.interrupted()) {
+    if (Thread.interrupted() || summary.isCancel()) {
       throw new InterruptedException(
           String.format(
               "[Compaction] compaction for target file %s abort", targetResource.toString()));
     }
+  }
+
+  private boolean checkAlignedSeriesExists(
+      LinkedList<Pair<TsFileSequenceReader, List<AlignedChunkMetadata>>>
+          readerAndChunkMetadataList) {
+    for (Pair<TsFileSequenceReader, List<AlignedChunkMetadata>> readerListPair :
+        readerAndChunkMetadataList) {
+      if (!readerListPair.right.isEmpty()) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private void compactNotAlignedSeries(
@@ -129,34 +155,23 @@ public class ReadChunkCompactionPerformer implements ISeqCompactionPerformer {
       TsFileIOWriter writer,
       MultiTsFileDeviceIterator deviceIterator)
       throws IOException, MetadataException, InterruptedException {
+    writer.startChunkGroup(device);
     MultiTsFileDeviceIterator.MeasurementIterator seriesIterator =
         deviceIterator.iterateNotAlignedSeries(device, true);
     while (seriesIterator.hasNextSeries()) {
       checkThreadInterrupted();
       // TODO: we can provide a configuration item to enable concurrent between each series
       PartialPath p = new PartialPath(device, seriesIterator.nextSeries());
-      IMeasurementSchema measurementSchema;
       // TODO: seriesIterator needs to be refactor.
       // This statement must be called before next hasNextSeries() called, or it may be trapped in a
       // dead-loop.
       LinkedList<Pair<TsFileSequenceReader, List<ChunkMetadata>>> readerAndChunkMetadataList =
           seriesIterator.getMetadataListForCurrentSeries();
-      try {
-        if (IoTDBDescriptor.getInstance().getConfig().isEnableIDTable()) {
-          measurementSchema =
-              IDTableManager.getInstance().getSeriesSchema(device, p.getMeasurement());
-        } else {
-          measurementSchema = IoTDB.schemaProcessor.getSeriesSchema(p);
-        }
-      } catch (PathNotExistException e) {
-        LOGGER.info("A deleted path is skipped: {}", e.getMessage());
-        continue;
-      }
       SingleSeriesCompactionExecutor compactionExecutorOfCurrentTimeSeries =
-          new SingleSeriesCompactionExecutor(
-              p, measurementSchema, readerAndChunkMetadataList, writer, targetResource);
+          new SingleSeriesCompactionExecutor(p, readerAndChunkMetadataList, writer, targetResource);
       compactionExecutorOfCurrentTimeSeries.execute();
     }
+    writer.endChunkGroup();
   }
 
   @Override

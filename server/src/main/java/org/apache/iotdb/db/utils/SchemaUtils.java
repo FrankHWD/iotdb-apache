@@ -20,14 +20,14 @@ package org.apache.iotdb.db.utils;
 
 import org.apache.iotdb.commons.exception.IllegalPathException;
 import org.apache.iotdb.commons.exception.MetadataException;
+import org.apache.iotdb.commons.path.MeasurementPath;
 import org.apache.iotdb.commons.path.PartialPath;
 import org.apache.iotdb.db.exception.metadata.PathAlreadyExistException;
 import org.apache.iotdb.db.exception.metadata.PathNotExistException;
 import org.apache.iotdb.db.exception.metadata.StorageGroupNotSetException;
 import org.apache.iotdb.db.metadata.mnode.IMeasurementMNode;
 import org.apache.iotdb.db.metadata.mnode.MeasurementMNode;
-import org.apache.iotdb.db.metadata.path.MeasurementPath;
-import org.apache.iotdb.db.mpp.plan.statement.component.OrderBy;
+import org.apache.iotdb.db.mpp.plan.statement.component.Ordering;
 import org.apache.iotdb.db.qp.constant.SQLConstant;
 import org.apache.iotdb.db.query.aggregation.AggregationType;
 import org.apache.iotdb.db.service.IoTDB;
@@ -214,8 +214,8 @@ public class SchemaUtils {
    * data
    */
   public static boolean isConsistentWithScanOrder(
-      AggregationType aggregationFunction, OrderBy scanOrder) {
-    boolean ascending = scanOrder == OrderBy.TIMESTAMP_ASC;
+      AggregationType aggregationFunction, Ordering scanOrder) {
+    boolean ascending = scanOrder == Ordering.ASC;
     switch (aggregationFunction) {
       case MIN_TIME:
       case FIRST_VALUE:

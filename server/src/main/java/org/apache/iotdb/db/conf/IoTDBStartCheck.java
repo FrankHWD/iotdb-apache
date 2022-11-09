@@ -18,9 +18,14 @@
  */
 package org.apache.iotdb.db.conf;
 
+import org.apache.iotdb.common.rpc.thrift.TConsensusGroupType;
+import org.apache.iotdb.common.rpc.thrift.TDataNodeLocation;
+import org.apache.iotdb.commons.conf.CommonConfig;
+import org.apache.iotdb.commons.conf.CommonDescriptor;
 import org.apache.iotdb.commons.conf.IoTDBConstant;
 import org.apache.iotdb.commons.exception.ConfigurationException;
 import org.apache.iotdb.commons.file.SystemFileFactory;
+import org.apache.iotdb.confignode.rpc.thrift.TGlobalConfig;
 import org.apache.iotdb.db.metadata.upgrade.MetadataUpgrader;
 import org.apache.iotdb.tsfile.common.conf.TSFileConfig;
 import org.apache.iotdb.tsfile.common.conf.TSFileDescriptor;
@@ -47,6 +52,7 @@ public class IoTDBStartCheck {
   private static final Logger logger = LoggerFactory.getLogger(IoTDBStartCheck.class);
 
   private static final IoTDBConfig config = IoTDBDescriptor.getInstance().getConfig();
+  private static final CommonConfig commonConfig = CommonDescriptor.getInstance().getConfig();
 
   private FSFactory fsFactory = FSFactoryProducer.getFSFactory();
 
@@ -54,7 +60,7 @@ public class IoTDBStartCheck {
   // If user delete folder "data", system.properties can reset.
   private static final String PROPERTIES_FILE_NAME = "system.properties";
   private static final String SCHEMA_DIR = config.getSchemaDir();
-  private static final String[] WAL_DIRS = config.getWalDirs();
+  private static final String[] WAL_DIRS = commonConfig.getWalDirs();
 
   private File propertiesFile;
   private File tmpPropertiesFile;
@@ -69,7 +75,7 @@ public class IoTDBStartCheck {
   private static String timestampPrecision = config.getTimestampPrecision();
 
   private static final String PARTITION_INTERVAL_STRING = "partition_interval";
-  private static long partitionInterval = config.getPartitionInterval();
+  private static long partitionInterval = config.getTimePartitionIntervalForStorage();
 
   private static final String TSFILE_FILE_SYSTEM_STRING = "tsfile_storage_fs";
   private static String tsfileFileSystem = config.getTsFileStorageFs().toString();
@@ -108,7 +114,34 @@ public class IoTDBStartCheck {
 
   private static final String DATA_NODE_ID = "data_node_id";
 
+  private static final String SCHEMA_REGION_CONSENSUS_PROTOCOL = "schema_region_consensus_protocol";
+
+  private static final String DATA_REGION_CONSENSUS_PROTOCOL = "data_region_consensus_protocol";
+
   private static final String IOTDB_VERSION_STRING = "iotdb_version";
+
+  private static final String INTERNAL_ADDRESS = "internal_address";
+  private static final String internalAddress = config.getInternalAddress();
+
+  private static final String INTERNAL_PORT = "internal_port";
+  private static final String internalPort = String.valueOf(config.getInternalPort());
+
+  private static final String RPC_ADDRESS = "rpc_address";
+  private static final String rpcAddress = config.getRpcAddress();
+
+  private static final String RPC_PORT = "rpc_port";
+  private static final String rpcPort = String.valueOf(config.getRpcPort());
+
+  private static final String MPP_DATA_EXCHANGE_PORT = "mpp_data_exchange_port";
+  private static final String mppDataExchangePort = String.valueOf(config.getMppDataExchangePort());
+
+  private static final String SCHEMA_REGION_CONSENSUS_PORT = "schema_region_consensus_port";
+  private static final String schemaRegionConsensusPort =
+      String.valueOf(config.getSchemaRegionConsensusPort());
+
+  private static final String DATA_REGION_CONSENSUS_PORT = "data_region_consensus_port";
+  private static final String dataRegionConsensusPort =
+      String.valueOf(config.getDataRegionConsensusPort());
 
   public static IoTDBStartCheck getInstance() {
     return IoTDBConfigCheckHolder.INSTANCE;
@@ -120,7 +153,7 @@ public class IoTDBStartCheck {
   }
 
   private IoTDBStartCheck() {
-    logger.info("Starting IoTDB " + IoTDBConstant.VERSION);
+    logger.info("Starting IoTDB " + IoTDBConstant.VERSION_WITH_BUILD);
 
     // check whether SCHEMA_DIR exists, create if not exists
     File dir = SystemFileFactory.INSTANCE.getFile(SCHEMA_DIR);
@@ -167,6 +200,13 @@ public class IoTDBStartCheck {
     systemProperties.put(ENABLE_ID_TABLE, enableIDTable);
     systemProperties.put(ENABLE_ID_TABLE_LOG_FILE, enableIdTableLogFile);
     systemProperties.put(SCHEMA_ENGINE_MODE, schemaEngineMode);
+    systemProperties.put(INTERNAL_ADDRESS, internalAddress);
+    systemProperties.put(INTERNAL_PORT, internalPort);
+    systemProperties.put(RPC_ADDRESS, rpcAddress);
+    systemProperties.put(RPC_PORT, rpcPort);
+    systemProperties.put(MPP_DATA_EXCHANGE_PORT, mppDataExchangePort);
+    systemProperties.put(SCHEMA_REGION_CONSENSUS_PORT, schemaRegionConsensusPort);
+    systemProperties.put(DATA_REGION_CONSENSUS_PORT, dataRegionConsensusPort);
   }
 
   /**
@@ -377,9 +417,19 @@ public class IoTDBStartCheck {
       throwException(SCHEMA_ENGINE_MODE, schemaEngineMode);
     }
 
-    // properties contain DATA_NODE_ID only when start as Data node
+    // load configuration from system properties only when start as Data node
     if (properties.containsKey(DATA_NODE_ID)) {
       config.setDataNodeId(Integer.parseInt(properties.getProperty(DATA_NODE_ID)));
+    }
+
+    if (properties.containsKey(SCHEMA_REGION_CONSENSUS_PROTOCOL)) {
+      config.setSchemaRegionConsensusProtocolClass(
+          properties.getProperty(SCHEMA_REGION_CONSENSUS_PROTOCOL));
+    }
+
+    if (properties.containsKey(DATA_REGION_CONSENSUS_PROTOCOL)) {
+      config.setDataRegionConsensusProtocolClass(
+          properties.getProperty(DATA_REGION_CONSENSUS_PROTOCOL));
     }
   }
 
@@ -419,5 +469,146 @@ public class IoTDBStartCheck {
     }
     // rename system.properties.tmp to system.properties
     FileUtils.moveFile(tmpPropertiesFile, propertiesFile);
+  }
+
+  /** call this method to serialize consensus protocol */
+  public void serializeConsensusProtocol(String regionConsensusProtocol, TConsensusGroupType type)
+      throws IOException {
+    // create an empty tmpPropertiesFile
+    if (tmpPropertiesFile.createNewFile()) {
+      logger.info("Create system.properties.tmp {}.", tmpPropertiesFile);
+    } else {
+      logger.error("Create system.properties.tmp {} failed.", tmpPropertiesFile);
+      System.exit(-1);
+    }
+
+    reloadProperties();
+
+    try (FileOutputStream tmpFOS = new FileOutputStream(tmpPropertiesFile.toString())) {
+      if (type == TConsensusGroupType.DataRegion) {
+        properties.setProperty(DATA_REGION_CONSENSUS_PROTOCOL, regionConsensusProtocol);
+      } else if (type == TConsensusGroupType.SchemaRegion) {
+        properties.setProperty(SCHEMA_REGION_CONSENSUS_PROTOCOL, regionConsensusProtocol);
+      }
+      properties.store(tmpFOS, SYSTEM_PROPERTIES_STRING);
+      // serialize finished, delete old system.properties file
+      if (propertiesFile.exists()) {
+        Files.delete(propertiesFile.toPath());
+      }
+    }
+    // rename system.properties.tmp to system.properties
+    FileUtils.moveFile(tmpPropertiesFile, propertiesFile);
+  }
+
+  public void serializeGlobalConfig(TGlobalConfig globalConfig) throws IOException {
+    // create an empty tmpPropertiesFile
+    if (tmpPropertiesFile.createNewFile()) {
+      logger.info("Create system.properties.tmp {}.", tmpPropertiesFile);
+    } else {
+      logger.error("Create system.properties.tmp {} failed.", tmpPropertiesFile);
+      System.exit(-1);
+    }
+
+    reloadProperties();
+
+    try (FileOutputStream tmpFOS = new FileOutputStream(tmpPropertiesFile.toString())) {
+
+      if (!checkConsensusProtocolExists(TConsensusGroupType.DataRegion)) {
+        properties.setProperty(
+            DATA_REGION_CONSENSUS_PROTOCOL, globalConfig.getDataRegionConsensusProtocolClass());
+      }
+      if (!checkConsensusProtocolExists(TConsensusGroupType.SchemaRegion)) {
+        properties.setProperty(
+            SCHEMA_REGION_CONSENSUS_PROTOCOL, globalConfig.getSchemaRegionConsensusProtocolClass());
+      }
+      properties.store(tmpFOS, SYSTEM_PROPERTIES_STRING);
+      // serialize finished, delete old system.properties file
+      if (propertiesFile.exists()) {
+        Files.delete(propertiesFile.toPath());
+      }
+    }
+    // rename system.properties.tmp to system.properties
+    FileUtils.moveFile(tmpPropertiesFile, propertiesFile);
+  }
+
+  public void serializeNewDataNode(TDataNodeLocation dataNodeLocation) throws IOException {
+    reloadProperties();
+
+    try (FileOutputStream fileOutputStream = new FileOutputStream(propertiesFile)) {
+      properties.setProperty(INTERNAL_ADDRESS, dataNodeLocation.getInternalEndPoint().getIp());
+      properties.setProperty(
+          INTERNAL_PORT, String.valueOf(dataNodeLocation.getInternalEndPoint().getPort()));
+      properties.setProperty(
+          RPC_ADDRESS, String.valueOf(dataNodeLocation.getClientRpcEndPoint().getIp()));
+      properties.setProperty(
+          RPC_PORT, String.valueOf(dataNodeLocation.getClientRpcEndPoint().getPort()));
+      properties.setProperty(
+          MPP_DATA_EXCHANGE_PORT,
+          String.valueOf(dataNodeLocation.getMPPDataExchangeEndPoint().getPort()));
+      properties.setProperty(
+          SCHEMA_REGION_CONSENSUS_PORT,
+          String.valueOf(dataNodeLocation.getSchemaRegionConsensusEndPoint().getPort()));
+      properties.setProperty(
+          DATA_REGION_CONSENSUS_PORT,
+          String.valueOf(dataNodeLocation.getDataRegionConsensusEndPoint().getPort()));
+      properties.store(fileOutputStream, SYSTEM_PROPERTIES_STRING);
+    }
+  }
+
+  public boolean checkConsensusProtocolExists(TConsensusGroupType type) {
+    if (type == TConsensusGroupType.DataRegion) {
+      return properties.containsKey(DATA_REGION_CONSENSUS_PROTOCOL);
+    } else if (type == TConsensusGroupType.SchemaRegion) {
+      return properties.containsKey(SCHEMA_REGION_CONSENSUS_PROTOCOL);
+    }
+
+    logger.error("Unexpected consensus group type");
+    return false;
+  }
+
+  public boolean isIpPortUpdated() {
+    boolean isUpdated = false;
+    // check the modifiable parts of configuration
+    if (!(properties.getProperty(INTERNAL_PORT).equals(internalPort))) {
+      isUpdated = true;
+      logger.info(
+          "Internal port is updated from {} to {}",
+          properties.getProperty(INTERNAL_PORT),
+          internalPort);
+    }
+    if (!(properties.getProperty(RPC_ADDRESS).equals(rpcAddress))) {
+      isUpdated = true;
+      logger.info(
+          "RPC address is updated from {} to {}", properties.getProperty(RPC_ADDRESS), rpcAddress);
+    }
+    if (!(properties.getProperty(RPC_PORT).equals(rpcPort))) {
+      isUpdated = true;
+      logger.info("RPC port is updated from {} to {}", properties.getProperty(RPC_PORT), rpcPort);
+    }
+    if (!(properties.getProperty(MPP_DATA_EXCHANGE_PORT).equals(mppDataExchangePort))) {
+      isUpdated = true;
+      logger.info(
+          "MPP data exchange port is updated from {} to {}",
+          properties.getProperty(MPP_DATA_EXCHANGE_PORT),
+          mppDataExchangePort);
+    }
+    return isUpdated;
+  }
+
+  public boolean checkNonModifiableConfiguration() {
+    // check the non-modifiable parts of configuration
+    if (!(properties.getProperty(INTERNAL_ADDRESS).equals(internalAddress))) {
+      logger.error("Internal address is not allowed to be updated");
+      return true;
+    }
+    if (!(properties.getProperty(SCHEMA_REGION_CONSENSUS_PORT).equals(schemaRegionConsensusPort))) {
+      logger.error("Schema region consensus port is not allowed to be updated");
+      return true;
+    }
+    if (!(properties.getProperty(DATA_REGION_CONSENSUS_PORT).equals(dataRegionConsensusPort))) {
+      logger.error("Data region consensus port is not allowed to be updated");
+      return true;
+    }
+    return false;
   }
 }

@@ -21,16 +21,22 @@ package org.apache.iotdb.db.mpp.execution.operator.schema;
 
 import org.apache.iotdb.commons.exception.MetadataException;
 import org.apache.iotdb.commons.path.PartialPath;
-import org.apache.iotdb.db.mpp.common.header.HeaderConstant;
+import org.apache.iotdb.db.mpp.common.header.ColumnHeader;
+import org.apache.iotdb.db.mpp.common.header.ColumnHeaderConstant;
 import org.apache.iotdb.db.mpp.execution.driver.SchemaDriverContext;
 import org.apache.iotdb.db.mpp.execution.operator.OperatorContext;
 import org.apache.iotdb.db.mpp.execution.operator.source.SourceOperator;
 import org.apache.iotdb.db.mpp.plan.planner.plan.node.PlanNodeId;
+import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.read.common.block.TsBlock;
-import org.apache.iotdb.tsfile.read.common.block.TsBlockBuilder;
 import org.apache.iotdb.tsfile.utils.Binary;
 
+import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
+import java.util.stream.Collectors;
+
+import static org.apache.iotdb.tsfile.read.common.block.TsBlockBuilderStatus.DEFAULT_MAX_TSBLOCK_SIZE_IN_BYTES;
 
 public class LevelTimeSeriesCountOperator implements SourceOperator {
   private final PlanNodeId sourceId;
@@ -38,20 +44,36 @@ public class LevelTimeSeriesCountOperator implements SourceOperator {
   private final PartialPath partialPath;
   private final boolean isPrefixPath;
   private final int level;
+  private final String key;
+  private final String value;
+  private final boolean isContains;
 
-  private boolean isFinished;
+  private List<TsBlock> tsBlockList;
+  private int currentIndex = 0;
+
+  private final List<TSDataType> outputDataTypes;
 
   public LevelTimeSeriesCountOperator(
       PlanNodeId sourceId,
       OperatorContext operatorContext,
       PartialPath partialPath,
       boolean isPrefixPath,
-      int level) {
+      int level,
+      String key,
+      String value,
+      boolean isContains) {
     this.sourceId = sourceId;
     this.operatorContext = operatorContext;
     this.partialPath = partialPath;
     this.isPrefixPath = isPrefixPath;
     this.level = level;
+    this.key = key;
+    this.value = value;
+    this.isContains = isContains;
+    this.outputDataTypes =
+        ColumnHeaderConstant.countLevelTimeSeriesColumnHeaders.stream()
+            .map(ColumnHeader::getColumnType)
+            .collect(Collectors.toList());
   }
 
   @Override
@@ -66,35 +88,73 @@ public class LevelTimeSeriesCountOperator implements SourceOperator {
 
   @Override
   public TsBlock next() {
-    isFinished = true;
-    TsBlockBuilder tsBlockBuilder =
-        new TsBlockBuilder(HeaderConstant.countLevelTimeSeriesHeader.getRespDataTypes());
-    Map<PartialPath, Integer> countMap;
-    try {
-      countMap =
-          ((SchemaDriverContext) operatorContext.getInstanceContext().getDriverContext())
-              .getSchemaRegion()
-              .getMeasurementCountGroupByLevel(partialPath, level, isPrefixPath);
-    } catch (MetadataException e) {
-      throw new RuntimeException(e.getMessage(), e);
+    if (!hasNext()) {
+      throw new NoSuchElementException();
     }
-    countMap.forEach(
-        (path, count) -> {
-          tsBlockBuilder.getTimeColumnBuilder().writeLong(0L);
-          tsBlockBuilder.getColumnBuilder(0).writeBinary(new Binary(path.getFullPath()));
-          tsBlockBuilder.getColumnBuilder(1).writeInt(count);
-          tsBlockBuilder.declarePosition();
-        });
-    return tsBlockBuilder.build();
+    currentIndex++;
+    return tsBlockList.get(currentIndex - 1);
   }
 
   @Override
   public boolean hasNext() {
-    return !isFinished;
+    if (tsBlockList == null) {
+      createTsBlockList();
+    }
+
+    return currentIndex < tsBlockList.size();
+  }
+
+  public void createTsBlockList() {
+    Map<PartialPath, Integer> countMap;
+    try {
+      if (key != null && value != null) {
+        countMap =
+            ((SchemaDriverContext) operatorContext.getInstanceContext().getDriverContext())
+                .getSchemaRegion()
+                .getMeasurementCountGroupByLevel(
+                    partialPath, level, isPrefixPath, key, value, isContains);
+      } else {
+        countMap =
+            ((SchemaDriverContext) operatorContext.getInstanceContext().getDriverContext())
+                .getSchemaRegion()
+                .getMeasurementCountGroupByLevel(partialPath, level, isPrefixPath);
+      }
+
+    } catch (MetadataException e) {
+      throw new RuntimeException(e.getMessage(), e);
+    }
+
+    tsBlockList =
+        SchemaTsBlockUtil.transferSchemaResultToTsBlockList(
+            countMap.entrySet().iterator(),
+            outputDataTypes,
+            (entry, tsBlockBuilder) -> {
+              tsBlockBuilder.getTimeColumnBuilder().writeLong(0L);
+              tsBlockBuilder
+                  .getColumnBuilder(0)
+                  .writeBinary(new Binary(entry.getKey().getFullPath()));
+              tsBlockBuilder.getColumnBuilder(1).writeInt(entry.getValue());
+              tsBlockBuilder.declarePosition();
+            });
   }
 
   @Override
   public boolean isFinished() {
-    return isFinished;
+    return !hasNext();
+  }
+
+  @Override
+  public long calculateMaxPeekMemory() {
+    return DEFAULT_MAX_TSBLOCK_SIZE_IN_BYTES;
+  }
+
+  @Override
+  public long calculateMaxReturnSize() {
+    return DEFAULT_MAX_TSBLOCK_SIZE_IN_BYTES;
+  }
+
+  @Override
+  public long calculateRetainedSizeAfterCallingNext() {
+    return 0L;
   }
 }

@@ -21,7 +21,7 @@ package org.apache.iotdb.db.mpp.plan.plan.node.metadata.read;
 
 import org.apache.iotdb.commons.exception.IllegalPathException;
 import org.apache.iotdb.commons.path.PartialPath;
-import org.apache.iotdb.db.mpp.common.schematree.PathPatternTree;
+import org.apache.iotdb.commons.path.PathPatternTree;
 import org.apache.iotdb.db.mpp.plan.planner.plan.node.PlanNodeId;
 import org.apache.iotdb.db.mpp.plan.planner.plan.node.PlanNodeType;
 import org.apache.iotdb.db.mpp.plan.planner.plan.node.metedata.read.SchemaFetchScanNode;
@@ -30,22 +30,28 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.nio.ByteBuffer;
+import java.util.Collections;
 
 public class SchemaFetchScanNodeTest {
 
   @Test
   public void testSerialization() throws IllegalPathException {
+    PathPatternTree patternTree = new PathPatternTree();
+    patternTree.appendPathPattern(new PartialPath("root.sg.**.*"));
     SchemaFetchScanNode schemaFetchScanNode =
         new SchemaFetchScanNode(
             new PlanNodeId("0"),
             new PartialPath("root.sg"),
-            new PathPatternTree(new PartialPath("root.sg.**.*")));
+            patternTree,
+            Collections.emptyMap(),
+            true);
     ByteBuffer byteBuffer = ByteBuffer.allocate(1024 * 1024);
     schemaFetchScanNode.serialize(byteBuffer);
     byteBuffer.flip();
     SchemaFetchScanNode recoveredNode = (SchemaFetchScanNode) PlanNodeType.deserialize(byteBuffer);
     Assert.assertEquals("root.sg", recoveredNode.getStorageGroup().getFullPath());
     Assert.assertEquals(
-        "root.sg.**.*", recoveredNode.getPatternTree().splitToPathList().get(0).getFullPath());
+        "root.sg.**.*", recoveredNode.getPatternTree().getAllPathPatterns().get(0).getFullPath());
+    Assert.assertTrue(recoveredNode.isWithTags());
   }
 }

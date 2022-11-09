@@ -36,6 +36,7 @@ import io.airlift.airline.ParseOptionMissingException;
 import io.airlift.airline.ParseOptionMissingValueException;
 import org.apache.commons.lang3.StringUtils;
 
+import java.util.Arrays;
 import java.util.List;
 
 @SuppressWarnings("java:S106") // for console outputs
@@ -52,17 +53,39 @@ public class CommonUtils {
         case BOOLEAN:
           return parseBoolean(value);
         case INT32:
-          return Integer.parseInt(StringUtils.trim(value));
+          try {
+            return Integer.parseInt(StringUtils.trim(value));
+          } catch (NumberFormatException e) {
+            throw new NumberFormatException(
+                "data type is not consistent, input " + value + ", registered " + dataType);
+          }
         case INT64:
-          return Long.parseLong(StringUtils.trim(value));
+          try {
+            return Long.parseLong(StringUtils.trim(value));
+          } catch (NumberFormatException e) {
+            throw new NumberFormatException(
+                "data type is not consistent, input " + value + ", registered " + dataType);
+          }
         case FLOAT:
-          float f = Float.parseFloat(value);
+          float f;
+          try {
+            f = Float.parseFloat(value);
+          } catch (NumberFormatException e) {
+            throw new NumberFormatException(
+                "data type is not consistent, input " + value + ", registered " + dataType);
+          }
           if (Float.isInfinite(f)) {
             throw new NumberFormatException("The input float value is Infinity");
           }
           return f;
         case DOUBLE:
-          double d = Double.parseDouble(value);
+          double d;
+          try {
+            d = Double.parseDouble(value);
+          } catch (NumberFormatException e) {
+            throw new NumberFormatException(
+                "data type is not consistent, input " + value + ", registered " + dataType);
+          }
           if (Double.isInfinite(d)) {
             throw new NumberFormatException("The input double value is Infinity");
           }
@@ -84,6 +107,84 @@ public class CommonUtils {
     } catch (NumberFormatException e) {
       throw new QueryProcessException(e.getMessage());
     }
+  }
+
+  public static boolean checkCanCastType(TSDataType src, TSDataType dest) {
+    switch (src) {
+      case INT32:
+        if (dest == TSDataType.INT64 || dest == TSDataType.FLOAT || dest == TSDataType.DOUBLE) {
+          return true;
+        }
+      case INT64:
+        if (dest == TSDataType.DOUBLE) {
+          return true;
+        }
+      case FLOAT:
+        if (dest == TSDataType.DOUBLE) {
+          return true;
+        }
+    }
+    return false;
+  }
+
+  public static Object castValue(TSDataType srcDataType, TSDataType destDataType, Object value) {
+    switch (srcDataType) {
+      case INT32:
+        if (destDataType == TSDataType.INT64) {
+          value = (long) ((int) value);
+        } else if (destDataType == TSDataType.FLOAT) {
+          value = (float) ((int) value);
+        } else if (destDataType == TSDataType.DOUBLE) {
+          value = (double) ((int) value);
+        }
+        break;
+      case INT64:
+        if (destDataType == TSDataType.DOUBLE) {
+          value = (double) ((long) value);
+        }
+        break;
+      case FLOAT:
+        if (destDataType == TSDataType.DOUBLE) {
+          value = (double) ((float) value);
+        }
+        break;
+    }
+    return value;
+  }
+
+  public static Object castArray(TSDataType srcDataType, TSDataType destDataType, Object value) {
+    switch (srcDataType) {
+      case INT32:
+        if (destDataType == TSDataType.INT64) {
+          value = Arrays.stream((int[]) value).mapToLong(Long::valueOf).toArray();
+        } else if (destDataType == TSDataType.FLOAT) {
+          int[] tmp = (int[]) value;
+          float[] result = new float[tmp.length];
+          for (int i = 0; i < tmp.length; i++) {
+            result[i] = (float) tmp[i];
+          }
+          value = result;
+        } else if (destDataType == TSDataType.DOUBLE) {
+          value = Arrays.stream((int[]) value).mapToDouble(Double::valueOf).toArray();
+        }
+        break;
+      case INT64:
+        if (destDataType == TSDataType.DOUBLE) {
+          value = Arrays.stream((long[]) value).mapToDouble(Double::valueOf).toArray();
+        }
+        break;
+      case FLOAT:
+        if (destDataType == TSDataType.DOUBLE) {
+          float[] tmp = (float[]) value;
+          double[] result = new double[tmp.length];
+          for (int i = 0; i < tmp.length; i++) {
+            result[i] = tmp[i];
+          }
+          value = result;
+        }
+        break;
+    }
+    return value;
   }
 
   @TestOnly

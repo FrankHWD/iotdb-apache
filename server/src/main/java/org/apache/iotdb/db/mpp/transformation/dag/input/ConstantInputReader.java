@@ -22,6 +22,7 @@ package org.apache.iotdb.db.mpp.transformation.dag.input;
 import org.apache.iotdb.db.exception.query.QueryProcessException;
 import org.apache.iotdb.db.mpp.plan.expression.leaf.ConstantOperand;
 import org.apache.iotdb.db.mpp.transformation.api.LayerPointReader;
+import org.apache.iotdb.db.mpp.transformation.api.YieldableState;
 import org.apache.iotdb.db.utils.CommonUtils;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.utils.Binary;
@@ -45,8 +46,7 @@ public class ConstantInputReader implements LayerPointReader {
   public ConstantInputReader(ConstantOperand expression) throws QueryProcessException {
     this.expression = Validate.notNull(expression);
 
-    Object value =
-        CommonUtils.parseValue(expression.getDataType(), expression.getExpressionString());
+    Object value = CommonUtils.parseValue(expression.getDataType(), expression.getValueString());
     if (value == null) {
       throw new QueryProcessException(
           "Invalid constant operand: " + expression.getExpressionString());
@@ -66,7 +66,7 @@ public class ConstantInputReader implements LayerPointReader {
         cachedDouble = (double) value;
         break;
       case TEXT:
-        cachedBinary = new Binary((String) value);
+        cachedBinary = (Binary) value;
         break;
       case BOOLEAN:
         cachedBoolean = (boolean) value;
@@ -82,7 +82,12 @@ public class ConstantInputReader implements LayerPointReader {
   }
 
   @Override
-  public boolean next() throws QueryProcessException, IOException {
+  public YieldableState yield() {
+    return YieldableState.YIELDABLE;
+  }
+
+  @Override
+  public boolean next() {
     return true;
   }
 

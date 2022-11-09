@@ -24,7 +24,9 @@ import org.apache.iotdb.commons.path.PartialPath;
 import org.apache.iotdb.db.engine.cache.ChunkCache;
 import org.apache.iotdb.db.engine.cache.TimeSeriesMetadataCache;
 import org.apache.iotdb.db.engine.compaction.CompactionUtils;
+import org.apache.iotdb.db.engine.compaction.performer.ICompactionPerformer;
 import org.apache.iotdb.db.engine.compaction.performer.impl.ReadPointCompactionPerformer;
+import org.apache.iotdb.db.engine.compaction.task.CompactionTaskSummary;
 import org.apache.iotdb.db.engine.compaction.utils.CompactionCheckerUtils;
 import org.apache.iotdb.db.engine.compaction.utils.CompactionClearUtils;
 import org.apache.iotdb.db.engine.compaction.utils.CompactionConfigRestorer;
@@ -45,6 +47,8 @@ import org.apache.iotdb.tsfile.utils.Pair;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.IOException;
@@ -55,10 +59,12 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 
 import static org.apache.iotdb.db.engine.compaction.utils.CompactionCheckerUtils.putOnePageChunk;
 
 public class InnerUnseqCompactionTest {
+  private static final Logger LOG = LoggerFactory.getLogger(InnerUnseqCompactionTest.class);
   static final String COMPACTION_TEST_SG = "root.compactionTest";
   static final String[] fullPaths =
       new String[] {
@@ -110,11 +116,13 @@ public class InnerUnseqCompactionTest {
           Collections.emptyMap());
     }
     Thread.currentThread().setName("pool-1-IoTDB-Compaction-1");
+    EnvironmentUtils.envSetUp();
   }
 
   @After
   public void tearDown() throws IOException, StorageEngineException {
     new CompactionConfigRestorer().restoreCompactionConfig();
+    EnvironmentUtils.cleanEnv();
     CompactionClearUtils.clearAllCompactionFiles();
     ChunkCache.getInstance().clear();
     TimeSeriesMetadataCache.getInstance().clear();
@@ -128,7 +136,7 @@ public class InnerUnseqCompactionTest {
   @Test
   public void test()
       throws MetadataException, IOException, StorageEngineException, WriteProcessException,
-          InterruptedException {
+          InterruptedException, ExecutionException {
     for (int toMergeFileNum : toMergeFileNums) {
       for (CompactionTimeseriesType compactionTimeseriesType : compactionTimeseriesTypes) {
         for (boolean compactionBeforeHasMod : compactionBeforeHasMods) {
@@ -347,6 +355,13 @@ public class InnerUnseqCompactionTest {
                       toDeleteTimeseriesAndTime, tsFileResource, false);
                 }
               }
+              LOG.error(
+                  "{} {} {} {} {}",
+                  toMergeFileNum,
+                  compactionTimeseriesType,
+                  compactionBeforeHasMod,
+                  compactionHasMod,
+                  compactionOverlapType);
               TsFileResource targetTsFileResource =
                   CompactionFileGeneratorUtils.getInnerCompactionTargetTsFileResources(
                           toMergeResources, false)
@@ -366,11 +381,13 @@ public class InnerUnseqCompactionTest {
                         timeValuePair.getTimestamp() >= 250L
                             && timeValuePair.getTimestamp() <= 300L);
               }
-              new ReadPointCompactionPerformer(
+              ICompactionPerformer performer =
+                  new ReadPointCompactionPerformer(
                       Collections.emptyList(),
                       toMergeResources,
-                      Collections.singletonList(targetTsFileResource))
-                  .perform();
+                      Collections.singletonList(targetTsFileResource));
+              performer.setSummary(new CompactionTaskSummary());
+              performer.perform();
               CompactionUtils.moveTargetFile(
                   Collections.singletonList(targetTsFileResource), true, COMPACTION_TEST_SG);
               CompactionUtils.combineModsInInnerCompaction(toMergeResources, targetTsFileResource);

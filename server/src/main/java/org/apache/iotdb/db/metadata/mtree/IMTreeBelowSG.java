@@ -18,13 +18,14 @@
  */
 package org.apache.iotdb.db.metadata.mtree;
 
+import org.apache.iotdb.common.rpc.thrift.TSchemaNode;
 import org.apache.iotdb.commons.exception.MetadataException;
+import org.apache.iotdb.commons.path.MeasurementPath;
 import org.apache.iotdb.commons.path.PartialPath;
 import org.apache.iotdb.db.metadata.LocalSchemaProcessor;
 import org.apache.iotdb.db.metadata.mnode.IEntityMNode;
 import org.apache.iotdb.db.metadata.mnode.IMNode;
 import org.apache.iotdb.db.metadata.mnode.IMeasurementMNode;
-import org.apache.iotdb.db.metadata.path.MeasurementPath;
 import org.apache.iotdb.db.metadata.template.Template;
 import org.apache.iotdb.db.qp.physical.sys.ShowDevicesPlan;
 import org.apache.iotdb.db.qp.physical.sys.ShowTimeSeriesPlan;
@@ -69,6 +70,18 @@ public interface IMTreeBelowSG {
       List<CompressionType> compressors,
       List<String> aliasList)
       throws MetadataException;
+
+  /**
+   * Check if measurements under device exists in MTree
+   *
+   * @param devicePath device full path
+   * @param measurementList measurements list
+   * @param aliasList alias of measurement
+   * @return If all measurements not exists, return empty map. Otherwise, return a map whose key is
+   *     index of measurement in list and value is exception.
+   */
+  Map<Integer, MetadataException> checkMeasurementExistence(
+      PartialPath devicePath, List<String> measurementList, List<String> aliasList);
 
   /**
    * Delete path. The path should be a full path from root to leaf node
@@ -135,12 +148,27 @@ public interface IMTreeBelowSG {
    * collected and return.
    *
    * @param pathPattern a path pattern or a full path, may contain wildcard
+   * @param limit the limit of query result.
+   * @param offset the offset.
    * @param isPrefixMatch if true, the path pattern is used to match prefix path
-   * @return Pair.left contains all the satisfied paths Pair.right means the current offset or zero
+   * @param withTags whether returns all the tags of each timeseries as well.
+   * @return Pair.left contains all the satisfied path Pair.right means the current offset or zero
    *     if we don't set offset.
    */
   Pair<List<MeasurementPath>, Integer> getMeasurementPathsWithAlias(
-      PartialPath pathPattern, int limit, int offset, boolean isPrefixMatch)
+      PartialPath pathPattern, int limit, int offset, boolean isPrefixMatch, boolean withTags)
+      throws MetadataException;
+
+  /**
+   * Fetch all measurement path
+   *
+   * @param pathPattern a path pattern or a full path, may contain wildcard
+   * @param templateMap <TemplateId, Template>
+   * @param withTags whether returns all the tags of each timeseries as well.
+   * @return schema
+   */
+  List<MeasurementPath> fetchSchema(
+      PartialPath pathPattern, Map<Integer, Template> templateMap, boolean withTags)
       throws MetadataException;
 
   /**
@@ -163,7 +191,7 @@ public interface IMTreeBelowSG {
    * @param pathPattern The given path
    * @return All child nodes' seriesPath(s) of given seriesPath.
    */
-  Set<String> getChildNodePathInNextLevel(PartialPath pathPattern) throws MetadataException;
+  Set<TSchemaNode> getChildNodePathInNextLevel(PartialPath pathPattern) throws MetadataException;
 
   /**
    * Get child node in the next level of the given path.
@@ -191,6 +219,7 @@ public interface IMTreeBelowSG {
    * Get the count of timeseries matching the given path.
    *
    * @param pathPattern a path pattern or a full path, may contain wildcard
+   * @param isPrefixMatch if true, the path pattern is used to match prefix path
    */
   int getAllTimeseriesCount(PartialPath pathPattern, boolean isPrefixMatch)
       throws MetadataException;
@@ -199,8 +228,28 @@ public interface IMTreeBelowSG {
    * Get the count of timeseries matching the given path.
    *
    * @param pathPattern a path pattern or a full path, may contain wildcard
+   * @param templateMap <TemplateId, Template>
+   * @param isPrefixMatch if true, the path pattern is used to match prefix path
+   */
+  int getAllTimeseriesCount(
+      PartialPath pathPattern, Map<Integer, Template> templateMap, boolean isPrefixMatch)
+      throws MetadataException;
+
+  /**
+   * Get the count of timeseries matching the given path.
+   *
+   * @param pathPattern a path pattern or a full path, may contain wildcard
    */
   int getAllTimeseriesCount(PartialPath pathPattern) throws MetadataException;
+
+  /**
+   * Get the count of timeseries matching the given path by tag.
+   *
+   * @param pathPattern a path pattern or a full path, may contain wildcard
+   */
+  int getAllTimeseriesCount(
+      PartialPath pathPattern, boolean isPrefixMatch, List<String> timeseries, boolean hasTag)
+      throws MetadataException;
 
   /**
    * Get the count of devices matching the given path. If using prefix match, the path pattern is
@@ -228,6 +277,14 @@ public interface IMTreeBelowSG {
 
   Map<PartialPath, Integer> getMeasurementCountGroupByLevel(
       PartialPath pathPattern, int level, boolean isPrefixMatch) throws MetadataException;
+
+  Map<PartialPath, Integer> getMeasurementCountGroupByLevel(
+      PartialPath pathPattern,
+      int level,
+      boolean isPrefixMatch,
+      List<String> timeseries,
+      boolean hasTag)
+      throws MetadataException;
 
   /**
    * Get node by the path

@@ -34,6 +34,8 @@ import java.util.stream.Collectors;
 /** The header of query result dataset. */
 public class DatasetHeader {
 
+  public static DatasetHeader EMPTY_HEADER = new DatasetHeader(new ArrayList<>(), false);
+
   // column names, data types and aliases of result dataset
   private final List<ColumnHeader> columnHeaders;
 
@@ -64,6 +66,12 @@ public class DatasetHeader {
   }
 
   public List<String> getRespColumns() {
+    return columnHeaders.stream()
+        .map(ColumnHeader::getColumnNameWithAlias)
+        .collect(Collectors.toList());
+  }
+
+  public List<String> getColumnNameWithoutAlias() {
     return columnHeaders.stream().map(ColumnHeader::getColumnName).collect(Collectors.toList());
   }
 
@@ -89,10 +97,37 @@ public class DatasetHeader {
   }
 
   public Map<String, Integer> getColumnNameIndexMap() {
-    return columnToTsBlockIndexMap;
+    if (columnToTsBlockIndexMap == null || columnToTsBlockIndexMap.isEmpty()) {
+      return columnToTsBlockIndexMap;
+    }
+
+    Map<String, Integer> columnNameIndexMap = new HashMap<>();
+    for (ColumnHeader columnHeader : columnHeaders) {
+      columnNameIndexMap.put(
+          columnHeader.getColumnNameWithAlias(),
+          columnToTsBlockIndexMap.get(columnHeader.getColumnName()));
+    }
+    return columnNameIndexMap;
   }
 
   public int getOutputValueColumnCount() {
     return (int) columnHeaders.stream().map(ColumnHeader::getColumnName).distinct().count();
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    DatasetHeader that = (DatasetHeader) o;
+    return isIgnoreTimestamp == that.isIgnoreTimestamp && columnHeaders.equals(that.columnHeaders);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(columnHeaders, isIgnoreTimestamp);
   }
 }

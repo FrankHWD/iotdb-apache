@@ -26,6 +26,7 @@ import org.apache.iotdb.consensus.EmptyStateMachine;
 import org.apache.iotdb.consensus.IConsensus;
 import org.apache.iotdb.consensus.common.Peer;
 import org.apache.iotdb.consensus.common.response.ConsensusGenericResponse;
+import org.apache.iotdb.consensus.config.ConsensusConfig;
 import org.apache.iotdb.consensus.exception.ConsensusGroupAlreadyExistException;
 
 import org.apache.ratis.util.FileUtils;
@@ -41,22 +42,23 @@ import java.util.Collections;
 public class RecoveryTest {
   private final ConsensusGroupId schemaRegionId = new SchemaRegionId(1);
   private IConsensus consensusImpl;
-  private static final String STANDALONE_CONSENSUS_CLASS_NAME =
-      "org.apache.iotdb.consensus.standalone.StandAloneConsensus";
 
   public void constructConsensus() throws IOException {
     consensusImpl =
         ConsensusFactory.getConsensusImpl(
-                STANDALONE_CONSENSUS_CLASS_NAME,
-                new TEndPoint("0.0.0.0", 9000),
-                new File("./target/recovery"),
+                ConsensusFactory.StandAloneConsensus,
+                ConsensusConfig.newBuilder()
+                    .setThisNodeId(1)
+                    .setThisNode(new TEndPoint("0.0.0.0", 9000))
+                    .setStorageDir("target" + java.io.File.separator + "recovery")
+                    .build(),
                 gid -> new EmptyStateMachine())
             .orElseThrow(
                 () ->
                     new IllegalArgumentException(
                         String.format(
                             ConsensusFactory.CONSTRUCT_FAILED_MSG,
-                            STANDALONE_CONSENSUS_CLASS_NAME)));
+                            ConsensusFactory.StandAloneConsensus)));
     consensusImpl.start();
   }
 
@@ -73,9 +75,9 @@ public class RecoveryTest {
 
   @Test
   public void recoveryTest() throws Exception {
-    consensusImpl.addConsensusGroup(
+    consensusImpl.createPeer(
         schemaRegionId,
-        Collections.singletonList(new Peer(schemaRegionId, new TEndPoint("0.0.0.0", 9000))));
+        Collections.singletonList(new Peer(schemaRegionId, 1, new TEndPoint("0.0.0.0", 9000))));
 
     consensusImpl.stop();
     consensusImpl = null;
@@ -83,9 +85,9 @@ public class RecoveryTest {
     constructConsensus();
 
     ConsensusGenericResponse response =
-        consensusImpl.addConsensusGroup(
+        consensusImpl.createPeer(
             schemaRegionId,
-            Collections.singletonList(new Peer(schemaRegionId, new TEndPoint("0.0.0.0", 9000))));
+            Collections.singletonList(new Peer(schemaRegionId, 1, new TEndPoint("0.0.0.0", 9000))));
 
     Assert.assertEquals(
         response.getException().getMessage(),

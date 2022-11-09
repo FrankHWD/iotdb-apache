@@ -21,11 +21,11 @@ package org.apache.iotdb.db.metadata.utils;
 import org.apache.iotdb.commons.conf.IoTDBConstant;
 import org.apache.iotdb.commons.exception.IllegalPathException;
 import org.apache.iotdb.commons.exception.MetadataException;
+import org.apache.iotdb.commons.path.AlignedPath;
+import org.apache.iotdb.commons.path.MeasurementPath;
 import org.apache.iotdb.commons.path.PartialPath;
 import org.apache.iotdb.commons.utils.TestOnly;
 import org.apache.iotdb.db.metadata.mnode.IMNode;
-import org.apache.iotdb.db.metadata.path.AlignedPath;
-import org.apache.iotdb.db.metadata.path.MeasurementPath;
 import org.apache.iotdb.db.mpp.plan.planner.plan.parameter.AggregationDescriptor;
 import org.apache.iotdb.tsfile.read.common.Path;
 
@@ -88,6 +88,28 @@ public class MetaUtils {
         }
       }
     }
+    return result;
+  }
+
+  public static List<PartialPath> groupAlignedSeries(List<PartialPath> fullPaths) {
+    List<PartialPath> result = new ArrayList<>();
+    Map<String, AlignedPath> deviceToAlignedPathMap = new HashMap<>();
+    for (PartialPath path : fullPaths) {
+      MeasurementPath measurementPath = (MeasurementPath) path;
+      if (!measurementPath.isUnderAlignedEntity()) {
+        result.add(measurementPath);
+      } else {
+        String deviceName = measurementPath.getDevice();
+        if (!deviceToAlignedPathMap.containsKey(deviceName)) {
+          AlignedPath alignedPath = new AlignedPath(measurementPath);
+          deviceToAlignedPathMap.put(deviceName, alignedPath);
+        } else {
+          AlignedPath alignedPath = deviceToAlignedPathMap.get(deviceName);
+          alignedPath.addMeasurement(measurementPath);
+        }
+      }
+    }
+    result.addAll(deviceToAlignedPathMap.values());
     return result;
   }
 

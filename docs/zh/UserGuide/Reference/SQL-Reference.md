@@ -166,10 +166,11 @@ Eg: UNSET SCHEMA TEMPLATE temp1 FROM root.beijing
 * 删除时间序列语句
 
 ```
-DELETE TIMESERIES <PathPattern> [COMMA <PathPattern>]*
+(DELETE | DROP) TIMESERIES <PathPattern> [COMMA <PathPattern>]*
 Eg: IoTDB > DELETE TIMESERIES root.ln.wf01.wt01.status
 Eg: IoTDB > DELETE TIMESERIES root.ln.wf01.wt01.status, root.ln.wf01.wt01.temperature
 Eg: IoTDB > DELETE TIMESERIES root.ln.wf01.wt01.*
+Eg: IoTDB > DROP TIMESERIES root.ln.wf01.wt01.*
 ```
 
 * 修改时间序列标签属性语句
@@ -1038,7 +1039,7 @@ Note: the statement needs to satisfy this constraint: <PrefixPath> + <Path> = <T
 NOW()
 Eg. INSERT INTO root.ln.wf01.wt01(timestamp,status) VALUES(NOW(), false) 
 Eg. DELETE FROM root.ln.wf01.wt01.status, root.ln.wf01.wt01.temperature WHERE time < NOW()
-Eg. SELECT * FROM root WHERE time < NOW()
+Eg. SELECT * FROM root.** WHERE time < NOW()
 Eg. SELECT COUNT(temperature) FROM root.ln.wf01.wt01 WHERE time < NOW()
 ```
 

@@ -31,6 +31,7 @@ import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.slf4j.Logger;
 
 import java.io.File;
+import java.util.Objects;
 
 public class SchemaRegionUtils {
 
@@ -44,12 +45,11 @@ public class SchemaRegionUtils {
     }
     for (File file : sgFiles) {
       if (file.delete()) {
-        logger.info("delete schema region folder {}", schemaRegionDir.getAbsolutePath());
+        logger.info("delete schema region file {}", file.getAbsolutePath());
       } else {
-        logger.info("delete schema region folder {} failed.", schemaRegionDir.getAbsolutePath());
+        logger.info("delete schema region file {} failed.", file.getAbsolutePath());
         throw new MetadataException(
-            String.format(
-                "Failed to delete schema region folder %s", schemaRegionDir.getAbsolutePath()));
+            String.format("Failed to delete schema region file %s", file.getAbsolutePath()));
       }
     }
 
@@ -61,9 +61,13 @@ public class SchemaRegionUtils {
           String.format(
               "Failed to delete schema region folder %s", schemaRegionDir.getAbsolutePath()));
     }
+    final File storageGroupDir = schemaRegionDir.getParentFile();
+    if (Objects.requireNonNull(storageGroupDir.listFiles()).length == 0) {
+      storageGroupDir.delete();
+    }
   }
 
-  public static void checkDataTypeMatch(InsertPlan plan, int loc, TSDataType dataType)
+  public static void checkDataTypeMatch(InsertPlan plan, int loc, TSDataType dataTypeInSchema)
       throws MetadataException {
     TSDataType insertDataType;
     if (plan instanceof InsertRowPlan) {
@@ -71,15 +75,21 @@ public class SchemaRegionUtils {
         // only when InsertRowPlan's values is object[], we should check type
         insertDataType = getTypeInLoc(plan, loc);
       } else {
-        insertDataType = dataType;
+        insertDataType = dataTypeInSchema;
       }
     } else {
       insertDataType = getTypeInLoc(plan, loc);
     }
-    if (dataType != insertDataType) {
+    if (dataTypeInSchema != insertDataType) {
       String measurement = plan.getMeasurements()[loc];
       String device = plan.getDevicePath().getFullPath();
-      throw new DataTypeMismatchException(device, measurement, insertDataType, dataType);
+      throw new DataTypeMismatchException(
+          device,
+          measurement,
+          insertDataType,
+          dataTypeInSchema,
+          plan.getMinTime(),
+          plan.getFirstValueOfIndex(loc));
     }
   }
 

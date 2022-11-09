@@ -21,6 +21,7 @@ package org.apache.iotdb.db.engine.compaction.inner;
 
 import org.apache.iotdb.commons.conf.IoTDBConstant;
 import org.apache.iotdb.commons.exception.MetadataException;
+import org.apache.iotdb.commons.path.MeasurementPath;
 import org.apache.iotdb.commons.path.PartialPath;
 import org.apache.iotdb.db.constant.TestConstant;
 import org.apache.iotdb.db.engine.compaction.CompactionScheduler;
@@ -29,7 +30,6 @@ import org.apache.iotdb.db.engine.storagegroup.TsFileManager;
 import org.apache.iotdb.db.engine.storagegroup.TsFileResource;
 import org.apache.iotdb.db.engine.storagegroup.TsFileResourceStatus;
 import org.apache.iotdb.db.exception.StorageEngineException;
-import org.apache.iotdb.db.metadata.path.MeasurementPath;
 import org.apache.iotdb.db.query.context.QueryContext;
 import org.apache.iotdb.db.query.reader.series.SeriesRawDataBatchReader;
 import org.apache.iotdb.db.service.IoTDB;
@@ -207,15 +207,12 @@ public class InnerCompactionMoreDataTest extends InnerCompactionTest {
     tsFileManager.addAll(seqResources, true);
     tsFileManager.addAll(unseqResources, false);
     CompactionScheduler.scheduleCompaction(tsFileManager, 0);
-    CompactionTaskManager.getInstance().submitTaskFromTaskQueue();
     try {
       Thread.sleep(500);
     } catch (Exception e) {
 
     }
-    while (CompactionTaskManager.getInstance().getExecutingTaskCount() > 0) {
-      // wait
-    }
+    CompactionTaskManager.getInstance().waitAllCompactionFinish();
     QueryContext context = new QueryContext();
     MeasurementPath path =
         SchemaTestUtils.getMeasurementPath(

@@ -31,7 +31,7 @@ import org.apache.iotdb.db.exception.query.QueryProcessException;
 import org.apache.iotdb.db.qp.Planner;
 import org.apache.iotdb.db.qp.executor.IPlanExecutor;
 import org.apache.iotdb.db.qp.executor.PlanExecutor;
-import org.apache.iotdb.db.tools.TsFileRewriteTool;
+import org.apache.iotdb.db.tools.TsFileSplitByPartitionTool;
 import org.apache.iotdb.tsfile.common.conf.TSFileConfig;
 import org.apache.iotdb.tsfile.common.conf.TSFileDescriptor;
 import org.apache.iotdb.tsfile.exception.write.WriteProcessException;
@@ -90,10 +90,10 @@ public class TsFileRewriteToolTest {
 
     config = IoTDBDescriptor.getInstance().getConfig();
     originEnablePartition = config.isEnablePartition();
-    originPartitionInterval = config.getPartitionInterval();
+    originPartitionInterval = config.getTimePartitionIntervalForStorage();
 
     config.setEnablePartition(newEnablePartition);
-    config.setPartitionInterval(newPartitionInterval);
+    config.setTimePartitionIntervalForStorage(newPartitionInterval);
 
     StorageEngine.setEnablePartition(newEnablePartition);
     StorageEngine.setTimePartitionInterval(newPartitionInterval);
@@ -114,7 +114,7 @@ public class TsFileRewriteToolTest {
       Assert.assertTrue(deleteSuccess);
     }
     config.setEnablePartition(originEnablePartition);
-    config.setPartitionInterval(originPartitionInterval);
+    config.setTimePartitionIntervalForStorage(originPartitionInterval);
 
     StorageEngine.setEnablePartition(originEnablePartition);
     StorageEngine.setTimePartitionInterval(originPartitionInterval);
@@ -174,7 +174,7 @@ public class TsFileRewriteToolTest {
     deviceSensorsMap.put(DEVICE1, sensors);
     createOneTsFile(deviceSensorsMap);
     // try load the tsfile
-    String sql = String.format("load '%s' autoregister=true", path);
+    String sql = String.format("load '%s'", path);
     try {
       queryExecutor.processNonQuery(processor.parseSQLToPhysicalPlan(sql));
     } catch (Exception e) {
@@ -190,7 +190,7 @@ public class TsFileRewriteToolTest {
     deviceSensorsMap.put(DEVICE1, sensors);
     createOneTsFileWithOnlyOnePage(deviceSensorsMap);
     // try load the tsfile
-    String sql = String.format("load '%s' autoregister=true", path);
+    String sql = String.format("load '%s'", path);
     try {
       queryExecutor.processNonQuery(processor.parseSQLToPhysicalPlan(sql));
     } catch (Exception e) {
@@ -236,7 +236,7 @@ public class TsFileRewriteToolTest {
     TsFileResource tsFileResource = new TsFileResource(tsFile);
     List<TsFileResource> splitResource = new ArrayList<>();
     try {
-      TsFileRewriteTool.rewriteTsFile(tsFileResource, splitResource);
+      TsFileSplitByPartitionTool.rewriteTsFile(tsFileResource, splitResource);
     } catch (IOException | WriteProcessException | IllegalPathException e) {
       Assert.fail(e.getMessage());
     }
@@ -416,7 +416,7 @@ public class TsFileRewriteToolTest {
     TsFileResource tsFileResource = new TsFileResource(tsFile);
     List<TsFileResource> splitResource = new ArrayList<>();
     try {
-      TsFileRewriteTool.rewriteTsFile(tsFileResource, splitResource);
+      TsFileSplitByPartitionTool.rewriteTsFile(tsFileResource, splitResource);
     } catch (IOException | WriteProcessException | IllegalPathException e) {
       Assert.fail(e.getMessage());
     }

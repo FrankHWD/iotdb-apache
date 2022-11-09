@@ -22,6 +22,7 @@ package org.apache.iotdb.db.mpp.plan.planner.plan.node.metedata.write;
 import org.apache.iotdb.common.rpc.thrift.TRegionReplicaSet;
 import org.apache.iotdb.commons.exception.IllegalPathException;
 import org.apache.iotdb.commons.path.PartialPath;
+import org.apache.iotdb.db.metadata.plan.schemaregion.write.ICreateTimeSeriesPlan;
 import org.apache.iotdb.db.mpp.plan.analyze.Analysis;
 import org.apache.iotdb.db.mpp.plan.planner.plan.node.PlanNode;
 import org.apache.iotdb.db.mpp.plan.planner.plan.node.PlanNodeId;
@@ -36,6 +37,8 @@ import org.apache.iotdb.tsfile.utils.ReadWriteIOUtils;
 
 import com.google.common.collect.ImmutableList;
 
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -43,7 +46,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 
-public class CreateTimeSeriesNode extends WritePlanNode {
+public class CreateTimeSeriesNode extends WritePlanNode implements ICreateTimeSeriesPlan {
   private PartialPath path;
   private TSDataType dataType;
   private TSEncoding encoding;
@@ -53,7 +56,9 @@ public class CreateTimeSeriesNode extends WritePlanNode {
   private Map<String, String> tags = null;
   private Map<String, String> attributes = null;
 
-  private String version;
+  // only used inside schemaRegion to be serialized to mlog, no need to be serialized for mpp
+  // transport
+  private long tagOffset = -1;
 
   private TRegionReplicaSet regionReplicaSet;
 
@@ -66,8 +71,7 @@ public class CreateTimeSeriesNode extends WritePlanNode {
       Map<String, String> props,
       Map<String, String> tags,
       Map<String, String> attributes,
-      String alias,
-      String version) {
+      String alias) {
     super(id);
     this.path = path;
     this.dataType = dataType;
@@ -80,7 +84,6 @@ public class CreateTimeSeriesNode extends WritePlanNode {
       this.props = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
       this.props.putAll(props);
     }
-    this.version = version;
   }
 
   public PartialPath getPath() {
@@ -147,8 +150,14 @@ public class CreateTimeSeriesNode extends WritePlanNode {
     this.props = props;
   }
 
-  public String getVersion() {
-    return version;
+  @Override
+  public long getTagOffset() {
+    return tagOffset;
+  }
+
+  @Override
+  public void setTagOffset(long tagOffset) {
+    this.tagOffset = tagOffset;
   }
 
   @Override
@@ -226,20 +235,9 @@ public class CreateTimeSeriesNode extends WritePlanNode {
       attributes = ReadWriteIOUtils.readMap(byteBuffer);
     }
 
-    String version = ReadWriteIOUtils.readString(byteBuffer);
-
     id = ReadWriteIOUtils.readString(byteBuffer);
     return new CreateTimeSeriesNode(
-        new PlanNodeId(id),
-        path,
-        dataType,
-        encoding,
-        compressor,
-        props,
-        tags,
-        attributes,
-        alias,
-        version);
+        new PlanNodeId(id), path, dataType, encoding, compressor, props, tags, attributes, alias);
   }
 
   @Override
@@ -290,8 +288,56 @@ public class CreateTimeSeriesNode extends WritePlanNode {
       byteBuffer.put((byte) 1);
       ReadWriteIOUtils.write(attributes, byteBuffer);
     }
+  }
 
-    ReadWriteIOUtils.write(version, byteBuffer);
+  @Override
+  protected void serializeAttributes(DataOutputStream stream) throws IOException {
+    PlanNodeType.CREATE_TIME_SERIES.serialize(stream);
+
+    byte[] bytes = path.getFullPath().getBytes();
+    stream.writeInt(bytes.length);
+    stream.write(bytes);
+    stream.write((byte) dataType.ordinal());
+    stream.write((byte) encoding.ordinal());
+    stream.write((byte) compressor.ordinal());
+
+    // alias
+    if (alias != null) {
+      stream.write((byte) 1);
+      ReadWriteIOUtils.write(alias, stream);
+    } else {
+      stream.write((byte) 0);
+    }
+
+    // props
+    if (props == null) {
+      stream.write((byte) -1);
+    } else if (props.isEmpty()) {
+      stream.write((byte) 0);
+    } else {
+      stream.write((byte) 1);
+      ReadWriteIOUtils.write(props, stream);
+    }
+
+    // tags
+    if (tags == null) {
+      stream.write((byte) -1);
+    } else if (tags.isEmpty()) {
+      stream.write((byte) 0);
+    } else {
+      stream.write((byte) 1);
+      ReadWriteIOUtils.write(tags, stream);
+    }
+
+    // attributes
+    if (attributes == null) {
+      stream.write((byte) -1);
+    } else if (attributes.isEmpty()) {
+      stream.write((byte) 0);
+    } else {
+      stream.write((byte) 1);
+      ReadWriteIOUtils.write(attributes, stream);
+    }
   }
 
   @Override

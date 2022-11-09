@@ -24,20 +24,22 @@ import org.apache.iotdb.db.metadata.lastCache.container.LastCacheContainer;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.write.schema.MeasurementSchema;
 
+import java.util.Map;
+
 public class SchemaCacheEntry {
 
   private final MeasurementSchema measurementSchema;
 
+  private final Map<String, String> tagMap;
   private final boolean isAligned;
-
-  private final String version;
 
   private volatile ILastCacheContainer lastCacheContainer = null;
 
-  SchemaCacheEntry(MeasurementSchema measurementSchema, boolean isAligned, String version) {
+  SchemaCacheEntry(
+      MeasurementSchema measurementSchema, Map<String, String> tagMap, boolean isAligned) {
     this.measurementSchema = measurementSchema;
     this.isAligned = isAligned;
-    this.version = version;
+    this.tagMap = tagMap;
   }
 
   public String getSchemaEntryId() {
@@ -48,16 +50,16 @@ public class SchemaCacheEntry {
     return measurementSchema;
   }
 
+  public Map<String, String> getTagMap() {
+    return tagMap;
+  }
+
   public TSDataType getTsDataType() {
     return measurementSchema.getType();
   }
 
   public boolean isAligned() {
     return isAligned;
-  }
-
-  public String getVersion() {
-    return version;
   }
 
   public ILastCacheContainer getLastCacheContainer() {
@@ -73,5 +75,28 @@ public class SchemaCacheEntry {
 
   public void setLastCacheContainer(ILastCacheContainer lastCacheContainer) {
     this.lastCacheContainer = lastCacheContainer;
+  }
+
+  /**
+   * Total basic 100B
+   *
+   * <ul>
+   *   <li>SchemaCacheEntry Object header, 8B
+   *   <li>isAligned, 1B
+   *   <li>LastCacheContainer reference, 8B
+   *   <li>MeasurementSchema
+   *       <ul>
+   *         <li>Reference, 8B
+   *         <li>Object header, 8B
+   *         <li>String measurementId basic, 8 + 8 + 4 + 8 + 4 = 32B
+   *         <li>type, encoding, compressor, 3 B
+   *         <li>encodingConverter, 8 + 8 + 8 = 24B
+   *         <li>props, 8B
+   *       </ul>
+   * </ul>
+   */
+  public static int estimateSize(SchemaCacheEntry schemaCacheEntry) {
+    // each char takes 2B in Java
+    return 100 + 2 * schemaCacheEntry.getMeasurementSchema().getMeasurementId().length();
   }
 }

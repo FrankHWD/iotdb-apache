@@ -23,20 +23,14 @@ import org.apache.iotdb.db.mpp.aggregation.Aggregator;
 import org.apache.iotdb.db.mpp.aggregation.timerangeiterator.ITimeRangeIterator;
 import org.apache.iotdb.db.mpp.execution.operator.Operator;
 import org.apache.iotdb.db.mpp.execution.operator.OperatorContext;
-import org.apache.iotdb.db.mpp.plan.planner.plan.parameter.GroupByTimeParameter;
-import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
-import org.apache.iotdb.tsfile.read.common.TimeRange;
-import org.apache.iotdb.tsfile.read.common.block.TsBlock;
-import org.apache.iotdb.tsfile.read.common.block.TsBlock.TsBlockSingleColumnIterator;
-import org.apache.iotdb.tsfile.read.common.block.TsBlockBuilder;
+import org.apache.iotdb.db.mpp.execution.operator.window.IWindow;
+import org.apache.iotdb.db.mpp.execution.operator.window.IWindowManager;
+import org.apache.iotdb.db.mpp.execution.operator.window.TimeWindowManager;
 
-import com.google.common.util.concurrent.ListenableFuture;
-
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
-import static org.apache.iotdb.db.mpp.execution.operator.source.SeriesAggregationScanOperator.initTimeRangeIterator;
+import static org.apache.iotdb.db.mpp.execution.operator.AggregationUtil.appendAggregationResult;
+import static org.apache.iotdb.db.mpp.execution.operator.AggregationUtil.isAllAggregatorsHasFinalResult;
 
 /**
  * RawDataAggregationOperator is used to process raw data tsBlock input calculating using value
@@ -46,149 +40,125 @@ import static org.apache.iotdb.db.mpp.execution.operator.source.SeriesAggregatio
  * <p>Since raw data query with value filter is processed by FilterOperator above TimeJoinOperator,
  * there we can see RawDataAggregateOperator as a one-to-one(one input, ont output) operator.
  *
- * <p>Return aggregation result in one time interval once.
+ * <p>Return aggregation result in many time intervals once.
  */
-public class RawDataAggregationOperator implements ProcessOperator {
+public class RawDataAggregationOperator extends SingleInputAggregationOperator {
 
-  private final OperatorContext operatorContext;
-  private final List<Aggregator> aggregators;
-  private final Operator child;
-  private final boolean ascending;
-  private ITimeRangeIterator timeRangeIterator;
-  // current interval of aggregation window [curStartTime, curEndTime)
-  private TimeRange curTimeRange;
-
-  private TsBlock preCachedData;
-
-  // Using for building result tsBlock
-  private final TsBlockBuilder tsBlockBuilder;
+  private final IWindowManager windowManager;
 
   public RawDataAggregationOperator(
       OperatorContext operatorContext,
       List<Aggregator> aggregators,
+      ITimeRangeIterator timeRangeIterator,
       Operator child,
       boolean ascending,
-      GroupByTimeParameter groupByTimeParameter) {
-    this.operatorContext = operatorContext;
-    this.aggregators = aggregators;
-    this.child = child;
-    this.ascending = ascending;
-
-    List<TSDataType> dataTypes = new ArrayList<>();
-    for (Aggregator aggregator : aggregators) {
-      dataTypes.addAll(Arrays.asList(aggregator.getOutputType()));
-    }
-    tsBlockBuilder = new TsBlockBuilder(dataTypes);
-    this.timeRangeIterator = initTimeRangeIterator(groupByTimeParameter, ascending);
+      long maxReturnSize) {
+    super(operatorContext, aggregators, child, ascending, maxReturnSize);
+    this.windowManager = new TimeWindowManager(timeRangeIterator);
   }
 
-  @Override
-  public OperatorContext getOperatorContext() {
-    return operatorContext;
-  }
-
-  @Override
-  public ListenableFuture<Void> isBlocked() {
-    return child.isBlocked();
-  }
-
-  @Override
-  public TsBlock next() {
-    // 1. Clear previous aggregation result
-    curTimeRange = timeRangeIterator.nextTimeRange();
-    for (Aggregator aggregator : aggregators) {
-      aggregator.reset();
-      aggregator.setTimeRange(curTimeRange);
-    }
-
-    // 2. Calculate aggregation result based on current time window
-    while (!calcFromCacheData(curTimeRange)) {
-      if (child.hasNext()) {
-        preCachedData = child.next();
-      } else {
-        break;
-      }
-    }
-
-    // 3. Update result using aggregators
-    return AggregationOperator.updateResultTsBlockFromAggregators(
-        tsBlockBuilder, aggregators, timeRangeIterator);
+  private boolean hasMoreData() {
+    return inputTsBlock != null || child.hasNext();
   }
 
   @Override
   public boolean hasNext() {
-    return timeRangeIterator.hasNextTimeRange();
+    return windowManager.hasNext(hasMoreData());
   }
 
   @Override
-  public void close() throws Exception {
-    child.close();
+  protected boolean calculateNextAggregationResult() {
+    while (!calculateFromRawData()) {
+      inputTsBlock = null;
+
+      // NOTE: child.next() can only be invoked once
+      if (child.hasNext() && canCallNext) {
+        inputTsBlock = child.next();
+        canCallNext = false;
+      } else if (child.hasNext()) {
+        // if child still has next but can't be invoked now
+        return false;
+      } else {
+        // If there are no points belong to last window, the last window will not
+        // initialize window and aggregators
+        if (!windowManager.isCurWindowInit()) {
+          initWindowAndAggregators();
+        }
+        break;
+      }
+    }
+
+    updateResultTsBlock();
+    // Step into next window
+    windowManager.next();
+
+    return true;
   }
 
-  @Override
-  public boolean isFinished() {
-    return !this.hasNext();
-  }
+  private boolean calculateFromRawData() {
 
-  /** @return if already get the result */
-  private boolean calcFromCacheData(TimeRange curTimeRange) {
-    // check if the batchData does not contain points in current interval
-    if (preCachedData != null && satisfied(preCachedData, curTimeRange, ascending)) {
-      // skip points that cannot be calculated
-      preCachedData = skipOutOfTimeRangePoints(preCachedData, curTimeRange, ascending);
+    // if window is not initialized, we should init window status and reset aggregators
+    if (!windowManager.isCurWindowInit() && !skipPreviousWindowAndInitCurWindow()) {
+      return false;
+    }
 
+    // If current window has been initialized, we should judge whether inputTsBlock is empty
+    if (inputTsBlock == null || inputTsBlock.isEmpty()) {
+      return false;
+    }
+
+    if (windowManager.satisfiedCurWindow(inputTsBlock)) {
+
+      int lastReadRowIndex = 0;
       for (Aggregator aggregator : aggregators) {
-        // current agg method has been calculated
+        // Current agg method has been calculated
         if (aggregator.hasFinalResult()) {
           continue;
         }
 
-        aggregator.processTsBlock(preCachedData);
+        lastReadRowIndex = Math.max(lastReadRowIndex, aggregator.processTsBlock(inputTsBlock));
+      }
+      if (lastReadRowIndex >= inputTsBlock.getPositionCount()) {
+        inputTsBlock = null;
+        // For the last index of TsBlock, if we can know the aggregation calculation is over
+        // we can directly updateResultTsBlock and return true
+        return isAllAggregatorsHasFinalResult(aggregators);
+      } else {
+        inputTsBlock = inputTsBlock.subTsBlock(lastReadRowIndex);
+        return true;
       }
     }
-    // The result is calculated from the cache
-    return (preCachedData != null
-            && (ascending
-                ? preCachedData.getEndTime() > curTimeRange.getMax()
-                : preCachedData.getEndTime() < curTimeRange.getMin()))
-        || isEndCalc(aggregators);
+
+    boolean isTsBlockOutOfBound = windowManager.isTsBlockOutOfBound(inputTsBlock);
+    return isAllAggregatorsHasFinalResult(aggregators) || isTsBlockOutOfBound;
   }
 
-  // skip points that cannot be calculated
-  public static TsBlock skipOutOfTimeRangePoints(
-      TsBlock tsBlock, TimeRange curTimeRange, boolean ascending) {
-    TsBlockSingleColumnIterator tsBlockIterator = tsBlock.getTsBlockSingleColumnIterator();
-    if (ascending) {
-      while (tsBlockIterator.hasNext() && tsBlockIterator.currentTime() < curTimeRange.getMin()) {
-        tsBlockIterator.next();
-      }
-    } else {
-      while (tsBlockIterator.hasNext() && tsBlockIterator.currentTime() > curTimeRange.getMax()) {
-        tsBlockIterator.next();
-      }
-    }
-    return tsBlock.subTsBlock(tsBlockIterator.getRowIndex());
+  @Override
+  protected void updateResultTsBlock() {
+    appendAggregationResult(resultTsBlockBuilder, aggregators, windowManager.currentOutputTime());
   }
 
-  private boolean satisfied(TsBlock tsBlock, TimeRange timeRange, boolean ascending) {
-    TsBlockSingleColumnIterator tsBlockIterator = tsBlock.getTsBlockSingleColumnIterator();
-    if (tsBlockIterator == null || !tsBlockIterator.hasNext()) {
+  private boolean skipPreviousWindowAndInitCurWindow() {
+    // Before we initialize windowManager and aggregators, we should ensure that we have consumed
+    // all points belong to previous window
+    inputTsBlock = windowManager.skipPointsOutOfCurWindow(inputTsBlock);
+    // After skipping, if tsBlock is empty, we cannot ensure that we have consumed all points belong
+    // to previous window, we should go back to calculateNextAggregationResult() to get a new
+    // tsBlock
+    if (inputTsBlock == null || inputTsBlock.isEmpty()) {
       return false;
     }
-
-    return ascending
-        ? (tsBlockIterator.getEndTime() >= timeRange.getMin()
-            && tsBlockIterator.currentTime() <= timeRange.getMax())
-        : (tsBlockIterator.getEndTime() <= timeRange.getMax()
-            && tsBlockIterator.currentTime() >= timeRange.getMin());
+    // If we have consumed all points belong to previous window, we can initialize current window
+    // and aggregators
+    initWindowAndAggregators();
+    return true;
   }
 
-  public static boolean isEndCalc(List<Aggregator> aggregators) {
+  private void initWindowAndAggregators() {
+    windowManager.initCurWindow(inputTsBlock);
+    IWindow curWindow = windowManager.getCurWindow();
     for (Aggregator aggregator : aggregators) {
-      if (!aggregator.hasFinalResult()) {
-        return false;
-      }
+      aggregator.updateWindow(curWindow);
     }
-    return true;
   }
 }

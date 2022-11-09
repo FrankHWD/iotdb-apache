@@ -20,6 +20,7 @@ package org.apache.iotdb.commons.utils;
 
 import org.apache.iotdb.common.rpc.thrift.TConfigNodeLocation;
 import org.apache.iotdb.commons.exception.runtime.ThriftSerDeException;
+import org.apache.iotdb.confignode.rpc.thrift.TPipeSinkInfo;
 import org.apache.iotdb.confignode.rpc.thrift.TStorageGroupSchema;
 
 import org.apache.thrift.TException;
@@ -29,6 +30,7 @@ import org.apache.thrift.transport.TIOStreamTransport;
 import org.apache.thrift.transport.TTransport;
 import org.apache.thrift.transport.TTransportException;
 
+import java.io.DataOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
@@ -111,6 +113,15 @@ public class ThriftConfigNodeSerDeUtils {
     }
   }
 
+  public static void serializeTConfigNodeLocation(
+      TConfigNodeLocation configNodeLocation, DataOutputStream stream) {
+    try {
+      configNodeLocation.write(generateWriteProtocol(stream));
+    } catch (TException e) {
+      throw new ThriftSerDeException("Write TConfigNodeLocation failed: ", e);
+    }
+  }
+
   public static TConfigNodeLocation deserializeTConfigNodeLocation(ByteBuffer buffer) {
     TConfigNodeLocation configNodeLocation = new TConfigNodeLocation();
     try {
@@ -119,5 +130,23 @@ public class ThriftConfigNodeSerDeUtils {
       throw new ThriftSerDeException("Read TConfigNodeLocation failed: ", e);
     }
     return configNodeLocation;
+  }
+
+  public static void serializeTPipeSinkInfo(TPipeSinkInfo pipeSinkInfo, DataOutputStream stream) {
+    try {
+      pipeSinkInfo.write(generateWriteProtocol(stream));
+    } catch (TException e) {
+      throw new ThriftSerDeException("Write TPipeSinkInfo failed: ", e);
+    }
+  }
+
+  public static TPipeSinkInfo deserializeTPipeSinkInfo(ByteBuffer buffer) {
+    TPipeSinkInfo pipeSinkInfo = new TPipeSinkInfo();
+    try {
+      pipeSinkInfo.read(generateReadProtocol(buffer));
+    } catch (TException e) {
+      throw new ThriftSerDeException("Read TPipeSinkInfo failed: ", e);
+    }
+    return pipeSinkInfo;
   }
 }

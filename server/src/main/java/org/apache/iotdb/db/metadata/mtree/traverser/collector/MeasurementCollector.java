@@ -19,11 +19,11 @@
 package org.apache.iotdb.db.metadata.mtree.traverser.collector;
 
 import org.apache.iotdb.commons.exception.MetadataException;
+import org.apache.iotdb.commons.path.MeasurementPath;
 import org.apache.iotdb.commons.path.PartialPath;
 import org.apache.iotdb.db.metadata.mnode.IMNode;
 import org.apache.iotdb.db.metadata.mnode.IMeasurementMNode;
 import org.apache.iotdb.db.metadata.mtree.store.IMTreeStore;
-import org.apache.iotdb.db.metadata.path.MeasurementPath;
 
 // This class defines MeasurementMNode as target node and defines the measurement process framework.
 public abstract class MeasurementCollector<T> extends CollectorTraverser<T> {
@@ -31,14 +31,14 @@ public abstract class MeasurementCollector<T> extends CollectorTraverser<T> {
   public MeasurementCollector(IMNode startNode, PartialPath path, IMTreeStore store)
       throws MetadataException {
     super(startNode, path, store);
-    isMeasurementTraverser = true;
+    shouldTraverseTemplate = true;
   }
 
   public MeasurementCollector(
       IMNode startNode, PartialPath path, IMTreeStore store, int limit, int offset)
       throws MetadataException {
     super(startNode, path, store, limit, offset);
-    isMeasurementTraverser = true;
+    shouldTraverseTemplate = true;
   }
 
   @Override
@@ -50,7 +50,8 @@ public abstract class MeasurementCollector<T> extends CollectorTraverser<T> {
   @Override
   protected boolean processFullMatchedMNode(IMNode node, int idx, int level)
       throws MetadataException {
-    if (!node.isMeasurement()) {
+    if (!node.isMeasurement()
+        || (skipPreDeletedSchema && node.getAsMeasurementMNode().isPreDeleted())) {
       return false;
     }
     if (hasLimit) {

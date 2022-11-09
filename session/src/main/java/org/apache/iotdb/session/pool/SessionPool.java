@@ -20,8 +20,8 @@ package org.apache.iotdb.session.pool;
 
 import org.apache.iotdb.rpc.IoTDBConnectionException;
 import org.apache.iotdb.rpc.StatementExecutionException;
-import org.apache.iotdb.session.Config;
 import org.apache.iotdb.session.Session;
+import org.apache.iotdb.session.SessionConfig;
 import org.apache.iotdb.session.SessionDataSet;
 import org.apache.iotdb.session.template.Template;
 import org.apache.iotdb.tsfile.file.metadata.enums.CompressionType;
@@ -84,7 +84,7 @@ public class SessionPool {
   private final String password;
   private final int fetchSize;
   private final ZoneId zoneId;
-  private final boolean enableCacheLeader;
+  private final boolean enableRedirection;
 
   // parameters for Session#open()
   private final int connectionTimeoutInMs;
@@ -103,12 +103,12 @@ public class SessionPool {
         user,
         password,
         maxSize,
-        Config.DEFAULT_FETCH_SIZE,
+        SessionConfig.DEFAULT_FETCH_SIZE,
         60_000,
         false,
         null,
-        Config.DEFAULT_CACHE_LEADER_MODE,
-        Config.DEFAULT_CONNECTION_TIMEOUT_MS);
+        SessionConfig.DEFAULT_REDIRECTION_MODE,
+        SessionConfig.DEFAULT_CONNECTION_TIMEOUT_MS);
   }
 
   public SessionPool(List<String> nodeUrls, String user, String password, int maxSize) {
@@ -117,12 +117,12 @@ public class SessionPool {
         user,
         password,
         maxSize,
-        Config.DEFAULT_FETCH_SIZE,
+        SessionConfig.DEFAULT_FETCH_SIZE,
         60_000,
         false,
         null,
-        Config.DEFAULT_CACHE_LEADER_MODE,
-        Config.DEFAULT_CONNECTION_TIMEOUT_MS);
+        SessionConfig.DEFAULT_REDIRECTION_MODE,
+        SessionConfig.DEFAULT_CONNECTION_TIMEOUT_MS);
   }
 
   public SessionPool(
@@ -133,12 +133,12 @@ public class SessionPool {
         user,
         password,
         maxSize,
-        Config.DEFAULT_FETCH_SIZE,
+        SessionConfig.DEFAULT_FETCH_SIZE,
         60_000,
         enableCompression,
         null,
-        Config.DEFAULT_CACHE_LEADER_MODE,
-        Config.DEFAULT_CONNECTION_TIMEOUT_MS);
+        SessionConfig.DEFAULT_REDIRECTION_MODE,
+        SessionConfig.DEFAULT_CONNECTION_TIMEOUT_MS);
   }
 
   public SessionPool(
@@ -148,12 +148,12 @@ public class SessionPool {
         user,
         password,
         maxSize,
-        Config.DEFAULT_FETCH_SIZE,
+        SessionConfig.DEFAULT_FETCH_SIZE,
         60_000,
         enableCompression,
         null,
-        Config.DEFAULT_CACHE_LEADER_MODE,
-        Config.DEFAULT_CONNECTION_TIMEOUT_MS);
+        SessionConfig.DEFAULT_REDIRECTION_MODE,
+        SessionConfig.DEFAULT_CONNECTION_TIMEOUT_MS);
   }
 
   public SessionPool(
@@ -163,19 +163,19 @@ public class SessionPool {
       String password,
       int maxSize,
       boolean enableCompression,
-      boolean enableCacheLeader) {
+      boolean enableRedirection) {
     this(
         host,
         port,
         user,
         password,
         maxSize,
-        Config.DEFAULT_FETCH_SIZE,
+        SessionConfig.DEFAULT_FETCH_SIZE,
         60_000,
         enableCompression,
         null,
-        enableCacheLeader,
-        Config.DEFAULT_CONNECTION_TIMEOUT_MS);
+        enableRedirection,
+        SessionConfig.DEFAULT_CONNECTION_TIMEOUT_MS);
   }
 
   public SessionPool(
@@ -184,18 +184,18 @@ public class SessionPool {
       String password,
       int maxSize,
       boolean enableCompression,
-      boolean enableCacheLeader) {
+      boolean enableRedirection) {
     this(
         nodeUrls,
         user,
         password,
         maxSize,
-        Config.DEFAULT_FETCH_SIZE,
+        SessionConfig.DEFAULT_FETCH_SIZE,
         60_000,
         enableCompression,
         null,
-        enableCacheLeader,
-        Config.DEFAULT_CONNECTION_TIMEOUT_MS);
+        enableRedirection,
+        SessionConfig.DEFAULT_CONNECTION_TIMEOUT_MS);
   }
 
   public SessionPool(
@@ -206,12 +206,12 @@ public class SessionPool {
         user,
         password,
         maxSize,
-        Config.DEFAULT_FETCH_SIZE,
+        SessionConfig.DEFAULT_FETCH_SIZE,
         60_000,
         false,
         zoneId,
-        Config.DEFAULT_CACHE_LEADER_MODE,
-        Config.DEFAULT_CONNECTION_TIMEOUT_MS);
+        SessionConfig.DEFAULT_REDIRECTION_MODE,
+        SessionConfig.DEFAULT_CONNECTION_TIMEOUT_MS);
   }
 
   public SessionPool(
@@ -221,12 +221,12 @@ public class SessionPool {
         user,
         password,
         maxSize,
-        Config.DEFAULT_FETCH_SIZE,
+        SessionConfig.DEFAULT_FETCH_SIZE,
         60_000,
         false,
         zoneId,
-        Config.DEFAULT_CACHE_LEADER_MODE,
-        Config.DEFAULT_CONNECTION_TIMEOUT_MS);
+        SessionConfig.DEFAULT_REDIRECTION_MODE,
+        SessionConfig.DEFAULT_CONNECTION_TIMEOUT_MS);
   }
 
   @SuppressWarnings("squid:S107")
@@ -240,7 +240,7 @@ public class SessionPool {
       long waitToGetSessionTimeoutInMs,
       boolean enableCompression,
       ZoneId zoneId,
-      boolean enableCacheLeader,
+      boolean enableRedirection,
       int connectionTimeoutInMs) {
     this.maxSize = maxSize;
     this.host = host;
@@ -252,7 +252,7 @@ public class SessionPool {
     this.waitToGetSessionTimeoutInMs = waitToGetSessionTimeoutInMs;
     this.enableCompression = enableCompression;
     this.zoneId = zoneId;
-    this.enableCacheLeader = enableCacheLeader;
+    this.enableRedirection = enableRedirection;
     this.connectionTimeoutInMs = connectionTimeoutInMs;
   }
 
@@ -265,7 +265,7 @@ public class SessionPool {
       long waitToGetSessionTimeoutInMs,
       boolean enableCompression,
       ZoneId zoneId,
-      boolean enableCacheLeader,
+      boolean enableRedirection,
       int connectionTimeoutInMs) {
     this.maxSize = maxSize;
     this.host = null;
@@ -277,7 +277,7 @@ public class SessionPool {
     this.waitToGetSessionTimeoutInMs = waitToGetSessionTimeoutInMs;
     this.enableCompression = enableCompression;
     this.zoneId = zoneId;
-    this.enableCacheLeader = enableCacheLeader;
+    this.enableRedirection = enableRedirection;
     this.connectionTimeoutInMs = connectionTimeoutInMs;
   }
 
@@ -293,7 +293,7 @@ public class SessionPool {
               .password(password)
               .fetchSize(fetchSize)
               .zoneId(zoneId)
-              .enableCacheLeader(enableCacheLeader)
+              .enableRedirection(enableRedirection)
               .build();
     } else {
       // Construct redirect-able Session
@@ -304,7 +304,7 @@ public class SessionPool {
               .password(password)
               .fetchSize(fetchSize)
               .zoneId(zoneId)
-              .enableCacheLeader(enableCacheLeader)
+              .enableRedirection(enableRedirection)
               .build();
     }
     return session;
@@ -2096,6 +2096,7 @@ public class SessionPool {
       try {
         session.setSchemaTemplate(templateName, prefixPath);
         putBack(session);
+        return;
       } catch (IoTDBConnectionException e) {
         // TException means the connection is broken, remove it and get a new one.
         logger.warn(
@@ -2115,6 +2116,7 @@ public class SessionPool {
       try {
         session.unsetSchemaTemplate(prefixPath, templateName);
         putBack(session);
+        return;
       } catch (IoTDBConnectionException e) {
         // TException means the connection is broken, remove it and get a new one.
         logger.warn(
@@ -2134,6 +2136,7 @@ public class SessionPool {
       try {
         session.dropSchemaTemplate(templateName);
         putBack(session);
+        return;
       } catch (IoTDBConnectionException e) {
         // TException means the connection is broken, remove it and get a new one.
         logger.warn(String.format("dropSchemaTemplate [%s] failed", templateName), e);
@@ -2235,12 +2238,13 @@ public class SessionPool {
   }
 
   @SuppressWarnings("squid:S2095") // Suppress wrapper not closed warning
-  public SessionDataSetWrapper executeRawDataQuery(List<String> paths, long startTime, long endTime)
+  public SessionDataSetWrapper executeRawDataQuery(
+      List<String> paths, long startTime, long endTime, long timeOut)
       throws IoTDBConnectionException, StatementExecutionException {
     for (int i = 0; i < RETRY; i++) {
       Session session = getSession();
       try {
-        SessionDataSet resp = session.executeRawDataQuery(paths, startTime, endTime);
+        SessionDataSet resp = session.executeRawDataQuery(paths, startTime, endTime, timeOut);
         SessionDataSetWrapper wrapper = new SessionDataSetWrapper(resp, session, this);
         occupy(session);
         return wrapper;
@@ -2293,8 +2297,8 @@ public class SessionPool {
     return enableCompression;
   }
 
-  public boolean isEnableCacheLeader() {
-    return enableCacheLeader;
+  public boolean isEnableRedirection() {
+    return enableRedirection;
   }
 
   public int getConnectionTimeoutInMs() {
@@ -2303,18 +2307,18 @@ public class SessionPool {
 
   public static class Builder {
 
-    private String host = Config.DEFAULT_HOST;
-    private int port = Config.DEFAULT_PORT;
+    private String host = SessionConfig.DEFAULT_HOST;
+    private int port = SessionConfig.DEFAULT_PORT;
     private List<String> nodeUrls = null;
-    private int maxSize = Config.DEFAULT_SESSION_POOL_MAX_SIZE;
-    private String user = Config.DEFAULT_USER;
-    private String password = Config.DEFAULT_PASSWORD;
-    private int fetchSize = Config.DEFAULT_FETCH_SIZE;
+    private int maxSize = SessionConfig.DEFAULT_SESSION_POOL_MAX_SIZE;
+    private String user = SessionConfig.DEFAULT_USER;
+    private String password = SessionConfig.DEFAULT_PASSWORD;
+    private int fetchSize = SessionConfig.DEFAULT_FETCH_SIZE;
     private long waitToGetSessionTimeoutInMs = 60_000;
     private boolean enableCompression = false;
     private ZoneId zoneId = null;
-    private boolean enableCacheLeader = Config.DEFAULT_CACHE_LEADER_MODE;
-    private int connectionTimeoutInMs = Config.DEFAULT_CONNECTION_TIMEOUT_MS;
+    private boolean enableRedirection = SessionConfig.DEFAULT_REDIRECTION_MODE;
+    private int connectionTimeoutInMs = SessionConfig.DEFAULT_CONNECTION_TIMEOUT_MS;
 
     public Builder host(String host) {
       this.host = host;
@@ -2366,8 +2370,8 @@ public class SessionPool {
       return this;
     }
 
-    public Builder enableCacheLeader(boolean enableCacheLeader) {
-      this.enableCacheLeader = enableCacheLeader;
+    public Builder enableRedirection(boolean enableRedirection) {
+      this.enableRedirection = enableRedirection;
       return this;
     }
 
@@ -2388,7 +2392,7 @@ public class SessionPool {
             waitToGetSessionTimeoutInMs,
             enableCompression,
             zoneId,
-            enableCacheLeader,
+            enableRedirection,
             connectionTimeoutInMs);
       } else {
         return new SessionPool(
@@ -2400,7 +2404,7 @@ public class SessionPool {
             waitToGetSessionTimeoutInMs,
             enableCompression,
             zoneId,
-            enableCacheLeader,
+            enableRedirection,
             connectionTimeoutInMs);
       }
     }

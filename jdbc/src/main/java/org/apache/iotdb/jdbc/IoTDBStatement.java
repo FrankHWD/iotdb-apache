@@ -23,12 +23,12 @@ import org.apache.iotdb.common.rpc.thrift.TSStatus;
 import org.apache.iotdb.rpc.RpcUtils;
 import org.apache.iotdb.rpc.StatementExecutionException;
 import org.apache.iotdb.rpc.TSStatusCode;
+import org.apache.iotdb.service.rpc.thrift.IClientRPCService;
 import org.apache.iotdb.service.rpc.thrift.TSCancelOperationReq;
 import org.apache.iotdb.service.rpc.thrift.TSCloseOperationReq;
 import org.apache.iotdb.service.rpc.thrift.TSExecuteBatchStatementReq;
 import org.apache.iotdb.service.rpc.thrift.TSExecuteStatementReq;
 import org.apache.iotdb.service.rpc.thrift.TSExecuteStatementResp;
-import org.apache.iotdb.service.rpc.thrift.TSIService;
 import org.apache.iotdb.service.rpc.thrift.TSQueryDataSet;
 import org.apache.iotdb.service.rpc.thrift.TSQueryNonAlignDataSet;
 import org.apache.iotdb.tsfile.utils.ReadWriteIOUtils;
@@ -63,7 +63,7 @@ public class IoTDBStatement implements Statement {
    */
   private int queryTimeout = -1;
 
-  protected TSIService.Iface client;
+  protected IClientRPCService.Iface client;
   private List<String> batchSQLList;
   private static final String NOT_SUPPORT_EXECUTE = "Not support execute";
   private static final String NOT_SUPPORT_EXECUTE_UPDATE = "Not support executeUpdate";
@@ -83,7 +83,7 @@ public class IoTDBStatement implements Statement {
   /** Constructor of IoTDBStatement. */
   IoTDBStatement(
       IoTDBConnection connection,
-      TSIService.Iface client,
+      IClientRPCService.Iface client,
       long sessionId,
       int fetchSize,
       ZoneId zoneId,
@@ -102,7 +102,7 @@ public class IoTDBStatement implements Statement {
   // only for test
   IoTDBStatement(
       IoTDBConnection connection,
-      TSIService.Iface client,
+      IClientRPCService.Iface client,
       long sessionId,
       ZoneId zoneId,
       int seconds,
@@ -117,14 +117,15 @@ public class IoTDBStatement implements Statement {
     this.stmtId = statementId;
   }
 
-  IoTDBStatement(IoTDBConnection connection, TSIService.Iface client, long sessionId, ZoneId zoneId)
+  IoTDBStatement(
+      IoTDBConnection connection, IClientRPCService.Iface client, long sessionId, ZoneId zoneId)
       throws SQLException {
     this(connection, client, sessionId, Config.DEFAULT_FETCH_SIZE, zoneId, 0);
   }
 
   IoTDBStatement(
       IoTDBConnection connection,
-      TSIService.Iface client,
+      IClientRPCService.Iface client,
       long sessionId,
       ZoneId zoneId,
       int seconds)
@@ -344,12 +345,12 @@ public class IoTDBStatement implements Statement {
         if (result[i] != TSStatusCode.SUCCESS_STATUS.getStatusCode()
             && result[i] != TSStatusCode.NEED_REDIRECTION.getStatusCode()) {
           allSuccess = false;
-          message.append(
-              execResp.getSubStatus().get(i).message
-                  + " for SQL: \""
-                  + batchSQLList.get(i)
-                  + "\""
-                  + System.lineSeparator());
+          message
+              .append(execResp.getSubStatus().get(i).message)
+              .append(" for SQL: \"")
+              .append(batchSQLList.get(i))
+              .append("\"")
+              .append(System.lineSeparator());
         }
       } else {
         allSuccess =
@@ -466,8 +467,7 @@ public class IoTDBStatement implements Statement {
     for (int i = 0; i < listAlias.size(); i++) {
       byteAlias[i] = listAlias.get(i);
     }
-    BitSet aliasColumn = BitSet.valueOf(byteAlias);
-    return aliasColumn;
+    return BitSet.valueOf(byteAlias);
   }
 
   private void deepCopyResp(TSExecuteStatementResp queryRes) {

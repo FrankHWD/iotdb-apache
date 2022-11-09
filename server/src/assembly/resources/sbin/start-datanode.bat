@@ -73,20 +73,20 @@ IF "%IOTDB_CONF%" == "" (
 
 SET IOTDB_LOGS=%IOTDB_HOME%\logs
 
-IF EXIST "%IOTDB_CONF%\iotdb-env.bat" (
+IF EXIST "%IOTDB_CONF%\datanode-env.bat" (
   IF  "%enable_printgc%" == "true" (
-    CALL "%IOTDB_CONF%\iotdb-env.bat" printgc
+    CALL "%IOTDB_CONF%\datanode-env.bat" printgc
   ) ELSE (
-    CALL "%IOTDB_CONF%\iotdb-env.bat"
+    CALL "%IOTDB_CONF%\datanode-env.bat"
   )
-) ELSE IF EXIST "%IOTDB_HOME%/conf/iotdb-env.bat" (
+) ELSE IF EXIST "%IOTDB_HOME%/conf/datanode-env.bat" (
   IF  "%enable_printgc%" == "true" (
-    CALL "%IOTDB_HOME%/conf/iotdb-env.bat" printgc
+    CALL "%IOTDB_HOME%/conf/datanode-env.bat" printgc
   ) ELSE (
-    CALL "%IOTDB_HOME%/conf/iotdb-env.bat"
+    CALL "%IOTDB_HOME%/conf/datanode-env.bat"
    )
 ) ELSE (
-  echo "can't find iotdb-env.bat"
+  echo "can't find datanode-env.bat"
 )
 
 @setlocal ENABLEDELAYEDEXPANSION ENABLEEXTENSIONS
@@ -97,7 +97,7 @@ if NOT DEFINED JAVA_HOME goto :err
 @REM -----------------------------------------------------------------------------
 @REM JVM Opts we'll use in legacy run or installation
 set JAVA_OPTS=-ea^
- -Dlogback.configurationFile="%IOTDB_CONF%\logback.xml"^
+ -Dlogback.configurationFile="%IOTDB_CONF%\logback-datanode.xml"^
  -DIOTDB_HOME="%IOTDB_HOME%"^
  -DTSFILE_HOME="%IOTDB_HOME%"^
  -DTSFILE_CONF="%IOTDB_CONF%"^

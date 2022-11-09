@@ -22,29 +22,60 @@ import org.apache.iotdb.commons.partition.DataPartition;
 import org.apache.iotdb.commons.partition.DataPartitionQueryParam;
 import org.apache.iotdb.commons.partition.SchemaNodeManagementPartition;
 import org.apache.iotdb.commons.partition.SchemaPartition;
-import org.apache.iotdb.confignode.rpc.thrift.NodeManagementType;
-import org.apache.iotdb.db.mpp.common.schematree.PathPatternTree;
+import org.apache.iotdb.commons.path.PathPatternTree;
+import org.apache.iotdb.mpp.rpc.thrift.TRegionRouteReq;
 
 import java.util.List;
 import java.util.Map;
 
 public interface IPartitionFetcher {
 
+  /** Get schema partition without automatically create, used in write and query scenarios. */
   SchemaPartition getSchemaPartition(PathPatternTree patternTree);
 
+  /**
+   * Get or create schema partition, used in insertion with enable_auto_create_schema is true. if
+   * schemaPartition does not exist, then automatically create.
+   */
   SchemaPartition getOrCreateSchemaPartition(PathPatternTree patternTree);
 
-  SchemaNodeManagementPartition getSchemaNodeManagementPartition(
-      PathPatternTree patternTree, NodeManagementType type);
-
+  /**
+   * Get data partition, used in query scenarios.
+   *
+   * @param sgNameToQueryParamsMap storage group name -> the list of DataPartitionQueryParams
+   */
   DataPartition getDataPartition(Map<String, List<DataPartitionQueryParam>> sgNameToQueryParamsMap);
 
-  DataPartition getDataPartition(List<DataPartitionQueryParam> dataPartitionQueryParams);
-
+  /**
+   * Get or create data partition, used in standalone write scenarios. if enableAutoCreateSchema is
+   * true and storage group/series/time slots not exists, then automatically create.
+   *
+   * @param sgNameToQueryParamsMap storage group name -> the list of DataPartitionQueryParams
+   */
   DataPartition getOrCreateDataPartition(
       Map<String, List<DataPartitionQueryParam>> sgNameToQueryParamsMap);
 
+  /**
+   * Get or create data partition, used in cluster write scenarios. if enableAutoCreateSchema is
+   * true and storage group/series/time slots not exists, then automatically create.
+   *
+   * @param dataPartitionQueryParams the list of DataPartitionQueryParams
+   */
   DataPartition getOrCreateDataPartition(List<DataPartitionQueryParam> dataPartitionQueryParams);
 
+  /** Get schema partition and matched nodes according to path pattern tree. */
+  default SchemaNodeManagementPartition getSchemaNodeManagementPartition(
+      PathPatternTree patternTree) {
+    return getSchemaNodeManagementPartitionWithLevel(patternTree, null);
+  }
+
+  /** Get schema partition and matched nodes according to path pattern tree and node level. */
+  SchemaNodeManagementPartition getSchemaNodeManagementPartitionWithLevel(
+      PathPatternTree patternTree, Integer level);
+
+  /** Update region cache in partition cache when receive request from config node */
+  boolean updateRegionCache(TRegionRouteReq req);
+
+  /** Invalid all partition cache */
   void invalidAllCache();
 }

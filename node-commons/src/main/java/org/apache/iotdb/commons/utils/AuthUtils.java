@@ -26,12 +26,18 @@ import org.apache.iotdb.commons.conf.IoTDBConstant;
 import org.apache.iotdb.commons.exception.IllegalPathException;
 import org.apache.iotdb.commons.path.PartialPath;
 import org.apache.iotdb.commons.security.encrypt.AsymmetricEncryptFactory;
+import org.apache.iotdb.confignode.rpc.thrift.TPermissionInfoResp;
+import org.apache.iotdb.confignode.rpc.thrift.TRoleResp;
+import org.apache.iotdb.confignode.rpc.thrift.TUserResp;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public class AuthUtils {
@@ -145,10 +151,12 @@ public class AuthUtils {
         case CREATE_TIMESERIES:
         case DELETE_TIMESERIES:
         case INSERT_TIMESERIES:
+        case ALTER_TIMESERIES:
         case CREATE_TRIGGER:
         case DROP_TRIGGER:
         case START_TRIGGER:
         case STOP_TRIGGER:
+        case APPLY_TEMPLATE:
           return;
         default:
           throw new AuthException(
@@ -162,6 +170,7 @@ public class AuthUtils {
         case CREATE_TIMESERIES:
         case DELETE_TIMESERIES:
         case INSERT_TIMESERIES:
+        case ALTER_TIMESERIES:
           validatePath(path);
           return;
         default:
@@ -203,6 +212,23 @@ public class AuthUtils {
       PartialPath partialPathA = new PartialPath(pathA);
       PartialPath partialPathB = new PartialPath(pathB);
       return partialPathB.matchFullPath(partialPathA);
+    } catch (IllegalPathException e) {
+      throw new AuthException(e);
+    }
+  }
+
+  /**
+   * check if pathA either belongs to pathB or pathB belongs to pathA according to path pattern.
+   *
+   * @param pathA path
+   * @param pathB path
+   * @return True if pathA is a sub pattern of pathB, or pathB is a sub pattern of pathA
+   */
+  public static boolean pathOrBelongsTo(String pathA, String pathB) throws AuthException {
+    try {
+      PartialPath partialPathA = new PartialPath(pathA);
+      PartialPath partialPathB = new PartialPath(pathB);
+      return partialPathB.matchFullPath(partialPathA) || partialPathA.matchFullPath(partialPathB);
     } catch (IllegalPathException e) {
       throw new AuthException(e);
     }
@@ -344,5 +370,36 @@ public class AuthUtils {
     if (emptyPrivilege != null) {
       privilegeList.remove(emptyPrivilege);
     }
+  }
+
+  public static TPermissionInfoResp generateEmptyPermissionInfoResp() {
+    TPermissionInfoResp permissionInfoResp = new TPermissionInfoResp();
+    permissionInfoResp.setUserInfo(new TUserResp("", "", new ArrayList<>(), new ArrayList<>()));
+    Map<String, TRoleResp> roleInfo = new HashMap<>();
+    roleInfo.put("", new TRoleResp("", new ArrayList<>()));
+    permissionInfoResp.setRoleInfo(roleInfo);
+    return permissionInfoResp;
+  }
+
+  public static Set<Integer> strToPermissions(String[] authorizationList) throws AuthException {
+    Set<Integer> result = new HashSet<>();
+    if (authorizationList == null) {
+      return result;
+    }
+    for (String s : authorizationList) {
+      PrivilegeType[] types = PrivilegeType.values();
+      boolean legal = false;
+      for (PrivilegeType privilegeType : types) {
+        if (s.equalsIgnoreCase(privilegeType.name())) {
+          result.add(privilegeType.ordinal());
+          legal = true;
+          break;
+        }
+      }
+      if (!legal) {
+        throw new AuthException("No such privilege " + s);
+      }
+    }
+    return result;
   }
 }

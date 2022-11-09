@@ -18,13 +18,14 @@
  */
 package org.apache.iotdb.db.metadata.mnode;
 
+import org.apache.iotdb.commons.path.MeasurementPath;
 import org.apache.iotdb.db.engine.trigger.executor.TriggerExecutor;
 import org.apache.iotdb.db.metadata.lastCache.container.ILastCacheContainer;
 import org.apache.iotdb.db.metadata.lastCache.container.LastCacheContainer;
 import org.apache.iotdb.db.metadata.logfile.MLogWriter;
 import org.apache.iotdb.db.metadata.mnode.container.IMNodeContainer;
 import org.apache.iotdb.db.metadata.mnode.container.MNodeContainers;
-import org.apache.iotdb.db.metadata.path.MeasurementPath;
+import org.apache.iotdb.db.metadata.mnode.visitor.MNodeVisitor;
 import org.apache.iotdb.db.metadata.template.Template;
 import org.apache.iotdb.db.qp.physical.sys.MeasurementMNodePlan;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
@@ -45,10 +46,10 @@ public class MeasurementMNode extends MNode implements IMeasurementMNode {
   private long offset = -1;
   /** measurement's Schema for one timeseries represented by current leaf node */
   private IMeasurementSchema schema;
+  /** whether this measurement is pre deleted and considered in black list */
+  private boolean preDeleted = false;
   /** last value cache */
   private volatile ILastCacheContainer lastCacheContainer = null;
-
-  private String version = null;
 
   /**
    * MeasurementMNode factory method. The type of returned MeasurementMNode is according to the
@@ -151,18 +152,23 @@ public class MeasurementMNode extends MNode implements IMeasurementMNode {
   }
 
   @Override
-  public String getVersion() {
-    return version;
+  public boolean isPreDeleted() {
+    return preDeleted;
   }
 
   @Override
-  public void setVersion(String version) {
-    this.version = version;
+  public void setPreDeleted(boolean preDeleted) {
+    this.preDeleted = preDeleted;
   }
 
   @Override
   public void serializeTo(MLogWriter logWriter) throws IOException {
     logWriter.serializeMeasurementMNode(this);
+  }
+
+  @Override
+  public <R, C> R accept(MNodeVisitor<R, C> visitor, C context) {
+    return visitor.visitMeasurementMNode(this, context);
   }
 
   /** deserialize MeasurementMNode from MeasurementNodePlan */
@@ -233,13 +239,24 @@ public class MeasurementMNode extends MNode implements IMeasurementMNode {
   @Override
   public Template getSchemaTemplate() {
     MeasurementMNode.logger.warn(
-        "current node {} is a MeasurementMNode, can not get Device Template", name);
+        "current node {} is a MeasurementMNode, can not get Schema Template", name);
     throw new RuntimeException(
-        String.format("current node %s is a MeasurementMNode, can not get Device Template", name));
+        String.format("current node %s is a MeasurementMNode, can not get Schema Template", name));
   }
 
   @Override
   public void setSchemaTemplate(Template schemaTemplate) {}
+
+  @Override
+  public int getSchemaTemplateId() {
+    MeasurementMNode.logger.warn(
+        "current node {} is a MeasurementMNode, can not get Schema Template", name);
+    throw new RuntimeException(
+        String.format("current node %s is a MeasurementMNode, can not get Schema Template", name));
+  }
+
+  @Override
+  public void setSchemaTemplateId(int schemaTemplateId) {}
 
   @Override
   public void setUseTemplate(boolean useTemplate) {}
@@ -247,5 +264,10 @@ public class MeasurementMNode extends MNode implements IMeasurementMNode {
   @Override
   public boolean isMeasurement() {
     return true;
+  }
+
+  @Override
+  public MNodeType getMNodeType(Boolean isConfig) {
+    return MNodeType.MEASUREMENT;
   }
 }

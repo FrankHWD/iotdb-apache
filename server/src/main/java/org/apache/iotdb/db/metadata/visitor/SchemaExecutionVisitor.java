@@ -21,25 +21,36 @@ package org.apache.iotdb.db.metadata.visitor;
 
 import org.apache.iotdb.common.rpc.thrift.TSStatus;
 import org.apache.iotdb.commons.conf.IoTDBConstant;
-import org.apache.iotdb.commons.consensus.SchemaRegionId;
 import org.apache.iotdb.commons.exception.MetadataException;
+import org.apache.iotdb.commons.path.MeasurementPath;
 import org.apache.iotdb.commons.path.PartialPath;
+import org.apache.iotdb.db.exception.metadata.MeasurementAlreadyExistException;
+import org.apache.iotdb.db.metadata.plan.schemaregion.impl.SchemaRegionPlanFactory;
+import org.apache.iotdb.db.metadata.plan.schemaregion.write.ICreateAlignedTimeSeriesPlan;
+import org.apache.iotdb.db.metadata.plan.schemaregion.write.ICreateTimeSeriesPlan;
 import org.apache.iotdb.db.metadata.schemaregion.ISchemaRegion;
-import org.apache.iotdb.db.metadata.schemaregion.SchemaEngine;
-import org.apache.iotdb.db.mpp.plan.planner.plan.node.DeleteRegionNode;
+import org.apache.iotdb.db.metadata.template.ClusterTemplateManager;
+import org.apache.iotdb.db.metadata.template.Template;
 import org.apache.iotdb.db.mpp.plan.planner.plan.node.PlanNode;
 import org.apache.iotdb.db.mpp.plan.planner.plan.node.PlanVisitor;
+import org.apache.iotdb.db.mpp.plan.planner.plan.node.metedata.write.ActivateTemplateNode;
 import org.apache.iotdb.db.mpp.plan.planner.plan.node.metedata.write.AlterTimeSeriesNode;
+import org.apache.iotdb.db.mpp.plan.planner.plan.node.metedata.write.ConstructSchemaBlackListNode;
 import org.apache.iotdb.db.mpp.plan.planner.plan.node.metedata.write.CreateAlignedTimeSeriesNode;
 import org.apache.iotdb.db.mpp.plan.planner.plan.node.metedata.write.CreateMultiTimeSeriesNode;
 import org.apache.iotdb.db.mpp.plan.planner.plan.node.metedata.write.CreateTimeSeriesNode;
+import org.apache.iotdb.db.mpp.plan.planner.plan.node.metedata.write.DeactivateTemplateNode;
+import org.apache.iotdb.db.mpp.plan.planner.plan.node.metedata.write.DeleteTimeSeriesNode;
+import org.apache.iotdb.db.mpp.plan.planner.plan.node.metedata.write.InternalCreateTimeSeriesNode;
 import org.apache.iotdb.db.mpp.plan.planner.plan.node.metedata.write.MeasurementGroup;
-import org.apache.iotdb.db.qp.physical.PhysicalPlan;
-import org.apache.iotdb.db.qp.physical.sys.CreateAlignedTimeSeriesPlan;
-import org.apache.iotdb.db.qp.physical.sys.CreateTimeSeriesPlan;
+import org.apache.iotdb.db.mpp.plan.planner.plan.node.metedata.write.PreDeactivateTemplateNode;
+import org.apache.iotdb.db.mpp.plan.planner.plan.node.metedata.write.RollbackPreDeactivateTemplateNode;
+import org.apache.iotdb.db.mpp.plan.planner.plan.node.metedata.write.RollbackSchemaBlackListNode;
 import org.apache.iotdb.rpc.RpcUtils;
 import org.apache.iotdb.rpc.TSStatusCode;
-import org.apache.iotdb.tsfile.exception.NotImplementedException;
+import org.apache.iotdb.tsfile.file.metadata.enums.CompressionType;
+import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
+import org.apache.iotdb.tsfile.file.metadata.enums.TSEncoding;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,11 +67,10 @@ public class SchemaExecutionVisitor extends PlanVisitor<TSStatus, ISchemaRegion>
   @Override
   public TSStatus visitCreateTimeSeries(CreateTimeSeriesNode node, ISchemaRegion schemaRegion) {
     try {
-      PhysicalPlan plan = node.accept(new PhysicalPlanTransformer(), new TransformerContext());
-      schemaRegion.createTimeseries((CreateTimeSeriesPlan) plan, -1, node.getVersion());
+      schemaRegion.createTimeseries(node, -1);
     } catch (MetadataException e) {
       logger.error("{}: MetaData error: ", IoTDBConstant.GLOBAL_DB_NAME, e);
-      return RpcUtils.getStatus(TSStatusCode.METADATA_ERROR, e.getMessage());
+      return RpcUtils.getStatus(e.getErrorCode(), e.getMessage());
     }
     return RpcUtils.getStatus(TSStatusCode.SUCCESS_STATUS, "Execute successfully");
   }
@@ -69,12 +79,10 @@ public class SchemaExecutionVisitor extends PlanVisitor<TSStatus, ISchemaRegion>
   public TSStatus visitCreateAlignedTimeSeries(
       CreateAlignedTimeSeriesNode node, ISchemaRegion schemaRegion) {
     try {
-      PhysicalPlan plan = node.accept(new PhysicalPlanTransformer(), new TransformerContext());
-      schemaRegion.createAlignedTimeSeries(
-          (CreateAlignedTimeSeriesPlan) plan, node.getVersionList());
+      schemaRegion.createAlignedTimeSeries(node);
     } catch (MetadataException e) {
       logger.error("{}: MetaData error: ", IoTDBConstant.GLOBAL_DB_NAME, e);
-      return RpcUtils.getStatus(TSStatusCode.METADATA_ERROR, e.getMessage());
+      return RpcUtils.getStatus(e.getErrorCode(), e.getMessage());
     }
     return RpcUtils.getStatus(TSStatusCode.SUCCESS_STATUS, "Execute successfully");
   }
@@ -93,26 +101,9 @@ public class SchemaExecutionVisitor extends PlanVisitor<TSStatus, ISchemaRegion>
       size = measurementGroup.getMeasurements().size();
       // todo implement batch creation of one device in SchemaRegion
       for (int i = 0; i < size; i++) {
-        CreateTimeSeriesPlan plan =
-            new CreateTimeSeriesPlan(
-                devicePath.concatNode(measurementGroup.getMeasurements().get(i)),
-                measurementGroup.getDataTypes().get(i),
-                measurementGroup.getEncodings().get(i),
-                measurementGroup.getCompressors().get(i),
-                measurementGroup.getPropsList() == null
-                    ? null
-                    : measurementGroup.getPropsList().get(i),
-                measurementGroup.getTagsList() == null
-                    ? null
-                    : measurementGroup.getTagsList().get(i),
-                measurementGroup.getAttributesList() == null
-                    ? null
-                    : measurementGroup.getAttributesList().get(i),
-                measurementGroup.getAliasList() == null
-                    ? null
-                    : measurementGroup.getAliasList().get(i));
         try {
-          schemaRegion.createTimeseries(plan, -1, measurementGroup.getVersionList().get(i));
+          schemaRegion.createTimeseries(
+              transformToCreateTimeSeriesPlan(devicePath, measurementGroup, i), -1);
         } catch (MetadataException e) {
           logger.error("{}: MetaData error: ", IoTDBConstant.GLOBAL_DB_NAME, e);
           failingStatus.add(RpcUtils.getStatus(e.getErrorCode(), e.getMessage()));
@@ -124,6 +115,129 @@ public class SchemaExecutionVisitor extends PlanVisitor<TSStatus, ISchemaRegion>
       return RpcUtils.getStatus(failingStatus);
     }
     return RpcUtils.getStatus(TSStatusCode.SUCCESS_STATUS, "Execute successfully");
+  }
+
+  private ICreateTimeSeriesPlan transformToCreateTimeSeriesPlan(
+      PartialPath devicePath, MeasurementGroup measurementGroup, int index) {
+    return SchemaRegionPlanFactory.getCreateTimeSeriesPlan(
+        devicePath.concatNode(measurementGroup.getMeasurements().get(index)),
+        measurementGroup.getDataTypes().get(index),
+        measurementGroup.getEncodings().get(index),
+        measurementGroup.getCompressors().get(index),
+        measurementGroup.getPropsList() == null ? null : measurementGroup.getPropsList().get(index),
+        measurementGroup.getTagsList() == null ? null : measurementGroup.getTagsList().get(index),
+        measurementGroup.getAttributesList() == null
+            ? null
+            : measurementGroup.getAttributesList().get(index),
+        measurementGroup.getAliasList() == null
+            ? null
+            : measurementGroup.getAliasList().get(index));
+  }
+
+  @Override
+  public TSStatus visitInternalCreateTimeSeries(
+      InternalCreateTimeSeriesNode node, ISchemaRegion schemaRegion) {
+    PartialPath devicePath = node.getDevicePath();
+    MeasurementGroup measurementGroup = node.getMeasurementGroup();
+
+    List<TSStatus> alreadyExistingTimeseries = new ArrayList<>();
+    List<TSStatus> failingStatus = new ArrayList<>();
+
+    if (node.isAligned()) {
+      executeInternalCreateAlignedTimeseries(
+          devicePath, measurementGroup, schemaRegion, alreadyExistingTimeseries, failingStatus);
+    } else {
+      executeInternalCreateTimeseries(
+          devicePath, measurementGroup, schemaRegion, alreadyExistingTimeseries, failingStatus);
+    }
+
+    if (!failingStatus.isEmpty()) {
+      return RpcUtils.getStatus(failingStatus);
+    }
+
+    if (!alreadyExistingTimeseries.isEmpty()) {
+      return RpcUtils.getStatus(alreadyExistingTimeseries);
+    }
+
+    return RpcUtils.getStatus(TSStatusCode.SUCCESS_STATUS, "Execute successfully");
+  }
+
+  private void executeInternalCreateTimeseries(
+      PartialPath devicePath,
+      MeasurementGroup measurementGroup,
+      ISchemaRegion schemaRegion,
+      List<TSStatus> alreadyExistingTimeseries,
+      List<TSStatus> failingStatus) {
+
+    int size = measurementGroup.getMeasurements().size();
+    // todo implement batch creation of one device in SchemaRegion
+    for (int i = 0; i < size; i++) {
+      try {
+        schemaRegion.createTimeseries(
+            transformToCreateTimeSeriesPlan(devicePath, measurementGroup, i), -1);
+      } catch (MeasurementAlreadyExistException e) {
+        logger.info("There's no need to internal create timeseries. {}", e.getMessage());
+        alreadyExistingTimeseries.add(
+            RpcUtils.getStatus(
+                e.getErrorCode(), MeasurementPath.transformDataToString(e.getMeasurementPath())));
+      } catch (MetadataException e) {
+        logger.error("{}: MetaData error: ", IoTDBConstant.GLOBAL_DB_NAME, e);
+        failingStatus.add(RpcUtils.getStatus(e.getErrorCode(), e.getMessage()));
+      }
+    }
+  }
+
+  private void executeInternalCreateAlignedTimeseries(
+      PartialPath devicePath,
+      MeasurementGroup measurementGroup,
+      ISchemaRegion schemaRegion,
+      List<TSStatus> alreadyExistingTimeseries,
+      List<TSStatus> failingStatus) {
+    List<String> measurementList = measurementGroup.getMeasurements();
+    List<TSDataType> dataTypeList = measurementGroup.getDataTypes();
+    List<TSEncoding> encodingList = measurementGroup.getEncodings();
+    List<CompressionType> compressionTypeList = measurementGroup.getCompressors();
+    ICreateAlignedTimeSeriesPlan createAlignedTimeSeriesPlan =
+        SchemaRegionPlanFactory.getCreateAlignedTimeSeriesPlan(
+            devicePath,
+            measurementList,
+            dataTypeList,
+            encodingList,
+            compressionTypeList,
+            null,
+            null,
+            null);
+
+    boolean shouldRetry = true;
+    while (shouldRetry) {
+      try {
+        schemaRegion.createAlignedTimeSeries(createAlignedTimeSeriesPlan);
+        shouldRetry = false;
+      } catch (MeasurementAlreadyExistException e) {
+        // the existence check will be executed before truly creation
+        logger.info("There's no need to internal create timeseries. {}", e.getMessage());
+        MeasurementPath measurementPath = e.getMeasurementPath();
+        alreadyExistingTimeseries.add(
+            RpcUtils.getStatus(
+                e.getErrorCode(), MeasurementPath.transformDataToString(e.getMeasurementPath())));
+
+        // remove the existing timeseries from plan
+        int index = measurementList.indexOf(measurementPath.getMeasurement());
+        measurementList.remove(index);
+        dataTypeList.remove(index);
+        encodingList.remove(index);
+        compressionTypeList.remove(index);
+
+        if (measurementList.isEmpty()) {
+          shouldRetry = false;
+        }
+
+      } catch (MetadataException e) {
+        logger.error("{}: MetaData error: ", IoTDBConstant.GLOBAL_DB_NAME, e);
+        failingStatus.add(RpcUtils.getStatus(e.getErrorCode(), e.getMessage()));
+        shouldRetry = false;
+      }
+    }
   }
 
   @Override
@@ -154,7 +268,7 @@ public class SchemaExecutionVisitor extends PlanVisitor<TSStatus, ISchemaRegion>
       }
     } catch (MetadataException e) {
       logger.error("{}: MetaData error: ", IoTDBConstant.GLOBAL_DB_NAME, e);
-      return RpcUtils.getStatus(TSStatusCode.METADATA_ERROR, e.getMessage());
+      return RpcUtils.getStatus(e.getErrorCode(), e.getMessage());
     } catch (IOException e) {
       logger.error("{}: IO error: ", IoTDBConstant.GLOBAL_DB_NAME, e);
       return RpcUtils.getStatus(TSStatusCode.INTERNAL_SERVER_ERROR, e.getMessage());
@@ -163,55 +277,90 @@ public class SchemaExecutionVisitor extends PlanVisitor<TSStatus, ISchemaRegion>
   }
 
   @Override
-  public TSStatus visitPlan(PlanNode node, ISchemaRegion context) {
-    return null;
-  }
-
-  // TODO need remove
-  private static class PhysicalPlanTransformer
-      extends PlanVisitor<PhysicalPlan, TransformerContext> {
-    @Override
-    public PhysicalPlan visitPlan(PlanNode node, TransformerContext context) {
-      throw new NotImplementedException();
-    }
-
-    public PhysicalPlan visitCreateTimeSeries(
-        CreateTimeSeriesNode node, TransformerContext context) {
-      return new CreateTimeSeriesPlan(
-          node.getPath(),
-          node.getDataType(),
-          node.getEncoding(),
-          node.getCompressor(),
-          node.getProps(),
-          node.getTags(),
-          node.getAttributes(),
-          node.getAlias());
-    }
-
-    public PhysicalPlan visitCreateAlignedTimeSeries(
-        CreateAlignedTimeSeriesNode node, TransformerContext context) {
-      return new CreateAlignedTimeSeriesPlan(
-          node.getDevicePath(),
-          node.getMeasurements(),
-          node.getDataTypes(),
-          node.getEncodings(),
-          node.getCompressors(),
-          node.getAliasList(),
-          node.getTagsList(),
-          node.getAttributesList());
+  public TSStatus visitActivateTemplate(ActivateTemplateNode node, ISchemaRegion schemaRegion) {
+    try {
+      Template template = ClusterTemplateManager.getInstance().getTemplate(node.getTemplateId());
+      node.setAligned(template.isDirectAligned());
+      schemaRegion.activateSchemaTemplate(node, template);
+      return RpcUtils.getStatus(TSStatusCode.SUCCESS_STATUS);
+    } catch (MetadataException e) {
+      logger.error(e.getMessage(), e);
+      return RpcUtils.getStatus(e.getErrorCode(), e.getMessage());
     }
   }
 
   @Override
-  public TSStatus visitDeleteRegion(DeleteRegionNode node, ISchemaRegion schemaRegion) {
+  public TSStatus visitConstructSchemaBlackList(
+      ConstructSchemaBlackListNode node, ISchemaRegion schemaRegion) {
     try {
-      SchemaEngine.getInstance().deleteSchemaRegion((SchemaRegionId) node.getConsensusGroupId());
+      int preDeletedNum = schemaRegion.constructSchemaBlackList(node.getPatternTree());
+      return RpcUtils.getStatus(TSStatusCode.SUCCESS_STATUS, String.valueOf(preDeletedNum));
     } catch (MetadataException e) {
-      logger.error("{}: MetaData error: ", IoTDBConstant.GLOBAL_DB_NAME, e);
-      return RpcUtils.getStatus(TSStatusCode.METADATA_ERROR, e.getMessage());
+      logger.error(e.getMessage(), e);
+      return RpcUtils.getStatus(e.getErrorCode(), e.getMessage());
     }
-    return RpcUtils.getStatus(TSStatusCode.SUCCESS_STATUS, "Execute successfully");
   }
 
-  private static class TransformerContext {}
+  @Override
+  public TSStatus visitRollbackSchemaBlackList(
+      RollbackSchemaBlackListNode node, ISchemaRegion schemaRegion) {
+    try {
+      schemaRegion.rollbackSchemaBlackList(node.getPatternTree());
+      return RpcUtils.getStatus(TSStatusCode.SUCCESS_STATUS);
+    } catch (MetadataException e) {
+      logger.error(e.getMessage(), e);
+      return RpcUtils.getStatus(e.getErrorCode(), e.getMessage());
+    }
+  }
+
+  @Override
+  public TSStatus visitDeleteTimeseries(DeleteTimeSeriesNode node, ISchemaRegion schemaRegion) {
+    try {
+      schemaRegion.deleteTimeseriesInBlackList(node.getPatternTree());
+      return RpcUtils.getStatus(TSStatusCode.SUCCESS_STATUS);
+    } catch (MetadataException e) {
+      logger.error(e.getMessage(), e);
+      return RpcUtils.getStatus(e.getErrorCode(), e.getMessage());
+    }
+  }
+
+  @Override
+  public TSStatus visitPreDeactivateTemplate(
+      PreDeactivateTemplateNode node, ISchemaRegion schemaRegion) {
+    try {
+      int preDeactivateNum = schemaRegion.constructSchemaBlackListWithTemplate(node);
+      return RpcUtils.getStatus(TSStatusCode.SUCCESS_STATUS, String.valueOf(preDeactivateNum));
+    } catch (MetadataException e) {
+      logger.error(e.getMessage(), e);
+      return RpcUtils.getStatus(e.getErrorCode(), e.getMessage());
+    }
+  }
+
+  @Override
+  public TSStatus visitRollbackPreDeactivateTemplate(
+      RollbackPreDeactivateTemplateNode node, ISchemaRegion schemaRegion) {
+    try {
+      schemaRegion.rollbackSchemaBlackListWithTemplate(node);
+      return RpcUtils.getStatus(TSStatusCode.SUCCESS_STATUS);
+    } catch (MetadataException e) {
+      logger.error(e.getMessage(), e);
+      return RpcUtils.getStatus(e.getErrorCode(), e.getMessage());
+    }
+  }
+
+  @Override
+  public TSStatus visitDeactivateTemplate(DeactivateTemplateNode node, ISchemaRegion schemaRegion) {
+    try {
+      schemaRegion.deactivateTemplateInBlackList(node);
+      return RpcUtils.getStatus(TSStatusCode.SUCCESS_STATUS);
+    } catch (MetadataException e) {
+      logger.error(e.getMessage(), e);
+      return RpcUtils.getStatus(e.getErrorCode(), e.getMessage());
+    }
+  }
+
+  @Override
+  public TSStatus visitPlan(PlanNode node, ISchemaRegion context) {
+    return null;
+  }
 }

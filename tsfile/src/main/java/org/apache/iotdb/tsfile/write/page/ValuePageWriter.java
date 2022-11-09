@@ -161,57 +161,75 @@ public class ValuePageWriter {
   }
 
   /** write time series into encoder */
-  public void write(long[] timestamps, boolean[] values, int batchSize) {
-    for (int i = 0; i < batchSize; i++) {
-      valueEncoder.encode(values[i], valueOut);
+  public void write(
+      long[] timestamps, boolean[] values, boolean[] isNull, int batchSize, int arrayOffset) {
+    for (int i = arrayOffset; i < batchSize + arrayOffset; i++) {
+      setBit(isNull[i]);
+      if (!isNull[i]) {
+        valueEncoder.encode(values[i], valueOut);
+        statistics.update(timestamps[i], values[i]);
+      }
     }
-    valueRawSize.addAndGet(batchSize);
-    statistics.update(timestamps, values, batchSize);
   }
 
   /** write time series into encoder */
-  public void write(long[] timestamps, int[] values, int batchSize) {
-    for (int i = 0; i < batchSize; i++) {
-      valueEncoder.encode(values[i], valueOut);
+  public void write(
+      long[] timestamps, int[] values, boolean[] isNull, int batchSize, int arrayOffset) {
+    for (int i = arrayOffset; i < batchSize + arrayOffset; i++) {
+      setBit(isNull[i]);
+      if (!isNull[i]) {
+        valueEncoder.encode(values[i], valueOut);
+        statistics.update(timestamps[i], values[i]);
+      }
     }
-    valueRawSize.addAndGet(Integer.BYTES * batchSize);
-    statistics.update(timestamps, values, batchSize);
   }
 
   /** write time series into encoder */
-  public void write(long[] timestamps, long[] values, int batchSize) {
-    for (int i = 0; i < batchSize; i++) {
-      valueEncoder.encode(values[i], valueOut);
+  public void write(
+      long[] timestamps, long[] values, boolean[] isNull, int batchSize, int arrayOffset) {
+    for (int i = arrayOffset; i < batchSize + arrayOffset; i++) {
+      setBit(isNull[i]);
+      if (!isNull[i]) {
+        valueEncoder.encode(values[i], valueOut);
+        statistics.update(timestamps[i], values[i]);
+      }
     }
-    valueRawSize.addAndGet(Long.BYTES * batchSize);
-    statistics.update(timestamps, values, batchSize);
   }
 
   /** write time series into encoder */
-  public void write(long[] timestamps, float[] values, int batchSize) {
-    for (int i = 0; i < batchSize; i++) {
-      valueEncoder.encode(values[i], valueOut);
+  public void write(
+      long[] timestamps, float[] values, boolean[] isNull, int batchSize, int arrayOffset) {
+    for (int i = arrayOffset; i < batchSize + arrayOffset; i++) {
+      setBit(isNull[i]);
+      if (!isNull[i]) {
+        valueEncoder.encode(values[i], valueOut);
+        statistics.update(timestamps[i], values[i]);
+      }
     }
-    valueRawSize.addAndGet(Float.BYTES * batchSize);
-    statistics.update(timestamps, values, batchSize);
   }
 
   /** write time series into encoder */
-  public void write(long[] timestamps, double[] values, int batchSize) {
-    for (int i = 0; i < batchSize; i++) {
-      valueEncoder.encode(values[i], valueOut);
+  public void write(
+      long[] timestamps, double[] values, boolean[] isNull, int batchSize, int arrayOffset) {
+    for (int i = arrayOffset; i < batchSize + arrayOffset; i++) {
+      setBit(isNull[i]);
+      if (!isNull[i]) {
+        valueEncoder.encode(values[i], valueOut);
+        statistics.update(timestamps[i], values[i]);
+      }
     }
-    valueRawSize.addAndGet(Double.BYTES * batchSize);
-    statistics.update(timestamps, values, batchSize);
   }
 
   /** write time series into encoder */
-  public void write(long[] timestamps, Binary[] values, int batchSize) {
-    for (int i = 0; i < batchSize; i++) {
-      valueEncoder.encode(values[i], valueOut);
-      valueRawSize.addAndGet(values[i].getLength());
+  public void write(
+      long[] timestamps, Binary[] values, boolean[] isNull, int batchSize, int arrayOffset) {
+    for (int i = arrayOffset; i < batchSize + arrayOffset; i++) {
+      setBit(isNull[i]);
+      if (!isNull[i]) {
+        valueEncoder.encode(values[i], valueOut);
+        statistics.update(timestamps[i], values[i]);
+      }
     }
-    statistics.update(timestamps, values, batchSize);
   }
 
   /** flush all data remained in encoders. */

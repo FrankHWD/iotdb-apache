@@ -35,6 +35,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -691,6 +692,38 @@ public class ReadWriteIOUtils {
     return map;
   }
 
+  public static Map<String, String> readMap(InputStream inputStream) throws IOException {
+    int length = readInt(inputStream);
+    if (length == NO_BYTE_TO_READ) {
+      return null;
+    }
+    Map<String, String> map = new HashMap<>(length);
+    for (int i = 0; i < length; i++) {
+      // key
+      String key = readString(inputStream);
+      // value
+      String value = readString(inputStream);
+      map.put(key, value);
+    }
+    return map;
+  }
+
+  public static LinkedHashMap<String, String> readLinkedHashMap(ByteBuffer buffer) {
+    int length = readInt(buffer);
+    if (length == NO_BYTE_TO_READ) {
+      return null;
+    }
+    LinkedHashMap<String, String> map = new LinkedHashMap<>(length);
+    for (int i = 0; i < length; i++) {
+      // key
+      String key = readString(buffer);
+      // value
+      String value = readString(buffer);
+      map.put(key, value);
+    }
+    return map;
+  }
+
   public static List<Map<String, String>> readMaps(ByteBuffer buffer, int totalSize) {
     List<Map<String, String>> results = new ArrayList<>(totalSize);
     for (int i = 0; i < totalSize; i++) {
@@ -811,7 +844,20 @@ public class ReadWriteIOUtils {
     int size = list.size();
     buffer.putInt(size);
     for (String s : list) {
-      buffer.put(s.getBytes());
+      write(s, buffer);
+    }
+  }
+
+  /** write string list with self define length. */
+  public static void writeStringList(List<String> list, OutputStream outputStream)
+      throws IOException {
+    if (list == null) {
+      throw new IllegalArgumentException("stringList must not be null!");
+    }
+    int size = list.size();
+    write(size, outputStream);
+    for (String s : list) {
+      write(s, outputStream);
     }
   }
 

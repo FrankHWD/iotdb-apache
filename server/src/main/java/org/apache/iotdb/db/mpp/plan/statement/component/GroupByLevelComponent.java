@@ -19,12 +19,18 @@
 
 package org.apache.iotdb.db.mpp.plan.statement.component;
 
+import org.apache.iotdb.db.mpp.plan.expression.Expression;
+import org.apache.iotdb.db.mpp.plan.expression.multi.FunctionExpression;
 import org.apache.iotdb.db.mpp.plan.statement.StatementNode;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /** This class maintains information of {@code GROUP BY LEVEL} clause. */
 public class GroupByLevelComponent extends StatementNode {
 
   protected int[] levels;
+  protected List<Boolean> isCountStar = new ArrayList<>();
 
   public int[] getLevels() {
     return levels;
@@ -32,5 +38,17 @@ public class GroupByLevelComponent extends StatementNode {
 
   public void setLevels(int[] levels) {
     this.levels = levels;
+  }
+
+  public void updateIsCountStar(Expression rawExpression) {
+    if (rawExpression instanceof FunctionExpression) {
+      isCountStar.add(((FunctionExpression) rawExpression).isCountStar());
+    } else {
+      isCountStar.add(false);
+    }
+  }
+
+  public boolean isCountStar(int i) {
+    return isCountStar.get(i);
   }
 }

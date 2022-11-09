@@ -21,6 +21,8 @@
 
 # 存储组管理
 
+存储组（Storage Group）可以被视为关系数据库中的Database。
+
 ## 创建存储组
 
 我们可以根据存储模型建立相应的存储组。创建存储组支持两种 SQL 语句，如下所示：
@@ -40,7 +42,7 @@ Msg: 300: root.ln has already been set to storage group.
 IoTDB> create storage group root.ln.wf01
 Msg: 300: root.ln has already been set to storage group.
 ```
-存储组节点名只支持中英文字符、数字、下划线和中划线的组合。
+存储组节点名只支持中英文字符、数字、下划线的组合，如果想设置为纯数字或者包含其他字符，需要用反引号(``)把存储组名称引起来。
 
 还需注意，如果在 Windows 系统上部署，存储组名是大小写不敏感的。例如同时创建`root.ln` 和 `root.LN` 是不被允许的。
 
@@ -57,12 +59,12 @@ IoTDB> show storage group root.**
 执行结果为：
 
 ```
-+-------------+
-|storage group|
-+-------------+
-|    root.sgcc|
-|      root.ln|
-+-------------+
++-------------+----+-------------------------+-----------------------+-----------------------+
+|storage group| ttl|schema_replication_factor|data_replication_factor|time_partition_interval|
++-------------+----+-------------------------+-----------------------+-----------------------+
+|    root.sgcc|null|                        2|                      2|                 604800|
+|      root.ln|null|                        2|                      2|                 604800|
++-------------+----+-------------------------+-----------------------+-----------------------+
 Total line number = 2
 It costs 0.060s
 ```

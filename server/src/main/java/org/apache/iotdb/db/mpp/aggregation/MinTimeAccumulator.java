@@ -19,9 +19,9 @@
 
 package org.apache.iotdb.db.mpp.aggregation;
 
+import org.apache.iotdb.db.mpp.execution.operator.window.IWindow;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.file.metadata.statistics.Statistics;
-import org.apache.iotdb.tsfile.read.common.TimeRange;
 import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.read.common.block.column.ColumnBuilder;
 
@@ -34,17 +34,28 @@ public class MinTimeAccumulator implements Accumulator {
 
   public MinTimeAccumulator() {}
 
-  // Column should be like: | Time | Value |
+  // Column should be like: | ControlColumn | Time | Value |
   // Value is used to judge isNull()
   @Override
-  public void addInput(Column[] column, TimeRange timeRange) {
-    for (int i = 0; i < column[0].getPositionCount(); i++) {
-      long curTime = column[0].getLong(i);
-      if (timeRange.contains(curTime) && !column[1].isNull(i)) {
-        updateMinTime(curTime);
-        break;
+  public int addInput(Column[] column, IWindow curWindow) {
+    int curPositionCount = column[0].getPositionCount();
+
+    for (int i = 0; i < curPositionCount; i++) {
+      // skip null value in control column
+      if (column[0].isNull(i)) {
+        continue;
+      }
+      if (!curWindow.satisfy(column[0], i)) {
+        return i;
+      }
+      curWindow.mergeOnePoint();
+      if (!column[2].isNull(i)) {
+        updateMinTime(column[1].getLong(i));
+        return i;
       }
     }
+
+    return curPositionCount;
   }
 
   // partialResult should be like: | partialMinTimeValue |
@@ -59,6 +70,9 @@ public class MinTimeAccumulator implements Accumulator {
 
   @Override
   public void addStatistics(Statistics statistics) {
+    if (statistics == null) {
+      return;
+    }
     updateMinTime(statistics.getStartTime());
   }
 

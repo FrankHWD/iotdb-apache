@@ -24,6 +24,7 @@ import org.apache.iotdb.db.metadata.lastCache.container.ILastCacheContainer;
 import org.apache.iotdb.db.metadata.logfile.MLogWriter;
 import org.apache.iotdb.db.metadata.mnode.IEntityMNode;
 import org.apache.iotdb.db.metadata.mnode.IMeasurementMNode;
+import org.apache.iotdb.db.metadata.mnode.MNodeType;
 import org.apache.iotdb.db.metadata.schemaregion.rocksdb.RSchemaConstants;
 import org.apache.iotdb.db.metadata.schemaregion.rocksdb.RSchemaReadWriteHandler;
 import org.apache.iotdb.db.metadata.schemaregion.rocksdb.RSchemaUtils;
@@ -88,6 +89,26 @@ public class REntityMNode extends RInternalMNode implements IEntityMNode {
   }
 
   @Override
+  public boolean isPreDeactivateTemplate() {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void preDeactivateTemplate() {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void rollbackPreDeactivateTemplate() {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public void deactivateTemplate() {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public boolean isAligned() {
     return isAligned;
   }
@@ -117,6 +138,11 @@ public class REntityMNode extends RInternalMNode implements IEntityMNode {
   @Override
   public boolean isEntity() {
     return true;
+  }
+
+  @Override
+  public MNodeType getMNodeType(Boolean isConfig) {
+    return MNodeType.DEVICE;
   }
 
   @Override

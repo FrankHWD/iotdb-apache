@@ -21,10 +21,13 @@ package org.apache.iotdb.db.metadata.mnode;
 import org.apache.iotdb.db.metadata.logfile.MLogWriter;
 import org.apache.iotdb.db.metadata.mnode.container.IMNodeContainer;
 import org.apache.iotdb.db.metadata.mnode.container.MNodeContainers;
+import org.apache.iotdb.db.metadata.mnode.visitor.MNodeVisitor;
 import org.apache.iotdb.db.metadata.template.Template;
 import org.apache.iotdb.db.qp.physical.sys.MNodePlan;
 
 import java.io.IOException;
+
+import static org.apache.iotdb.db.metadata.MetadataConstant.NON_TEMPLATE;
 
 /**
  * This class is the implementation of Metadata Node. One MNode instance represents one node in the
@@ -43,7 +46,15 @@ public class InternalMNode extends MNode {
   @SuppressWarnings("squid:S3077")
   protected transient volatile IMNodeContainer children = null;
 
-  // schema template
+  /**
+   * This field is mainly used in cluster schema template features. In InternalMNode of ConfigMTree,
+   * this field represents the template set on this node. In EntityMNode of MTree in SchemaRegion,
+   * this field represents the template activated on this node. The value range is [0,
+   * Int.MaxValue], since this is implemented as auto inc id. The default value -1 means
+   * NON_TEMPLATE
+   */
+  protected int schemaTemplateId = NON_TEMPLATE;
+
   protected Template schemaTemplate = null;
 
   private volatile boolean useTemplate = false;
@@ -162,6 +173,7 @@ public class InternalMNode extends MNode {
 
     newMNode.setSchemaTemplate(schemaTemplate);
     newMNode.setUseTemplate(useTemplate);
+    newMNode.setSchemaTemplateId(schemaTemplateId);
 
     if (children != null) {
       newMNode.setChildren(children);
@@ -201,6 +213,21 @@ public class InternalMNode extends MNode {
   }
 
   @Override
+  public int getSchemaTemplateId() {
+    return schemaTemplateId;
+  }
+
+  @Override
+  public void setSchemaTemplateId(int schemaTemplateId) {
+    this.schemaTemplateId = schemaTemplateId;
+  }
+
+  @Override
+  public MNodeType getMNodeType(Boolean isConfig) {
+    return isConfig ? MNodeType.SG_INTERNAL : MNodeType.INTERNAL;
+  }
+
+  @Override
   public Template getSchemaTemplate() {
     return schemaTemplate;
   }
@@ -225,6 +252,11 @@ public class InternalMNode extends MNode {
     serializeChildren(logWriter);
 
     logWriter.serializeMNode(this);
+  }
+
+  @Override
+  public <R, C> R accept(MNodeVisitor<R, C> visitor, C context) {
+    return visitor.visitInternalMNode(this, context);
   }
 
   void serializeChildren(MLogWriter logWriter) throws IOException {

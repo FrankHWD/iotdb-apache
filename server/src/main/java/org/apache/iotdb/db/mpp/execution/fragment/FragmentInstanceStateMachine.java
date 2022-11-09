@@ -21,6 +21,7 @@ package org.apache.iotdb.db.mpp.execution.fragment;
 import org.apache.iotdb.db.mpp.common.FragmentInstanceId;
 import org.apache.iotdb.db.mpp.execution.StateMachine;
 import org.apache.iotdb.db.mpp.execution.StateMachine.StateChangeListener;
+import org.apache.iotdb.db.utils.SetThreadName;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -75,7 +76,11 @@ public class FragmentInstanceStateMachine {
         new StateMachine<>(
             "FragmentInstance " + fragmentInstanceId, executor, RUNNING, TERMINAL_INSTANCE_STATES);
     instanceState.addStateChangeListener(
-        newState -> LOGGER.debug("Fragment Instance {} is {}", fragmentInstanceId, newState));
+        newState -> {
+          try (SetThreadName threadName = new SetThreadName(fragmentInstanceId.getFullId())) {
+            LOGGER.info("[StateChanged] To {}", newState);
+          }
+        });
   }
 
   public long getCreatedTime() {

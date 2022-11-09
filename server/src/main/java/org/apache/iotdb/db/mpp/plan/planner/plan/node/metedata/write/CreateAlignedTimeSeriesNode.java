@@ -22,6 +22,7 @@ package org.apache.iotdb.db.mpp.plan.planner.plan.node.metedata.write;
 import org.apache.iotdb.common.rpc.thrift.TRegionReplicaSet;
 import org.apache.iotdb.commons.exception.IllegalPathException;
 import org.apache.iotdb.commons.path.PartialPath;
+import org.apache.iotdb.db.metadata.plan.schemaregion.write.ICreateAlignedTimeSeriesPlan;
 import org.apache.iotdb.db.mpp.plan.analyze.Analysis;
 import org.apache.iotdb.db.mpp.plan.planner.plan.node.PlanNode;
 import org.apache.iotdb.db.mpp.plan.planner.plan.node.PlanNodeId;
@@ -36,13 +37,16 @@ import org.apache.iotdb.tsfile.utils.ReadWriteIOUtils;
 
 import com.google.common.collect.ImmutableList;
 
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-public class CreateAlignedTimeSeriesNode extends WritePlanNode {
+public class CreateAlignedTimeSeriesNode extends WritePlanNode
+    implements ICreateAlignedTimeSeriesPlan {
   private PartialPath devicePath;
   private List<String> measurements;
   private List<TSDataType> dataTypes;
@@ -52,7 +56,9 @@ public class CreateAlignedTimeSeriesNode extends WritePlanNode {
   private List<Map<String, String>> tagsList;
   private List<Map<String, String>> attributesList;
 
-  private List<String> versionList;
+  // only used inside schemaRegion to be serialized to mlog, no need to be serialized for mpp
+  // transport
+  private List<Long> tagOffsets = null;
 
   private TRegionReplicaSet regionReplicaSet;
 
@@ -65,8 +71,7 @@ public class CreateAlignedTimeSeriesNode extends WritePlanNode {
       List<CompressionType> compressors,
       List<String> aliasList,
       List<Map<String, String>> tagsList,
-      List<Map<String, String>> attributesList,
-      List<String> versionList) {
+      List<Map<String, String>> attributesList) {
     super(id);
     this.devicePath = devicePath;
     this.measurements = measurements;
@@ -76,7 +81,6 @@ public class CreateAlignedTimeSeriesNode extends WritePlanNode {
     this.aliasList = aliasList;
     this.tagsList = tagsList;
     this.attributesList = attributesList;
-    this.versionList = versionList;
   }
 
   public PartialPath getDevicePath() {
@@ -143,8 +147,20 @@ public class CreateAlignedTimeSeriesNode extends WritePlanNode {
     this.attributesList = attributesList;
   }
 
-  public List<String> getVersionList() {
-    return versionList;
+  @Override
+  public List<Long> getTagOffsets() {
+    if (tagOffsets == null) {
+      tagOffsets = new ArrayList<>();
+      for (int i = 0; i < measurements.size(); i++) {
+        tagOffsets.add(Long.parseLong("-1"));
+      }
+    }
+    return tagOffsets;
+  }
+
+  @Override
+  public void setTagOffsets(List<Long> tagOffsets) {
+    this.tagOffsets = tagOffsets;
   }
 
   @Override
@@ -246,11 +262,6 @@ public class CreateAlignedTimeSeriesNode extends WritePlanNode {
       }
     }
 
-    List<String> versionList = new ArrayList<>(size);
-    for (int i = 0; i < size; i++) {
-      versionList.add(ReadWriteIOUtils.readString(byteBuffer));
-    }
-
     id = ReadWriteIOUtils.readString(byteBuffer);
 
     return new CreateAlignedTimeSeriesNode(
@@ -262,8 +273,7 @@ public class CreateAlignedTimeSeriesNode extends WritePlanNode {
         compressors,
         aliasList,
         tagsList,
-        attributesList,
-        versionList);
+        attributesList);
   }
 
   @Override
@@ -349,9 +359,70 @@ public class CreateAlignedTimeSeriesNode extends WritePlanNode {
         ReadWriteIOUtils.write(attributes, byteBuffer);
       }
     }
+  }
 
-    for (String version : versionList) {
-      ReadWriteIOUtils.write(version, byteBuffer);
+  @Override
+  protected void serializeAttributes(DataOutputStream stream) throws IOException {
+    PlanNodeType.CREATE_ALIGNED_TIME_SERIES.serialize(stream);
+    byte[] bytes = devicePath.getFullPath().getBytes();
+    stream.writeInt(bytes.length);
+    stream.write(bytes);
+
+    // measurements
+    stream.writeInt(measurements.size());
+    for (String measurement : measurements) {
+      ReadWriteIOUtils.write(measurement, stream);
+    }
+
+    // dataTypes
+    for (TSDataType dataType : dataTypes) {
+      stream.write((byte) dataType.ordinal());
+    }
+
+    // encodings
+    for (TSEncoding encoding : encodings) {
+      stream.write((byte) encoding.ordinal());
+    }
+
+    // compressors
+    for (CompressionType compressor : compressors) {
+      stream.write((byte) compressor.ordinal());
+    }
+
+    // alias
+    if (aliasList == null) {
+      stream.write((byte) -1);
+    } else if (aliasList.isEmpty()) {
+      stream.write((byte) 0);
+    } else {
+      stream.write((byte) 1);
+      for (String alias : aliasList) {
+        ReadWriteIOUtils.write(alias, stream);
+      }
+    }
+
+    // tags
+    if (tagsList == null) {
+      stream.write((byte) -1);
+    } else if (tagsList.isEmpty()) {
+      stream.write((byte) 0);
+    } else {
+      stream.write((byte) 1);
+      for (Map<String, String> tags : tagsList) {
+        ReadWriteIOUtils.write(tags, stream);
+      }
+    }
+
+    // attributes
+    if (attributesList == null) {
+      stream.write((byte) -1);
+    } else if (attributesList.isEmpty()) {
+      stream.write((byte) 0);
+    } else {
+      stream.write((byte) 1);
+      for (Map<String, String> attributes : attributesList) {
+        ReadWriteIOUtils.write(attributes, stream);
+      }
     }
   }
 

@@ -20,6 +20,7 @@
 package org.apache.iotdb.db.engine.cq;
 
 import org.apache.iotdb.commons.concurrent.IoTDBThreadPoolFactory;
+import org.apache.iotdb.commons.concurrent.threadpool.ScheduledExecutorUtil;
 import org.apache.iotdb.commons.exception.StartupException;
 import org.apache.iotdb.commons.file.SystemFileFactory;
 import org.apache.iotdb.commons.service.IService;
@@ -30,7 +31,7 @@ import org.apache.iotdb.db.exception.ContinuousQueryException;
 import org.apache.iotdb.db.qp.physical.PhysicalPlan;
 import org.apache.iotdb.db.qp.physical.sys.CreateContinuousQueryPlan;
 import org.apache.iotdb.db.qp.physical.sys.DropContinuousQueryPlan;
-import org.apache.iotdb.db.qp.utils.DatetimeUtils;
+import org.apache.iotdb.db.qp.utils.DateTimeUtils;
 import org.apache.iotdb.db.query.dataset.ShowContinuousQueriesResult;
 
 import org.slf4j.Logger;
@@ -49,7 +50,7 @@ public class ContinuousQueryService implements IService {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ContinuousQueryService.class);
 
-  private static final long SYSTEM_STARTUP_TIME = DatetimeUtils.currentTime();
+  private static final long SYSTEM_STARTUP_TIME = DateTimeUtils.currentTime();
 
   private static final ContinuousQueryTaskPoolManager TASK_POOL_MANAGER =
       ContinuousQueryTaskPoolManager.getInstance();
@@ -126,11 +127,12 @@ public class ContinuousQueryService implements IService {
 
       continuousQueryTaskSubmitThread =
           IoTDBThreadPoolFactory.newSingleThreadScheduledExecutor("CQ-Task-Submit-Thread");
-      continuousQueryTaskSubmitThread.scheduleAtFixedRate(
+      ScheduledExecutorUtil.safelyScheduleAtFixedRate(
+          continuousQueryTaskSubmitThread,
           this::checkAndSubmitTasks,
           0,
           TASK_SUBMIT_CHECK_INTERVAL,
-          DatetimeUtils.timestampPrecisionStringToTimeUnit(
+          DateTimeUtils.timestampPrecisionStringToTimeUnit(
               IoTDBDescriptor.getInstance().getConfig().getTimestampPrecision()));
 
       LOGGER.info("Continuous query service started.");
@@ -157,7 +159,7 @@ public class ContinuousQueryService implements IService {
   }
 
   private void checkAndSubmitTasks() {
-    long currentTimestamp = DatetimeUtils.currentTime();
+    long currentTimestamp = DateTimeUtils.currentTime();
     for (CreateContinuousQueryPlan plan : continuousQueryPlans.values()) {
       long nextExecutionTimestamp = nextExecutionTimestamps.get(plan.getContinuousQueryName());
       while (currentTimestamp >= nextExecutionTimestamp) {
@@ -242,7 +244,7 @@ public class ContinuousQueryService implements IService {
     continuousQueryPlans.put(plan.getContinuousQueryName(), plan);
     nextExecutionTimestamps.put(
         plan.getContinuousQueryName(),
-        calculateNextExecutionTimestamp(plan, DatetimeUtils.currentTime()));
+        calculateNextExecutionTimestamp(plan, DateTimeUtils.currentTime()));
   }
 
   @TestOnly

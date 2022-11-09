@@ -38,7 +38,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,11 +50,9 @@ public class AlignedChunkGroupWriterImpl implements IChunkGroupWriter {
   private final String deviceId;
 
   // measurementID -> ValueChunkWriter
-  private Map<String, ValueChunkWriter> valueChunkWriterMap = new LinkedHashMap<>();
+  private final Map<String, ValueChunkWriter> valueChunkWriterMap = new LinkedHashMap<>();
 
-  private TimeChunkWriter timeChunkWriter;
-
-  private Set<String> writenMeasurementSet = new HashSet<>();
+  private final TimeChunkWriter timeChunkWriter;
 
   private long lastTime = -1;
 
@@ -64,7 +61,7 @@ public class AlignedChunkGroupWriterImpl implements IChunkGroupWriter {
     String timeMeasurementId = "";
     CompressionType compressionType = TSFileDescriptor.getInstance().getConfig().getCompressor();
     TSEncoding tsEncoding =
-        TSEncoding.valueOf(TSFileDescriptor.getInstance().getConfig().getTimeEncoder());
+            TSEncoding.valueOf(TSFileDescriptor.getInstance().getConfig().getTimeEncoder());
     TSDataType timeType = TSFileDescriptor.getInstance().getConfig().getTimeSeriesDataType();
     Encoder encoder = TSEncodingBuilder.getEncodingBuilder(tsEncoding).getEncoder(timeType);
     timeChunkWriter = new TimeChunkWriter(timeMeasurementId, compressionType, tsEncoding, encoder);
@@ -74,12 +71,12 @@ public class AlignedChunkGroupWriterImpl implements IChunkGroupWriter {
   public void tryToAddSeriesWriter(MeasurementSchema measurementSchema) {
     if (!valueChunkWriterMap.containsKey(measurementSchema.getMeasurementId())) {
       ValueChunkWriter valueChunkWriter =
-          new ValueChunkWriter(
-              measurementSchema.getMeasurementId(),
-              measurementSchema.getCompressor(),
-              measurementSchema.getType(),
-              measurementSchema.getEncodingType(),
-              measurementSchema.getValueEncoder());
+              new ValueChunkWriter(
+                      measurementSchema.getMeasurementId(),
+                      measurementSchema.getCompressor(),
+                      measurementSchema.getType(),
+                      measurementSchema.getEncodingType(),
+                      measurementSchema.getValueEncoder());
       valueChunkWriterMap.put(measurementSchema.getMeasurementId(), valueChunkWriter);
       tryToAddEmptyPageAndData(valueChunkWriter);
     }
@@ -90,12 +87,12 @@ public class AlignedChunkGroupWriterImpl implements IChunkGroupWriter {
     for (MeasurementSchema schema : measurementSchemas) {
       if (!valueChunkWriterMap.containsKey(schema.getMeasurementId())) {
         ValueChunkWriter valueChunkWriter =
-            new ValueChunkWriter(
-                schema.getMeasurementId(),
-                schema.getCompressor(),
-                schema.getType(),
-                schema.getEncodingType(),
-                schema.getValueEncoder());
+                new ValueChunkWriter(
+                        schema.getMeasurementId(),
+                        schema.getCompressor(),
+                        schema.getType(),
+                        schema.getEncodingType(),
+                        schema.getValueEncoder());
         valueChunkWriterMap.put(schema.getMeasurementId(), valueChunkWriter);
         tryToAddEmptyPageAndData(valueChunkWriter);
       }
@@ -104,10 +101,16 @@ public class AlignedChunkGroupWriterImpl implements IChunkGroupWriter {
 
   @Override
   public int write(long time, List<DataPoint> data) throws WriteProcessException, IOException {
-    // checkIsHistoryData("", time);
-
+    checkIsHistoryData(time);
+    List<ValueChunkWriter> emptyValueChunkWriters = new ArrayList<>();
+    Set<String> existingMeasurements =
+            data.stream().map(DataPoint::getMeasurementId).collect(Collectors.toSet());
+    for (Map.Entry<String, ValueChunkWriter> entry : valueChunkWriterMap.entrySet()) {
+      if (!existingMeasurements.contains(entry.getKey())) {
+        emptyValueChunkWriters.add(entry.getValue());
+      }
+    }
     for (DataPoint point : data) {
-      writenMeasurementSet.add(point.getMeasurementId());
       boolean isNull = point.getValue() == null;
       ValueChunkWriter valueChunkWriter = valueChunkWriterMap.get(point.getMeasurementId());
       switch (point.getType()) {
@@ -131,10 +134,12 @@ public class AlignedChunkGroupWriterImpl implements IChunkGroupWriter {
           break;
         default:
           throw new UnSupportedDataTypeException(
-              String.format("Data type %s is not supported.", point.getType()));
+                  String.format("Data type %s is not supported.", point.getType()));
       }
     }
-    writeEmptyDataInOneRow(time);
+    if (!emptyValueChunkWriters.isEmpty()) {
+      writeEmptyDataInOneRow(emptyValueChunkWriters);
+    }
     timeChunkWriter.write(time);
     lastTime = time;
     if (checkPageSizeAndMayOpenANewPage()) {
@@ -145,188 +150,66 @@ public class AlignedChunkGroupWriterImpl implements IChunkGroupWriter {
 
   @Override
   public int write(Tablet tablet) throws WriteProcessException, IOException {
-    // write time
+    int pointCount = 0;
+    List<MeasurementSchema> measurementSchemas = tablet.getSchemas();
+    List<ValueChunkWriter> emptyValueChunkWriters = new ArrayList<>();
+    Set<String> existingMeasurements =
+            measurementSchemas.stream()
+                    .map(MeasurementSchema::getMeasurementId)
+                    .collect(Collectors.toSet());
+    for (Map.Entry<String, ValueChunkWriter> entry : valueChunkWriterMap.entrySet()) {
+      if (!existingMeasurements.contains(entry.getKey())) {
+        emptyValueChunkWriters.add(entry.getValue());
+      }
+    }
     for (int row = 0; row < tablet.rowSize; row++) {
       long time = tablet.timestamps[row];
-      // checkIsHistoryData("", time);
-      timeChunkWriter.write(time);
-      lastTime = time;
-      if (timeChunkWriter.needANewPage()) {
-        timeChunkWriter.writePageToPageBuffer();
-      }
-    }
-
-    List<MeasurementSchema> measurementSchemas = tablet.getSchemas();
-    // write existed values
-    for (int columnIndex = 0; columnIndex < measurementSchemas.size(); columnIndex++) {
-      ValueChunkWriter valueChunkWriter =
-          valueChunkWriterMap.get(measurementSchemas.get(columnIndex).getMeasurementId());
-      TSDataType dataType = measurementSchemas.get(columnIndex).getType();
-      switch (dataType) {
-        case BOOLEAN:
-          boolean[] booleanValues = (boolean[]) tablet.values[columnIndex];
-          for (int row = 0; row < tablet.rowSize; row++) {
-            long time = tablet.timestamps[row];
-            boolean isNull =
+      checkIsHistoryData(time);
+      for (int columnIndex = 0; columnIndex < measurementSchemas.size(); columnIndex++) {
+        boolean isNull =
                 tablet.bitMaps != null
-                    && tablet.bitMaps[columnIndex] != null
-                    && tablet.bitMaps[columnIndex].isMarked(row);
-            // check isNull by bitMap in tablet
-            valueChunkWriter.write(time, booleanValues[row], isNull);
-            if (valueChunkWriter.needANewPage()) {
-              valueChunkWriter.writePageToPageBuffer();
-            }
-          }
-          break;
-        case INT32:
-          int[] intValues = (int[]) tablet.values[columnIndex];
-          for (int row = 0; row < tablet.rowSize; row++) {
-            long time = tablet.timestamps[row];
-            boolean isNull =
-                tablet.bitMaps != null
-                    && tablet.bitMaps[columnIndex] != null
-                    && tablet.bitMaps[columnIndex].isMarked(row);
-            // check isNull by bitMap in tablet
-            valueChunkWriter.write(time, intValues[row], isNull);
-            if (valueChunkWriter.needANewPage()) {
-              valueChunkWriter.writePageToPageBuffer();
-            }
-          }
-          break;
-        case INT64:
-          long[] longValues = (long[]) tablet.values[columnIndex];
-          for (int row = 0; row < tablet.rowSize; row++) {
-            long time = tablet.timestamps[row];
-            boolean isNull =
-                tablet.bitMaps != null
-                    && tablet.bitMaps[columnIndex] != null
-                    && tablet.bitMaps[columnIndex].isMarked(row);
-            // check isNull by bitMap in tablet
-            valueChunkWriter.write(time, longValues[row], isNull);
-            if (valueChunkWriter.needANewPage()) {
-              valueChunkWriter.writePageToPageBuffer();
-            }
-          }
-          break;
-        case FLOAT:
-          float[] floatValues = (float[]) tablet.values[columnIndex];
-          for (int row = 0; row < tablet.rowSize; row++) {
-            long time = tablet.timestamps[row];
-            boolean isNull =
-                tablet.bitMaps != null
-                    && tablet.bitMaps[columnIndex] != null
-                    && tablet.bitMaps[columnIndex].isMarked(row);
-            // check isNull by bitMap in tablet
-            valueChunkWriter.write(time, floatValues[row], isNull);
-            if (valueChunkWriter.needANewPage()) {
-              valueChunkWriter.writePageToPageBuffer();
-            }
-          }
-          break;
-        case DOUBLE:
-          double[] doubleValues = (double[]) tablet.values[columnIndex];
-          for (int row = 0; row < tablet.rowSize; row++) {
-            long time = tablet.timestamps[row];
-            boolean isNull =
-                tablet.bitMaps != null
-                    && tablet.bitMaps[columnIndex] != null
-                    && tablet.bitMaps[columnIndex].isMarked(row);
-            // check isNull by bitMap in tablet
-            valueChunkWriter.write(time, doubleValues[row], isNull);
-            if (valueChunkWriter.needANewPage()) {
-              valueChunkWriter.writePageToPageBuffer();
-            }
-          }
-          break;
-        case TEXT:
-          Binary[] binaryValues = (Binary[]) tablet.values[columnIndex];
-          for (int row = 0; row < tablet.rowSize; row++) {
-            long time = tablet.timestamps[row];
-            boolean isNull =
-                tablet.bitMaps != null
-                    && tablet.bitMaps[columnIndex] != null
-                    && tablet.bitMaps[columnIndex].isMarked(row);
-            // check isNull by bitMap in tablet
-            valueChunkWriter.write(time, binaryValues[row], isNull);
-            if (valueChunkWriter.needANewPage()) {
-              valueChunkWriter.writePageToPageBuffer();
-            }
-          }
-          break;
-        default:
-          throw new UnSupportedDataTypeException(
-              String.format("Data type %s is not supported.", dataType));
-      }
-    }
-
-    if (measurementSchemas.size() != valueChunkWriterMap.size()) {
-      Set<String> existingMeasurements =
-          measurementSchemas.stream()
-              .map(MeasurementSchema::getMeasurementId)
-              .collect(Collectors.toSet());
-      // write non-existed values
-      for (Map.Entry<String, ValueChunkWriter> entry : valueChunkWriterMap.entrySet()) {
-        if (!existingMeasurements.contains(entry.getKey())) {
-          ValueChunkWriter valueChunkWriter = entry.getValue();
-          TSDataType dataType = valueChunkWriter.getDataType();
-          switch (dataType) {
-            case BOOLEAN:
-              for (int row = 0; row < tablet.rowSize; row++) {
-                valueChunkWriter.write(-1, false, true);
-                if (valueChunkWriter.needANewPage()) {
-                  valueChunkWriter.writePageToPageBuffer();
-                }
-              }
-              break;
-            case INT32:
-              for (int row = 0; row < tablet.rowSize; row++) {
-                valueChunkWriter.write(-1, 0, true);
-                if (valueChunkWriter.needANewPage()) {
-                  valueChunkWriter.writePageToPageBuffer();
-                }
-              }
-              break;
-            case INT64:
-              for (int row = 0; row < tablet.rowSize; row++) {
-                valueChunkWriter.write(-1, 0L, true);
-                if (valueChunkWriter.needANewPage()) {
-                  valueChunkWriter.writePageToPageBuffer();
-                }
-              }
-              break;
-            case FLOAT:
-              for (int row = 0; row < tablet.rowSize; row++) {
-                valueChunkWriter.write(-1, 0.0f, true);
-                if (valueChunkWriter.needANewPage()) {
-                  valueChunkWriter.writePageToPageBuffer();
-                }
-              }
-              break;
-            case DOUBLE:
-              for (int row = 0; row < tablet.rowSize; row++) {
-                valueChunkWriter.write(-1, 0.0, true);
-                if (valueChunkWriter.needANewPage()) {
-                  valueChunkWriter.writePageToPageBuffer();
-                }
-              }
-              break;
-            case TEXT:
-              for (int row = 0; row < tablet.rowSize; row++) {
-                valueChunkWriter.write(-1, null, true);
-                if (valueChunkWriter.needANewPage()) {
-                  valueChunkWriter.writePageToPageBuffer();
-                }
-              }
-              break;
-            default:
-              throw new UnSupportedDataTypeException(
-                  String.format("Data type %s is not supported.", dataType));
-          }
+                        && tablet.bitMaps[columnIndex] != null
+                        && tablet.bitMaps[columnIndex].isMarked(row);
+        // check isNull by bitMap in tablet
+        ValueChunkWriter valueChunkWriter =
+                valueChunkWriterMap.get(measurementSchemas.get(columnIndex).getMeasurementId());
+        switch (measurementSchemas.get(columnIndex).getType()) {
+          case BOOLEAN:
+            valueChunkWriter.write(time, ((boolean[]) tablet.values[columnIndex])[row], isNull);
+            break;
+          case INT32:
+            valueChunkWriter.write(time, ((int[]) tablet.values[columnIndex])[row], isNull);
+            break;
+          case INT64:
+            valueChunkWriter.write(time, ((long[]) tablet.values[columnIndex])[row], isNull);
+            break;
+          case FLOAT:
+            valueChunkWriter.write(time, ((float[]) tablet.values[columnIndex])[row], isNull);
+            break;
+          case DOUBLE:
+            valueChunkWriter.write(time, ((double[]) tablet.values[columnIndex])[row], isNull);
+            break;
+          case TEXT:
+            valueChunkWriter.write(time, ((Binary[]) tablet.values[columnIndex])[row], isNull);
+            break;
+          default:
+            throw new UnSupportedDataTypeException(
+                    String.format(
+                            "Data type %s is not supported.",
+                            measurementSchemas.get(columnIndex).getType()));
         }
       }
+      if (!emptyValueChunkWriters.isEmpty()) {
+        writeEmptyDataInOneRow(emptyValueChunkWriters);
+      }
+      timeChunkWriter.write(time);
+      lastTime = time;
+      if (checkPageSizeAndMayOpenANewPage()) {
+        writePageToPageBuffer();
+      }
+      pointCount++;
     }
-
-    return tablet.rowSize;
+    return pointCount;
   }
 
   @Override
@@ -373,13 +256,33 @@ public class AlignedChunkGroupWriterImpl implements IChunkGroupWriter {
     }
   }
 
-  private void writeEmptyDataInOneRow(long time) {
-    for (Map.Entry<String, ValueChunkWriter> entry : valueChunkWriterMap.entrySet()) {
-      if (!writenMeasurementSet.contains(entry.getKey())) {
-        entry.getValue().write(time, 0, true);
+  private void writeEmptyDataInOneRow(List<ValueChunkWriter> valueChunkWriterList) {
+    for (ValueChunkWriter valueChunkWriter : valueChunkWriterList) {
+      TSDataType dataType = valueChunkWriter.getDataType();
+      switch (dataType) {
+        case BOOLEAN:
+          valueChunkWriter.write(-1, false, true);
+          break;
+        case INT32:
+          valueChunkWriter.write(-1, 0, true);
+          break;
+        case INT64:
+          valueChunkWriter.write(-1, 0L, true);
+          break;
+        case FLOAT:
+          valueChunkWriter.write(-1, 0.0f, true);
+          break;
+        case DOUBLE:
+          valueChunkWriter.write(-1, 0.0d, true);
+          break;
+        case TEXT:
+          valueChunkWriter.write(-1, null, true);
+          break;
+        default:
+          throw new UnSupportedDataTypeException(
+                  String.format("Data type %s is not supported.", dataType));
       }
     }
-    writenMeasurementSet.clear();
   }
 
   /**
@@ -412,15 +315,15 @@ public class AlignedChunkGroupWriterImpl implements IChunkGroupWriter {
     }
   }
 
-  private void checkIsHistoryData(String measurementId, long time) throws WriteProcessException {
+  private void checkIsHistoryData(long time) throws WriteProcessException {
     if (time <= lastTime) {
       throw new WriteProcessException(
-          "Not allowed to write out-of-order data in timeseries "
-              + deviceId
-              + TsFileConstant.PATH_SEPARATOR
-              + measurementId
-              + ", time should later than "
-              + lastTime);
+              "Not allowed to write out-of-order data in timeseries "
+                      + deviceId
+                      + TsFileConstant.PATH_SEPARATOR
+                      + ""
+                      + ", time should later than "
+                      + lastTime);
     }
   }
 

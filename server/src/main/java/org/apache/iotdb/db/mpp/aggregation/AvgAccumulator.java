@@ -19,14 +19,13 @@
 
 package org.apache.iotdb.db.mpp.aggregation;
 
+import org.apache.iotdb.db.mpp.execution.operator.window.IWindow;
 import org.apache.iotdb.tsfile.exception.write.UnSupportedDataTypeException;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
 import org.apache.iotdb.tsfile.file.metadata.statistics.IntegerStatistics;
 import org.apache.iotdb.tsfile.file.metadata.statistics.Statistics;
-import org.apache.iotdb.tsfile.read.common.TimeRange;
 import org.apache.iotdb.tsfile.read.common.block.column.Column;
 import org.apache.iotdb.tsfile.read.common.block.column.ColumnBuilder;
-import org.apache.iotdb.tsfile.read.common.block.column.TimeColumn;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
@@ -42,20 +41,16 @@ public class AvgAccumulator implements Accumulator {
   }
 
   @Override
-  public void addInput(Column[] column, TimeRange timeRange) {
+  public int addInput(Column[] column, IWindow curWindow) {
     switch (seriesDataType) {
       case INT32:
-        addIntInput(column, timeRange);
-        break;
+        return addIntInput(column, curWindow);
       case INT64:
-        addLongInput(column, timeRange);
-        break;
+        return addLongInput(column, curWindow);
       case FLOAT:
-        addFloatInput(column, timeRange);
-        break;
+        return addFloatInput(column, curWindow);
       case DOUBLE:
-        addDoubleInput(column, timeRange);
-        break;
+        return addDoubleInput(column, curWindow);
       case TEXT:
       case BOOLEAN:
       default:
@@ -74,16 +69,25 @@ public class AvgAccumulator implements Accumulator {
     initResult = true;
     countValue += partialResult[0].getLong(0);
     sumValue += partialResult[1].getDouble(0);
+    if (countValue == 0) {
+      initResult = false;
+    }
   }
 
   @Override
   public void addStatistics(Statistics statistics) {
+    if (statistics == null) {
+      return;
+    }
     initResult = true;
     countValue += statistics.getCount();
     if (statistics instanceof IntegerStatistics) {
       sumValue += statistics.getSumLongValue();
     } else {
       sumValue += statistics.getSumDoubleValue();
+    }
+    if (countValue == 0) {
+      initResult = false;
     }
   }
 
@@ -142,63 +146,87 @@ public class AvgAccumulator implements Accumulator {
     return TSDataType.DOUBLE;
   }
 
-  private void addIntInput(Column[] column, TimeRange timeRange) {
-    TimeColumn timeColumn = (TimeColumn) column[0];
-    for (int i = 0; i < timeColumn.getPositionCount(); i++) {
-      long curTime = timeColumn.getLong(i);
-      if (curTime > timeRange.getMax() || curTime < timeRange.getMin()) {
-        break;
+  private int addIntInput(Column[] column, IWindow curWindow) {
+    int curPositionCount = column[0].getPositionCount();
+
+    for (int i = 0; i < curPositionCount; i++) {
+      // skip null value in control column
+      if (column[0].isNull(i)) {
+        continue;
       }
-      if (!column[1].isNull(i)) {
+      if (!curWindow.satisfy(column[0], i)) {
+        return i;
+      }
+      curWindow.mergeOnePoint();
+      if (!column[2].isNull(i)) {
         initResult = true;
         countValue++;
-        sumValue += column[1].getInt(i);
+        sumValue += column[2].getInt(i);
       }
     }
+    return curPositionCount;
   }
 
-  private void addLongInput(Column[] column, TimeRange timeRange) {
-    TimeColumn timeColumn = (TimeColumn) column[0];
-    for (int i = 0; i < timeColumn.getPositionCount(); i++) {
-      long curTime = timeColumn.getLong(i);
-      if (curTime > timeRange.getMax() || curTime < timeRange.getMin()) {
-        break;
+  private int addLongInput(Column[] column, IWindow curWindow) {
+    int curPositionCount = column[0].getPositionCount();
+
+    for (int i = 0; i < curPositionCount; i++) {
+      // skip null value in control column
+      if (column[0].isNull(i)) {
+        continue;
       }
-      if (!column[1].isNull(i)) {
+      if (!curWindow.satisfy(column[0], i)) {
+        return i;
+      }
+      curWindow.mergeOnePoint();
+      if (!column[2].isNull(i)) {
         initResult = true;
         countValue++;
-        sumValue += column[1].getLong(i);
+        sumValue += column[2].getLong(i);
       }
     }
+    return curPositionCount;
   }
 
-  private void addFloatInput(Column[] column, TimeRange timeRange) {
-    TimeColumn timeColumn = (TimeColumn) column[0];
-    for (int i = 0; i < timeColumn.getPositionCount(); i++) {
-      long curTime = timeColumn.getLong(i);
-      if (curTime > timeRange.getMax() || curTime < timeRange.getMin()) {
-        break;
+  private int addFloatInput(Column[] column, IWindow curWindow) {
+    int curPositionCount = column[0].getPositionCount();
+
+    for (int i = 0; i < curPositionCount; i++) {
+      // skip null value in control column
+      if (column[0].isNull(i)) {
+        continue;
       }
-      if (!column[1].isNull(i)) {
+      if (!curWindow.satisfy(column[0], i)) {
+        return i;
+      }
+      curWindow.mergeOnePoint();
+      if (!column[2].isNull(i)) {
         initResult = true;
         countValue++;
-        sumValue += column[1].getFloat(i);
+        sumValue += column[2].getFloat(i);
       }
     }
+    return curPositionCount;
   }
 
-  private void addDoubleInput(Column[] column, TimeRange timeRange) {
-    TimeColumn timeColumn = (TimeColumn) column[0];
-    for (int i = 0; i < timeColumn.getPositionCount(); i++) {
-      long curTime = timeColumn.getLong(i);
-      if (curTime > timeRange.getMax() || curTime < timeRange.getMin()) {
-        break;
+  private int addDoubleInput(Column[] column, IWindow curWindow) {
+    int curPositionCount = column[0].getPositionCount();
+
+    for (int i = 0; i < curPositionCount; i++) {
+      // skip null value in control column
+      if (column[0].isNull(i)) {
+        continue;
       }
-      if (!column[1].isNull(i)) {
+      if (!curWindow.satisfy(column[0], i)) {
+        return i;
+      }
+      curWindow.mergeOnePoint();
+      if (!column[2].isNull(i)) {
         initResult = true;
         countValue++;
-        sumValue += column[1].getDouble(i);
+        sumValue += column[2].getDouble(i);
       }
     }
+    return curPositionCount;
   }
 }

@@ -72,8 +72,8 @@ public class NodeUrlUtils {
   public static TEndPoint parseTEndPointUrl(String endPointUrl) throws BadNodeUrlException {
     String[] split = endPointUrl.split(":");
     if (split.length != 2) {
-      logger.warn("Bad node url: {}", endPointUrl);
-      throw new BadNodeUrlException(String.format("Bad node url: %s", endPointUrl));
+      logger.warn("Illegal endpoint url format: {}", endPointUrl);
+      throw new BadNodeUrlException(String.format("Bad endpoint url: %s", endPointUrl));
     }
     String ip = split[0];
     TEndPoint result;
@@ -81,7 +81,7 @@ public class NodeUrlUtils {
       int port = Integer.parseInt(split[1]);
       result = new TEndPoint(ip, port);
     } catch (NumberFormatException e) {
-      logger.warn("Bad node url: {}", endPointUrl);
+      logger.warn("Illegal endpoint url format: {}", endPointUrl);
       throw new BadNodeUrlException(String.format("Bad node url: %s", endPointUrl));
     }
     return result;
@@ -122,6 +122,7 @@ public class NodeUrlUtils {
    */
   public static String convertTConfigNodeUrl(TConfigNodeLocation configNodeLocation) {
     StringJoiner url = new StringJoiner(",");
+    url.add(String.valueOf(configNodeLocation.getConfigNodeId()));
     url.add(convertTEndPointUrl(configNodeLocation.getInternalEndPoint()));
     url.add(convertTEndPointUrl(configNodeLocation.getConsensusEndPoint()));
     return url.toString();
@@ -151,11 +152,12 @@ public class NodeUrlUtils {
   public static TConfigNodeLocation parseTConfigNodeUrl(String configNodeUrl)
       throws BadNodeUrlException {
     String[] split = configNodeUrl.split(",");
-    if (split.length != 2) {
+    if (split.length != 3) {
       logger.warn("Bad ConfigNode url: {}", configNodeUrl);
       throw new BadNodeUrlException(String.format("Bad node url: %s", configNodeUrl));
     }
-    return new TConfigNodeLocation(parseTEndPointUrl(split[0]), parseTEndPointUrl(split[1]));
+    return new TConfigNodeLocation(
+        Integer.parseInt(split[0]), parseTEndPointUrl(split[1]), parseTEndPointUrl(split[2]));
   }
 
   /**
@@ -184,5 +186,12 @@ public class NodeUrlUtils {
   public static List<TConfigNodeLocation> parseTConfigNodeUrls(String configNodeUrls)
       throws BadNodeUrlException {
     return parseTConfigNodeUrls(Arrays.asList(configNodeUrls.split(";")));
+  }
+
+  public static boolean isLocalAddress(String ip) {
+    if (ip == null) {
+      return false;
+    }
+    return ip.equals("0.0.0.0") || ip.equals("127.0.0.1") || ip.equals("localhost");
   }
 }

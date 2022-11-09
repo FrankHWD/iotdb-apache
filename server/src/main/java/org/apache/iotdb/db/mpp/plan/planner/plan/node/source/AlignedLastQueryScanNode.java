@@ -19,22 +19,27 @@
 package org.apache.iotdb.db.mpp.plan.planner.plan.node.source;
 
 import org.apache.iotdb.common.rpc.thrift.TRegionReplicaSet;
-import org.apache.iotdb.db.metadata.path.AlignedPath;
-import org.apache.iotdb.db.metadata.path.PathDeserializeUtil;
+import org.apache.iotdb.commons.path.AlignedPath;
+import org.apache.iotdb.commons.path.PartialPath;
+import org.apache.iotdb.commons.path.PathDeserializeUtil;
 import org.apache.iotdb.db.mpp.plan.planner.plan.node.PlanNode;
 import org.apache.iotdb.db.mpp.plan.planner.plan.node.PlanNodeId;
 import org.apache.iotdb.db.mpp.plan.planner.plan.node.PlanNodeType;
+import org.apache.iotdb.db.mpp.plan.planner.plan.node.PlanNodeUtil;
 import org.apache.iotdb.db.mpp.plan.planner.plan.node.PlanVisitor;
+import org.apache.iotdb.tsfile.read.filter.basic.Filter;
 
 import com.google.common.collect.ImmutableList;
 
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Objects;
 
-import static org.apache.iotdb.db.mpp.plan.planner.plan.node.source.LastQueryScanNode.LAST_QUERY_COLUMN_HEADERS;
+import static org.apache.iotdb.db.mpp.plan.planner.plan.node.source.LastQueryScanNode.LAST_QUERY_HEADER_COLUMNS;
 
-public class AlignedLastQueryScanNode extends SourceNode {
+public class AlignedLastQueryScanNode extends SeriesSourceNode {
   // The path of the target series which will be scanned.
   private final AlignedPath seriesPath;
 
@@ -91,7 +96,7 @@ public class AlignedLastQueryScanNode extends SourceNode {
 
   @Override
   public List<String> getOutputColumnNames() {
-    return LAST_QUERY_COLUMN_HEADERS;
+    return LAST_QUERY_HEADER_COLUMNS;
   }
 
   @Override
@@ -118,13 +123,21 @@ public class AlignedLastQueryScanNode extends SourceNode {
   public String toString() {
     return String.format(
         "AlignedLastQueryScanNode-%s:[SeriesPath: %s, DataRegion: %s]",
-        this.getPlanNodeId(), this.getSeriesPath(), this.getRegionReplicaSet());
+        this.getPlanNodeId(),
+        this.getSeriesPath().getFormattedString(),
+        PlanNodeUtil.printRegionReplicaSet(this.getRegionReplicaSet()));
   }
 
   @Override
   protected void serializeAttributes(ByteBuffer byteBuffer) {
     PlanNodeType.ALIGNED_LAST_QUERY_SCAN.serialize(byteBuffer);
     seriesPath.serialize(byteBuffer);
+  }
+
+  @Override
+  protected void serializeAttributes(DataOutputStream stream) throws IOException {
+    PlanNodeType.ALIGNED_LAST_QUERY_SCAN.serialize(stream);
+    seriesPath.serialize(stream);
   }
 
   public static AlignedLastQueryScanNode deserialize(ByteBuffer byteBuffer) {
@@ -135,5 +148,15 @@ public class AlignedLastQueryScanNode extends SourceNode {
 
   public AlignedPath getSeriesPath() {
     return seriesPath;
+  }
+
+  @Override
+  public PartialPath getPartitionPath() {
+    return seriesPath;
+  }
+
+  @Override
+  public Filter getPartitionTimeFilter() {
+    return null;
   }
 }

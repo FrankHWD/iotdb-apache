@@ -20,27 +20,52 @@
 package org.apache.iotdb.db.mpp.plan.analyze;
 
 import org.apache.iotdb.commons.path.PartialPath;
-import org.apache.iotdb.db.mpp.common.schematree.PathPatternTree;
-import org.apache.iotdb.db.mpp.common.schematree.SchemaTree;
+import org.apache.iotdb.commons.path.PathPatternTree;
+import org.apache.iotdb.db.metadata.template.Template;
+import org.apache.iotdb.db.mpp.common.schematree.ISchemaTree;
+import org.apache.iotdb.tsfile.file.metadata.enums.CompressionType;
 import org.apache.iotdb.tsfile.file.metadata.enums.TSDataType;
+import org.apache.iotdb.tsfile.file.metadata.enums.TSEncoding;
+import org.apache.iotdb.tsfile.utils.Pair;
 
 import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
 
 /**
  * This interface is used to fetch the metadata information required in execution plan generating.
  */
 public interface ISchemaFetcher {
 
-  SchemaTree fetchSchema(PathPatternTree patternTree);
+  ISchemaTree fetchSchema(PathPatternTree patternTree);
 
-  SchemaTree fetchSchemaWithAutoCreate(
-      PartialPath devicePath, String[] measurements, TSDataType[] tsDataTypes, boolean aligned);
+  ISchemaTree fetchSchemaWithTags(PathPatternTree patternTree);
 
-  SchemaTree fetchSchemaListWithAutoCreate(
+  ISchemaTree fetchSchemaWithAutoCreate(
+      PartialPath devicePath,
+      String[] measurements,
+      Function<Integer, TSDataType> getDataType,
+      boolean aligned);
+
+  ISchemaTree fetchSchemaListWithAutoCreate(
       List<PartialPath> devicePath,
       List<String[]> measurements,
       List<TSDataType[]> tsDataTypes,
       List<Boolean> aligned);
+
+  ISchemaTree fetchSchemaListWithAutoCreate(
+      List<PartialPath> devicePath,
+      List<String[]> measurements,
+      List<TSDataType[]> tsDataTypes,
+      List<TSEncoding[]> encodings,
+      List<CompressionType[]> compressionTypes,
+      List<Boolean> aligned);
+
+  Pair<Template, PartialPath> checkTemplateSetInfo(PartialPath path);
+
+  Map<Integer, Template> checkAllRelatedTemplate(PartialPath pathPattern);
+
+  Pair<Template, List<PartialPath>> getAllPathsSetTemplate(String templateName);
 
   void invalidAllCache();
 }
