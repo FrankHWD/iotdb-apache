@@ -45,9 +45,9 @@ public abstract class TIMDecoder extends Decoder {
 
   protected int nextReadIndex = 0;
   /** max bit length of all value in a pack. */
-  protected int packWidth;
+  // protected int writeWidth;
   /** data number in this pack. */
-  protected int packNum;
+  protected int writeIndex;
 
   protected int rleGridVWidth;
 
@@ -133,8 +133,8 @@ public abstract class TIMDecoder extends Decoder {
      * @return int
      */
     protected int loadIntBatch(ByteBuffer buffer) {
-      packNum = ReadWriteIOUtils.readInt(buffer);
-      packWidth = ReadWriteIOUtils.readInt(buffer);
+      writeIndex = ReadWriteIOUtils.readInt(buffer);
+      // writeWidth = ReadWriteIOUtils.readInt(buffer);
       rleGridVWidth = ReadWriteIOUtils.readInt(buffer);
       rleGridCWidth = ReadWriteIOUtils.readInt(buffer);
       rleGridSize = ReadWriteIOUtils.readInt(buffer);
@@ -144,9 +144,12 @@ public abstract class TIMDecoder extends Decoder {
       count++;
       readHeader(buffer);
 
-      // encodingLength = ceil(packNum * packWidth);
-      encodingLength = ceil((rleWriteVWidth + rleWriteCWidth) * rleWriteSize);
-      diffBuf = new byte[encodingLength + ceil((rleGridVWidth + rleGridCWidth) * rleGridSize)];
+      // encodingLength = ceil(writeIndex * writeWidth);
+      encodingLength =
+          ceil(
+              (rleWriteVWidth + rleWriteCWidth) * rleWriteSize
+                  + (rleGridVWidth + rleGridCWidth) * rleGridSize);
+      diffBuf = new byte[encodingLength];
       buffer.get(diffBuf);
       allocateDataArray();
 
@@ -184,14 +187,14 @@ public abstract class TIMDecoder extends Decoder {
 
       previous = firstValue;
       previousDiff = 0;
-      readIntTotalCount = packNum;
+      readIntTotalCount = writeIndex;
       nextReadIndex = 0;
       readPack();
       return firstValue;
     }
 
     private void readPack() {
-      for (int i = 0; i < packNum; i++) {
+      for (int i = 0; i < writeIndex; i++) {
         readValue(i);
         previous = data[i];
       }
@@ -213,12 +216,12 @@ public abstract class TIMDecoder extends Decoder {
 
     @Override
     protected void allocateDataArray() {
-      data = new int[packNum];
+      data = new int[writeIndex];
     }
 
     @Override
     protected void readValue(int i) {
-      // long v = BytesUtils.bytesToLong(diffBuf, packWidth * i, packWidth);
+      // long v = BytesUtils.bytesToLong(diffBuf, writeWidth * i, writeWidth);
       // data[i] = previous + minDiffBase + v;
       // data[i] = previous - previousDiff + grid + minDiffBase + v;
       // previousDiff = minDiffBase + v;
@@ -249,7 +252,7 @@ public abstract class TIMDecoder extends Decoder {
         }
       }
 
-      // int v = BytesUtils.bytesToInt(diffBuf, (packWidth) * i, packWidth);
+      // int v = BytesUtils.bytesToInt(diffBuf, (writeWidth) * i, writeWidth);
       data[i] = previous - previousDiff + grid * gridNum + minDiffBase + v2;
       previousDiff = minDiffBase + v2;
     }
@@ -302,8 +305,8 @@ public abstract class TIMDecoder extends Decoder {
      * @return long value
      */
     protected long loadIntBatch(ByteBuffer buffer) {
-      packNum = ReadWriteIOUtils.readInt(buffer);
-      packWidth = ReadWriteIOUtils.readInt(buffer);
+      writeIndex = ReadWriteIOUtils.readInt(buffer);
+      // writeWidth = ReadWriteIOUtils.readInt(buffer);
       rleGridVWidth = ReadWriteIOUtils.readInt(buffer);
       rleGridCWidth = ReadWriteIOUtils.readInt(buffer);
       rleGridSize = ReadWriteIOUtils.readInt(buffer);
@@ -313,9 +316,12 @@ public abstract class TIMDecoder extends Decoder {
       count++;
       readHeader(buffer);
 
-      // encodingLength = ceil(packNum * packWidth);
-      encodingLength = ceil((rleWriteVWidth + rleWriteCWidth) * rleWriteSize);
-      diffBuf = new byte[encodingLength + ceil((rleGridVWidth + rleGridCWidth) * rleGridSize)];
+      // encodingLength = ceil(writeIndex * writeWidth);
+      encodingLength =
+          ceil(
+              (rleWriteVWidth + rleWriteCWidth) * rleWriteSize
+                  + (rleGridVWidth + rleGridCWidth) * rleGridSize);
+      diffBuf = new byte[encodingLength];
       buffer.get(diffBuf);
       allocateDataArray();
 
@@ -346,7 +352,7 @@ public abstract class TIMDecoder extends Decoder {
         }
       } else {
         rleGridV.add(1L);
-        rleGridC.add((long) packNum);
+        rleGridC.add((long) writeIndex);
       }
 
       for (int i = 0; i < rleWriteSize; i++) {
@@ -361,14 +367,14 @@ public abstract class TIMDecoder extends Decoder {
 
       previous = firstValue;
       previousDiff = 0;
-      readIntTotalCount = packNum;
+      readIntTotalCount = writeIndex;
       nextReadIndex = 0;
       readPack();
       return firstValue;
     }
 
     private void readPack() {
-      for (int i = 0; i < packNum; i++) {
+      for (int i = 0; i < writeIndex; i++) {
         readValue(i);
         previous = data[i];
       }
@@ -390,12 +396,12 @@ public abstract class TIMDecoder extends Decoder {
 
     @Override
     protected void allocateDataArray() {
-      data = new long[packNum];
+      data = new long[writeIndex];
     }
 
     @Override
     protected void readValue(int i) {
-      // long v = BytesUtils.bytesToLong(diffBuf, packWidth * i, packWidth);
+      // long v = BytesUtils.bytesToLong(diffBuf, writeWidth * i, writeWidth);
       // data[i] = previous + minDiffBase + v;
       // data[i] = previous - previousDiff + grid + minDiffBase + v;
       // previousDiff = minDiffBase + v;
@@ -426,9 +432,9 @@ public abstract class TIMDecoder extends Decoder {
         }
       }
 
-      // long v = BytesUtils.bytesToLong(diffBuf, (packWidth) * i, packWidth);
-      // long gridNum =
-      //    BytesUtils.bytesToLong(diffBuf, (packWidth) * i + packWidth - gridWidth, gridWidth);
+      // long v = BytesUtils.bytesToLong(diffBuf, (writeWidth) * i, writeWidth);
+      // long gridNum = BytesUtils.bytesToLong(diffBuf, (writeWidth) * i + writeWidth - gridWidth,
+      // gridWidth);
       data[i] = previous - previousDiff + grid * gridNum + minDiffBase + v2;
       previousDiff = minDiffBase + v2;
     }

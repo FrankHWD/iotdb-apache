@@ -44,8 +44,7 @@ import static org.junit.Assert.assertEquals;
 
 public class TIMEncoderLongTest {
 
-  // private static int ROW_NUM = 10000;
-  private static int ROW_NUM = 192;
+  private static int ROW_NUM = 10000;
   private final long BASIC_FACTOR = 1l << 32;
   ByteArrayOutputStream out;
   private TIMEncoder writer;
@@ -132,13 +131,11 @@ public class TIMEncoderLongTest {
     csvReader.readHeaders();
 
     int num = 0;
-    // long[] data = new long[12000000];
-    long[] data = new long[192];
+    long[] data = new long[12000000];
     while (csvReader.readRecord()) {
       long time = Long.parseLong(csvReader.get(0));
       data[num] = time;
       num += 1;
-      if (num >= 192) break;
     }
     shouldReadAndWrite(data, ROW_NUM);
   }
