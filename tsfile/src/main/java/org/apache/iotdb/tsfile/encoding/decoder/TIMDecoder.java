@@ -46,7 +46,7 @@ public abstract class TIMDecoder extends Decoder {
   /** max bit length of all value in a pack. */
   protected int writeWidth;
   /** data number in this pack. */
-  protected int packNum;
+  protected int writeIndex;
 
   protected int gridWidth;
 
@@ -113,30 +113,27 @@ public abstract class TIMDecoder extends Decoder {
      * @return int
      */
     protected int loadIntBatch(ByteBuffer buffer) {
-      packNum = ReadWriteIOUtils.readInt(buffer);
+      writeIndex = ReadWriteIOUtils.readInt(buffer);
       writeWidth = ReadWriteIOUtils.readInt(buffer);
       gridWidth = ReadWriteIOUtils.readInt(buffer);
       count++;
       readHeader(buffer);
 
-      // encodingLength = ceil(packNum * packWidth);
-      // encodingLength = ceil((writeWidth + gridWidth) * packNum);
-
-      encodingLength = ceil(packNum * writeWidth) + ceil(packNum * gridWidth);
+      encodingLength = ceil((writeWidth + gridWidth) * writeIndex);
       diffBuf = new byte[encodingLength];
       buffer.get(diffBuf);
       allocateDataArray();
 
       previous = firstValue;
       previousDiff = 0;
-      readIntTotalCount = packNum;
+      readIntTotalCount = writeIndex;
       nextReadIndex = 0;
       readPack();
       return firstValue;
     }
 
     private void readPack() {
-      for (int i = 0; i < packNum; i++) {
+      for (int i = 0; i < writeIndex; i++) {
         readValue(i);
         previous = data[i];
       }
@@ -157,17 +154,15 @@ public abstract class TIMDecoder extends Decoder {
 
     @Override
     protected void allocateDataArray() {
-      data = new int[packNum];
+      data = new int[writeIndex];
     }
 
     @Override
     protected void readValue(int i) {
-      // long v = BytesUtils.bytesToLong(diffBuf, packWidth * i, packWidth);
+      // long v = BytesUtils.bytesToLong(diffBuf, writeWidth * i, writeWidth);
       // data[i] = previous + minDiffBase + v;
       // data[i] = previous - previousDiff + grid + minDiffBase + v;
       // previousDiff = minDiffBase + v;
-
-      // int v = BytesUtils.bytesToInt(diffBuf, (packWidth) * i, packWidth);
 
       int v2 = BytesUtils.bytesToInt(diffBuf, (writeWidth + gridWidth) * i, writeWidth);
       int gridNum =
@@ -217,31 +212,28 @@ public abstract class TIMDecoder extends Decoder {
      * @return long value
      */
     protected long loadIntBatch(ByteBuffer buffer) {
-      packNum = ReadWriteIOUtils.readInt(buffer);
+      writeIndex = ReadWriteIOUtils.readInt(buffer);
       writeWidth = ReadWriteIOUtils.readInt(buffer);
       gridWidth = ReadWriteIOUtils.readInt(buffer);
 
       count++;
       readHeader(buffer);
 
-      // encodingLength = ceil(packNum * packWidth);
-      // encodingLength = ceil((writeWidth + gridWidth) * packNum);
-
-      encodingLength = ceil(packNum * writeWidth) + ceil(packNum * gridWidth);
+      encodingLength = ceil((writeWidth + gridWidth) * writeIndex);
       diffBuf = new byte[encodingLength];
       buffer.get(diffBuf);
       allocateDataArray();
 
       previous = firstValue;
       previousDiff = 0;
-      readIntTotalCount = packNum;
+      readIntTotalCount = writeIndex;
       nextReadIndex = 0;
       readPack();
       return firstValue;
     }
 
     private void readPack() {
-      for (int i = 0; i < packNum; i++) {
+      for (int i = 0; i < writeIndex; i++) {
         readValue(i);
         previous = data[i];
       }
@@ -262,17 +254,16 @@ public abstract class TIMDecoder extends Decoder {
 
     @Override
     protected void allocateDataArray() {
-      data = new long[packNum];
+      data = new long[writeIndex];
     }
 
     @Override
     protected void readValue(int i) {
-      // long v = BytesUtils.bytesToLong(diffBuf, packWidth * i, packWidth);
+      // long v = BytesUtils.bytesToLong(diffBuf, writeWidth * i, writeWidth);
       // data[i] = previous + minDiffBase + v;
       // data[i] = previous - previousDiff + grid + minDiffBase + v;
       // previousDiff = minDiffBase + v;
 
-      // long v = BytesUtils.bytesToLong(diffBuf, (packWidth) * i, packWidth);
       long v2 = BytesUtils.bytesToLong(diffBuf, (writeWidth + gridWidth) * i, writeWidth);
       long gridNum;
       if (gridWidth != 0) {
