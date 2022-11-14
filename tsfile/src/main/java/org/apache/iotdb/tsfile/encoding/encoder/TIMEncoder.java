@@ -544,9 +544,13 @@ public abstract class TIMEncoder extends Encoder {
     private void calcDelta(long value) {
       // long diff = -previousValue + previousDiff + value - grid; // calculate diff
 
-      int gridNum = (int) Math.round((value - previousValue + previousDiff) * 1.0 / grid);
+      // int gridNum = (int) Math.round((value - previousValue + previousDiff) * 1.0 / grid);
       // int gridNum = (int) ((value - previousValue + previousDiff)/grid);
-      long diff = -previousValue + previousDiff + value - gridNum * grid; // calculate diff
+      // long diff = -previousValue + previousDiff + value - gridNum * grid; // calculate diff
+
+      int gridNum = (int) Math.round((value - previousValue) * 1.0 / grid);
+      long diff = value - previousValue - gridNum * grid;
+
       if (diff < minDiffBase) {
         minDiffBase = diff;
       }

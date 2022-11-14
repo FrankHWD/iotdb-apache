@@ -421,8 +421,11 @@ public abstract class TIMDecoder extends Decoder {
       // long v = BytesUtils.bytesToLong(diffBuf, (packWidth) * i, packWidth);
       // long gridNum =
       //    BytesUtils.bytesToLong(diffBuf, (packWidth) * i + packWidth - gridWidth, gridWidth);
-      data[i] = previous - previousDiff + grid * gridNum + minDiffBase + v2;
-      previousDiff = minDiffBase + v2;
+
+      // data[i] = previous - previousDiff + grid * gridNum + minDiffBase + v2;
+      // previousDiff = minDiffBase + v2;
+
+      data[i] = previous + grid * gridNum + minDiffBase + v2;
     }
 
     @Override
