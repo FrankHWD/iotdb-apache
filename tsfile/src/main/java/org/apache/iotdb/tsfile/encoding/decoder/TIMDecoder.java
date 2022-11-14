@@ -367,9 +367,10 @@ public abstract class TIMDecoder extends Decoder {
                 + minDiffBase2;
       }
       prevV = v;
-      // v=v-minDiffBase;
-      data[i] = previous - previousDiff + grid + minDiffBase + v;
-      previousDiff = minDiffBase + v;
+
+      data[i] = previous + grid + minDiffBase + v;
+      // data[i] = previous - previousDiff + grid + minDiffBase + v;
+      // previousDiff = minDiffBase + v;
     }
 
     @Override

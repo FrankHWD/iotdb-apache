@@ -438,7 +438,8 @@ public abstract class TIMEncoder extends Encoder {
     }
 
     private void calcDelta(long value) {
-      long diff = -previousValue + previousDiff + value - grid; // calculate diff
+      // long diff = -previousValue + previousDiff + value - grid; // calculate diff
+      long diff = value - previousValue - grid;
       if (diff < minDiffBase) {
         minDiffBase = diff;
       }
