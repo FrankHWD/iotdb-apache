@@ -26,6 +26,7 @@ import org.apache.iotdb.tsfile.utils.ReadWriteIOUtils;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 
 /**
  * This class is a decoder for decoding the byte array that encoded by {@code TIMEncoder}.TIMDecoder
@@ -50,6 +51,10 @@ public abstract class TIMDecoder extends Decoder {
 
   protected int secondGDiffWidth;
   protected int secondDDiffWidth;
+
+  protected int rleGridVWidth;
+  protected int rleGridCWidth;
+  protected int rleGridSize;
 
   // protected int girdWidth;
 
@@ -127,7 +132,7 @@ public abstract class TIMDecoder extends Decoder {
     protected int loadIntBatch(ByteBuffer buffer) {
       writeIndex = ReadWriteIOUtils.readInt(buffer);
       // writeWidth = ReadWriteIOUtils.readInt(buffer);
-      secondGDiffWidth = ReadWriteIOUtils.readInt(buffer);
+      // secondGDiffWidth = ReadWriteIOUtils.readInt(buffer);
       secondDDiffWidth = ReadWriteIOUtils.readInt(buffer);
       count++;
       readHeader(buffer);
@@ -251,6 +256,9 @@ public abstract class TIMDecoder extends Decoder {
     private long minGDiffBase2;
     private long minDDiffBase2;
 
+    ArrayList<Long> rleGridV;
+    ArrayList<Long> rleGridC;
+
     private long grid;
 
     // private int gridWidth;
@@ -281,13 +289,18 @@ public abstract class TIMDecoder extends Decoder {
     protected long loadIntBatch(ByteBuffer buffer) {
       writeIndex = ReadWriteIOUtils.readInt(buffer);
       // writeWidth = ReadWriteIOUtils.readInt(buffer);
-      secondGDiffWidth = ReadWriteIOUtils.readInt(buffer);
+      // secondGDiffWidth = ReadWriteIOUtils.readInt(buffer);
       secondDDiffWidth = ReadWriteIOUtils.readInt(buffer);
+      rleGridVWidth = ReadWriteIOUtils.readInt(buffer);
+      rleGridCWidth = ReadWriteIOUtils.readInt(buffer);
+      rleGridSize = ReadWriteIOUtils.readInt(buffer);
       count++;
       readHeader(buffer);
 
       encodingLength =
-          ceil((writeIndex - 1) * secondGDiffWidth + (writeIndex - 1) * secondDDiffWidth);
+          ceil(
+              ((rleGridVWidth + rleGridCWidth) * rleGridSize
+                  + (writeIndex - 1) * secondDDiffWidth));
 
       if (encodingLength == 0) {
         for (int i = 0; i < writeIndex; i++) {
@@ -299,6 +312,26 @@ public abstract class TIMDecoder extends Decoder {
       diffBuf = new byte[encodingLength];
       buffer.get(diffBuf);
       allocateDataArray();
+
+      rleGridV = new ArrayList<>();
+      rleGridC = new ArrayList<>();
+
+      if (rleGridSize >= 1) {
+        for (int i = 0; i < rleGridSize; i++) {
+          long rleGridV_c =
+              BytesUtils.bytesToLong(diffBuf, (rleGridVWidth + rleGridCWidth) * i, rleGridVWidth);
+          rleGridV.add(rleGridV_c);
+        }
+        for (int i = 0; i < rleGridSize; i++) {
+          long rleGridC_c =
+              BytesUtils.bytesToLong(
+                  diffBuf, (rleGridVWidth + rleGridCWidth) * i + rleGridVWidth, rleGridCWidth);
+          rleGridC.add(rleGridC_c);
+        }
+      } else {
+        rleGridV.add(1L);
+        rleGridC.add((long) writeIndex);
+      }
 
       previous = firstValue;
       previousDiff = 0;
@@ -347,21 +380,39 @@ public abstract class TIMDecoder extends Decoder {
       // data[i] = previous - previousDiff + grid + minDiffBase + v;
       // previousDiff = minDiffBase + v;
 
-      long gridNum;
-      if (secondGDiffWidth != 0) {
-        if (i == 0) {
-          gridNum = firstGValue2;
-        } else {
-          if (secondGDiffWidth == 0) {
-            long gridNum_c = 0;
-            gridNum = prevGV + gridNum_c + minGDiffBase2;
+      //      long gridNum;
+      //      if (secondGDiffWidth != 0) {
+      //        if (i == 0) {
+      //          gridNum = firstGValue2;
+      //        } else {
+      //          if (secondGDiffWidth == 0) {
+      //            long gridNum_c = 0;
+      //            gridNum = prevGV + gridNum_c + minGDiffBase2;
+      //          } else {
+      //            long gridNum_c =
+      //                BytesUtils.bytesToLong(diffBuf, secondGDiffWidth * (i - 1),
+      // secondGDiffWidth);
+      //            gridNum = prevGV + gridNum_c + minGDiffBase2;
+      //          }
+      //        }
+      //        prevGV = gridNum;
+      //      } else {
+      //        gridNum = 1;
+      //      }
+
+      long gridNum = 0;
+      if (rleGridSize != 0) {
+        long ii = i;
+        int mark = 0;
+        for (int j = 0; j < rleGridSize; j++) {
+          if (ii >= rleGridC.get(j)) {
+            ii = ii - rleGridC.get(j);
+            mark += 1;
           } else {
-            long gridNum_c =
-                BytesUtils.bytesToLong(diffBuf, secondGDiffWidth * (i - 1), secondGDiffWidth);
-            gridNum = prevGV + gridNum_c + minGDiffBase2;
+            gridNum = rleGridV.get(mark);
+            break;
           }
         }
-        prevGV = gridNum;
       } else {
         gridNum = 1;
       }
@@ -376,7 +427,7 @@ public abstract class TIMDecoder extends Decoder {
           long v2_c =
               BytesUtils.bytesToLong(
                   diffBuf,
-                  secondGDiffWidth * (writeIndex - 1) + +secondDDiffWidth * (i - 1),
+                  (rleGridVWidth + rleGridCWidth) * rleGridSize + secondDDiffWidth * (i - 1),
                   secondDDiffWidth);
           v2 = prevDV + v2_c + minDDiffBase2;
         }
