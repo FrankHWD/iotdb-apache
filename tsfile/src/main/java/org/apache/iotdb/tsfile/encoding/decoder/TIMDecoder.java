@@ -26,6 +26,7 @@ import org.apache.iotdb.tsfile.utils.ReadWriteIOUtils;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 
 /**
  * This class is a decoder for decoding the byte array that encoded by {@code TIMEncoder}.TIMDecoder
@@ -50,6 +51,10 @@ public abstract class TIMDecoder extends Decoder {
 
   protected int secondGDiffWidth;
   protected int secondDDiffWidth;
+
+  protected int gridPosWidth;
+  protected int gridValWidth;
+  protected int gridArraySize;
 
   // protected int girdWidth;
 
@@ -253,6 +258,9 @@ public abstract class TIMDecoder extends Decoder {
 
     private long grid;
 
+    ArrayList<Long> gridPosArray;
+    ArrayList<Long> gridValArray;
+
     // private int gridWidth;
 
     public LongTIMDecoder() {
@@ -283,11 +291,21 @@ public abstract class TIMDecoder extends Decoder {
       // writeWidth = ReadWriteIOUtils.readInt(buffer);
       secondGDiffWidth = ReadWriteIOUtils.readInt(buffer);
       secondDDiffWidth = ReadWriteIOUtils.readInt(buffer);
+      gridPosWidth = ReadWriteIOUtils.readInt(buffer);
+      gridValWidth = ReadWriteIOUtils.readInt(buffer);
+      gridArraySize = ReadWriteIOUtils.readInt(buffer);
+
       count++;
       readHeader(buffer);
 
       encodingLength =
-          ceil((writeIndex - 1) * secondGDiffWidth + (writeIndex - 1) * secondDDiffWidth);
+          ceil(
+              (writeIndex - 1) * secondGDiffWidth
+                  + (writeIndex - 1) * secondDDiffWidth
+                  + gridArraySize * (gridPosWidth + gridValWidth));
+
+      gridPosArray = new ArrayList<>();
+      gridValArray = new ArrayList<>();
 
       if (encodingLength == 0) {
         for (int i = 0; i < writeIndex; i++) {
@@ -299,6 +317,26 @@ public abstract class TIMDecoder extends Decoder {
       diffBuf = new byte[encodingLength];
       buffer.get(diffBuf);
       allocateDataArray();
+
+      for (int i = 0; i < gridArraySize; i++) {
+        long gridPos =
+            BytesUtils.bytesToLong(
+                diffBuf,
+                (writeIndex - 1) * secondGDiffWidth
+                    + (writeIndex - 1) * secondDDiffWidth
+                    + (gridPosWidth + gridValWidth) * i,
+                gridPosWidth);
+        long gridVal =
+            BytesUtils.bytesToLong(
+                diffBuf,
+                (writeIndex - 1) * secondGDiffWidth
+                    + (writeIndex - 1) * secondDDiffWidth
+                    + (gridPosWidth + gridValWidth) * i
+                    + gridPosWidth,
+                gridValWidth);
+        gridPosArray.add(gridPos);
+        gridValArray.add(gridVal);
+      }
 
       previous = firstValue;
       previousDiff = 0;
@@ -348,20 +386,24 @@ public abstract class TIMDecoder extends Decoder {
       // previousDiff = minDiffBase + v;
 
       long gridNum;
+      long gridNum2;
       if (secondGDiffWidth != 0) {
         if (i == 0) {
           gridNum = firstGValue2;
+          gridNum2 = gridNum;
         } else {
-          if (secondGDiffWidth == 0) {
-            long gridNum_c = 0;
-            gridNum = prevGV + gridNum_c + minGDiffBase2;
-          } else {
-            long gridNum_c =
-                BytesUtils.bytesToLong(diffBuf, secondGDiffWidth * (i - 1), secondGDiffWidth);
-            gridNum = prevGV + gridNum_c + minGDiffBase2;
+          long gridNum_c =
+              BytesUtils.bytesToLong(diffBuf, secondGDiffWidth * (i - 1), secondGDiffWidth);
+          gridNum = prevGV + gridNum_c + minGDiffBase2;
+          gridNum2 = gridNum;
+          for (int j = 0; j < gridArraySize; j++) {
+            if ((long) i == gridPosArray.get(j)) {
+              gridNum = prevGV + gridValArray.get(j);
+              break;
+            }
           }
         }
-        prevGV = gridNum;
+        prevGV = gridNum2;
       } else {
         gridNum = 1;
       }
@@ -376,7 +418,7 @@ public abstract class TIMDecoder extends Decoder {
           long v2_c =
               BytesUtils.bytesToLong(
                   diffBuf,
-                  secondGDiffWidth * (writeIndex - 1) + +secondDDiffWidth * (i - 1),
+                  secondGDiffWidth * (writeIndex - 1) + secondDDiffWidth * (i - 1),
                   secondDDiffWidth);
           v2 = prevDV + v2_c + minDDiffBase2;
         }
