@@ -26,6 +26,7 @@ import org.apache.iotdb.tsfile.utils.ReadWriteIOUtils;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 
 /**
  * This class is a decoder for decoding the byte array that encoded by {@code TIMEncoder}.TIMDecoder
@@ -51,6 +52,10 @@ public abstract class TIMDecoder extends Decoder {
   protected int secondDDiffWidth;
 
   protected int gridWidth;
+
+  protected int gridPosWidth;
+  protected int gridValWidth;
+  protected int gridArraySize;
 
   /** how many bytes data takes after encoding. */
   protected int encodingLength = 0;
@@ -245,6 +250,9 @@ public abstract class TIMDecoder extends Decoder {
 
     private long grid;
 
+    ArrayList<Long> gridPosArray;
+    ArrayList<Long> gridValArray;
+
     public LongTIMDecoder() {
       super();
     }
@@ -271,10 +279,22 @@ public abstract class TIMDecoder extends Decoder {
     protected long loadIntBatch(ByteBuffer buffer) {
       writeIndex = ReadWriteIOUtils.readInt(buffer);
       secondDDiffWidth = ReadWriteIOUtils.readInt(buffer);
+      gridPosWidth = ReadWriteIOUtils.readInt(buffer);
+      gridValWidth = ReadWriteIOUtils.readInt(buffer);
+      gridArraySize = ReadWriteIOUtils.readInt(buffer);
+
+      gridPosArray = new ArrayList<>();
+      gridValArray = new ArrayList<>();
+
       count++;
       readHeader(buffer);
 
-      encodingLength = ceil((writeIndex - 1) * secondDDiffWidth + writeIndex * gridWidth);
+      // encodingLength = ceil((writeIndex - 1) * secondDDiffWidth + writeIndex * gridWidth);
+      encodingLength =
+          ceil(
+              (writeIndex - 1) * secondDDiffWidth
+                  + writeIndex * gridWidth
+                  + gridArraySize * (gridPosWidth + gridValWidth));
 
       if (encodingLength == 0) {
         for (int i = 0; i < writeIndex; i++) {
@@ -286,6 +306,26 @@ public abstract class TIMDecoder extends Decoder {
       diffBuf = new byte[encodingLength];
       buffer.get(diffBuf);
       allocateDataArray();
+
+      for (int i = 0; i < gridArraySize; i++) {
+        long gridPos =
+            BytesUtils.bytesToLong(
+                diffBuf,
+                (writeIndex - 1) * secondDDiffWidth
+                    + writeIndex * gridWidth
+                    + (gridPosWidth + gridValWidth) * i,
+                gridPosWidth);
+        long gridVal =
+            BytesUtils.bytesToLong(
+                diffBuf,
+                (writeIndex - 1) * secondDDiffWidth
+                    + writeIndex * gridWidth
+                    + (gridPosWidth + gridValWidth) * i
+                    + gridPosWidth,
+                gridValWidth);
+        gridPosArray.add(gridPos);
+        gridValArray.add(gridVal);
+      }
 
       previous = firstValue;
       previousDiff = 0;
@@ -336,6 +376,12 @@ public abstract class TIMDecoder extends Decoder {
         gridNum =
             BytesUtils.bytesToLong(
                 diffBuf, secondDDiffWidth * (writeIndex - 1) + gridWidth * i, gridWidth);
+        for (int j = 0; j < gridArraySize; j++) {
+          if ((long) i == gridPosArray.get(j)) {
+            gridNum = gridValArray.get(j);
+            break;
+          }
+        }
       } else {
         gridNum = 1;
       }
