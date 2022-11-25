@@ -67,6 +67,9 @@ public abstract class TIMEncoder extends Encoder {
   protected int rleGridCWidth = 0;
   protected int rleGridSize = 0;
   protected boolean isAllOne = true;
+  protected int gridPosWidth = 0;
+  protected int gridValWidth = 0;
+  protected int gridArraySize = 0;
 
   /**
    * constructor of TIMEncoder.
@@ -88,6 +91,8 @@ public abstract class TIMEncoder extends Encoder {
 
   protected abstract void writeRLEGridToBytes(int i);
 
+  protected abstract void writeGridToBytes(int i);
+
   // protected abstract void calcTwoDiff(int i);
 
   protected abstract long calcMinMax();
@@ -106,6 +111,10 @@ public abstract class TIMEncoder extends Encoder {
 
   protected abstract int calculaterleGridCWidthsForDeltaBlockBuffer();
 
+  protected abstract int calculateGridPosWidthsForDeltaBlockBuffer();
+
+  protected abstract int calculateGridValWidthsForDeltaBlockBuffer();
+
   protected abstract void processDiff();
 
   /** write all data into {@code encodingBlockBuffer}. */
@@ -122,12 +131,10 @@ public abstract class TIMEncoder extends Encoder {
       for (int i = 0; i < rleGridSize; i++) {
         writeRLEGridToBytes(i);
       }
+      for (int i = 0; i < gridArraySize; i++) {
+        writeGridToBytes(i);
+      }
     }
-    //    encodingLength =
-    //        (int) Math.ceil(
-    //                (double) ((writeIndex - 1) * secondGDiffWidth + (writeIndex - 1) *
-    // secondDDiffWidth)
-    //                    / 8.0);
     if (secondDDiffWidth != 0) {
       for (int i = 0; i < writeIndex - 1; i++) {
         writeDValueToBytes(i);
@@ -137,8 +144,9 @@ public abstract class TIMEncoder extends Encoder {
         (int)
             Math.ceil(
                 (double)
-                        (((rleGridVWidth + rleGridCWidth) * rleGridSize
-                            + (writeIndex - 1) * secondDDiffWidth))
+                        ((rleGridVWidth + rleGridCWidth) * rleGridSize
+                            + (writeIndex - 1) * secondDDiffWidth
+                            + gridArraySize * (gridPosWidth + gridValWidth))
                     / 8.0);
     out.write(encodingBlockBuffer, 0, encodingLength);
   }
@@ -151,6 +159,9 @@ public abstract class TIMEncoder extends Encoder {
     ReadWriteIOUtils.write(rleGridVWidth, out);
     ReadWriteIOUtils.write(rleGridCWidth, out);
     ReadWriteIOUtils.write(rleGridSize, out);
+    ReadWriteIOUtils.write(gridPosWidth, out);
+    ReadWriteIOUtils.write(gridValWidth, out);
+    ReadWriteIOUtils.write(gridArraySize, out);
     writeHeader();
   }
 
@@ -175,6 +186,8 @@ public abstract class TIMEncoder extends Encoder {
     secondDDiffWidth = calculateSecondDDiffWidthsForDeltaBlockBuffer();
     rleGridVWidth = calculaterleGridVWidthsForDeltaBlockBuffer();
     rleGridCWidth = calculaterleGridCWidthsForDeltaBlockBuffer();
+    gridPosWidth = calculateGridPosWidthsForDeltaBlockBuffer();
+    gridValWidth = calculateGridValWidthsForDeltaBlockBuffer();
 
     writeHeaderToBytes();
     writeDataWithMinWidth();
@@ -264,17 +277,14 @@ public abstract class TIMEncoder extends Encoder {
       return 32 - Integer.numberOfLeadingZeros(v);
     }
 
-    //    @Override
-    //    protected void writeValueToBytes(int i) {
-    //      BytesUtils.intToBytes(diffBlockBuffer[i], encodingBlockBuffer, writeWidth * i,
-    // writeWidth);
-    //    }
-
     @Override
     protected void writeDValueToBytes(int i) {}
 
     @Override
     protected void writeRLEGridToBytes(int i) {}
+
+    @Override
+    protected void writeGridToBytes(int i) {}
 
     // @Override
     // protected void calcTwoDiff(int i) {
@@ -392,33 +402,6 @@ public abstract class TIMEncoder extends Encoder {
       diffBlockBuffer[writeIndex++] = diff;
     }
 
-    //    @Override
-    //    protected int calculateBitWidthsForDeltaBlockBuffer() {
-    //      int width = 0;
-    //      for (int i = 0; i < writeIndex; i++) {
-    //        width = Math.max(width, getValueWidth(diffBlockBuffer[i]));
-    //      }
-    //      return width;
-    //    }
-
-    //    @Override
-    //    protected int calculateGridWidthsForDeltaBlockBuffer() {
-    //      int gridWidth = 0;
-    //      for (int i = 0; i < writeIndex; i++) {
-    //        gridWidth = Math.max(gridWidth, getValueWidth(gridNumBuffer[i]));
-    //      }
-    //      return gridWidth;
-    //    }
-
-    //    @Override
-    //    protected int calculateSecondGDiffWidthsForDeltaBlockBuffer() {
-    //      int secondGDiffWidth = 0;
-    //      for (int i = 0; i < writeIndex - 1; i++) {
-    //        secondGDiffWidth = Math.max(secondGDiffWidth, getValueWidth(secondGDiffs.get(i)));
-    //      }
-    //      return secondGDiffWidth;
-    //    }
-
     @Override
     protected int calculateSecondDDiffWidthsForDeltaBlockBuffer() {
       int secondDDiffWidth = 0;
@@ -438,6 +421,18 @@ public abstract class TIMEncoder extends Encoder {
     protected int calculaterleGridCWidthsForDeltaBlockBuffer() {
       int rleGridCWidth = 0;
       return rleGridCWidth;
+    }
+
+    @Override
+    protected int calculateGridPosWidthsForDeltaBlockBuffer() {
+      int gridWidth = 0;
+      return gridWidth;
+    }
+
+    @Override
+    protected int calculateGridValWidthsForDeltaBlockBuffer() {
+      int gridWidth = 0;
+      return gridWidth;
     }
   }
 
@@ -462,6 +457,9 @@ public abstract class TIMEncoder extends Encoder {
     ArrayList<Long> rleGridV;
     ArrayList<Long> rleGridC;
 
+    protected ArrayList<Long> gridPosArray;
+    protected ArrayList<Long> gridValArray;
+
     /** we save all value in a list and calculate its bitwidth. */
     protected Vector<Long> values;
 
@@ -480,13 +478,15 @@ public abstract class TIMEncoder extends Encoder {
       super(size);
       diffBlockBuffer = new long[this.blockSize];
       gridNumBuffer = new long[this.blockSize];
-      encodingBlockBuffer = new byte[blockSize * 8];
+      encodingBlockBuffer = new byte[blockSize * 20];
       values = new Vector<>();
       diffs = new ArrayList<>();
       secondGDiffs = new ArrayList<>();
       secondDDiffs = new ArrayList<>();
       rleGridV = new ArrayList<>();
       rleGridC = new ArrayList<>();
+      gridPosArray = new ArrayList<>();
+      gridValArray = new ArrayList<>();
       reset();
     }
 
@@ -499,6 +499,7 @@ public abstract class TIMEncoder extends Encoder {
       previousDiff = 0L;
       grid = 0;
       rleGridSize = 0;
+      gridArraySize = 0;
       isAllOne = true;
       minDiffBase = Long.MAX_VALUE;
       minGDiffBase2 = Long.MAX_VALUE;
@@ -515,37 +516,13 @@ public abstract class TIMEncoder extends Encoder {
       secondDDiffs.clear();
       rleGridV.clear();
       rleGridC.clear();
+      gridPosArray.clear();
+      gridValArray.clear();
     }
 
     private int getValueWidth(long v) {
       return 64 - Long.numberOfLeadingZeros(v);
     }
-
-    //    @Override
-    //    protected void writeValueToBytes(int i) {
-    //      BytesUtils.longToBytes(diffBlockBuffer[i], encodingBlockBuffer, writeWidth * i,
-    // writeWidth);
-    //      // BytesUtils.longToBytes(
-    //      //    gridNumBuffer[i],
-    //      //    encodingBlockBuffer,
-    //      //    (writeWidth + gridWidth) * i + writeWidth,
-    //      //    gridWidth);
-    //    }
-
-    //    @Override
-    //    protected void writeGValueToBytes(int i) {
-    //      BytesUtils.longToBytes(
-    //          secondGDiffs.get(i), encodingBlockBuffer, secondGDiffWidth * i, secondGDiffWidth);
-    //    }
-
-    //    @Override
-    //    protected void writeDValueToBytes(int i) {
-    //      BytesUtils.longToBytes(
-    //          secondDDiffs.get(i),
-    //          encodingBlockBuffer,
-    //          secondGDiffWidth * (writeIndex - 1) + secondDDiffWidth * i,
-    //          secondDDiffWidth);
-    //    }
 
     @Override
     protected void writeDValueToBytes(int i) {
@@ -565,6 +542,25 @@ public abstract class TIMEncoder extends Encoder {
           encodingBlockBuffer,
           (rleGridVWidth + rleGridCWidth) * i + rleGridVWidth,
           rleGridCWidth);
+    }
+
+    @Override
+    protected void writeGridToBytes(int i) {
+      BytesUtils.longToBytes(
+          gridPosArray.get(i),
+          encodingBlockBuffer,
+          (rleGridVWidth + rleGridCWidth) * rleGridSize
+              + (writeIndex - 1) * secondDDiffWidth
+              + (gridPosWidth + gridValWidth) * i,
+          gridPosWidth);
+      BytesUtils.longToBytes(
+          gridValArray.get(i),
+          encodingBlockBuffer,
+          (rleGridVWidth + rleGridCWidth) * rleGridSize
+              + (writeIndex - 1) * secondDDiffWidth
+              + (gridPosWidth + gridValWidth) * i
+              + gridPosWidth,
+          gridValWidth);
     }
 
     // @Override
@@ -651,6 +647,14 @@ public abstract class TIMEncoder extends Encoder {
       }
 
       if (!isAllOne) {
+        for (int i = 0; i < dSize; i++) {
+          if (gridNumBuffer[i] > 3L) {
+            gridPosArray.add((long) i);
+            gridValArray.add(gridNumBuffer[i]);
+            gridNumBuffer[i] = 1;
+          }
+        }
+        gridArraySize = gridPosArray.size();
         long rleGridPre = gridNumBuffer[0];
         long count = 0;
         for (int i = 0; i < dSize; i++) {
@@ -698,34 +702,6 @@ public abstract class TIMEncoder extends Encoder {
       diffBlockBuffer[writeIndex++] = diff;
     }
 
-    //    @Override
-    //    protected int calculateBitWidthsForDeltaBlockBuffer() {
-    //      int width = 0;
-    //      for (int i = 0; i < writeIndex; i++) {
-    //        width = Math.max(width, getValueWidth(diffBlockBuffer[i]));
-    //      }
-    //      return width;
-    //    }
-
-    //    @Override
-    //    protected int calculateGridWidthsForDeltaBlockBuffer() {
-    //      int gridWidth = 0;
-    //      for (int i = 0; i < writeIndex; i++) {
-    //        gridWidth = Math.max(gridWidth, getValueWidth(gridNumBuffer[i]));
-    //      }
-    //      return gridWidth;
-    //    }
-
-    //    @Override
-    //    protected int calculateSecondGDiffWidthsForDeltaBlockBuffer() {
-    //      int secondGDiffWidth = 0;
-    //      if (isAllOne) return secondGDiffWidth;
-    //      for (int i = 0; i < writeIndex - 1; i++) {
-    //        secondGDiffWidth = Math.max(secondGDiffWidth, getValueWidth(secondGDiffs.get(i)));
-    //      }
-    //      return secondGDiffWidth;
-    //    }
-
     @Override
     protected int calculateSecondDDiffWidthsForDeltaBlockBuffer() {
       int secondDDiffWidth = 0;
@@ -751,6 +727,26 @@ public abstract class TIMEncoder extends Encoder {
         rleGridCWidth = Math.max(rleGridCWidth, getValueWidth(rleGridC.get(i)));
       }
       return rleGridCWidth;
+    }
+
+    @Override
+    protected int calculateGridPosWidthsForDeltaBlockBuffer() {
+      int gridPosWidth = 0;
+      if (isAllOne) return gridPosWidth;
+      for (int i = 0; i < gridArraySize; i++) {
+        gridPosWidth = Math.max(gridPosWidth, getValueWidth(gridPosArray.get(i)));
+      }
+      return gridPosWidth;
+    }
+
+    @Override
+    protected int calculateGridValWidthsForDeltaBlockBuffer() {
+      int gridValWidth = 0;
+      if (isAllOne) return gridValWidth;
+      for (int i = 0; i < gridArraySize; i++) {
+        gridValWidth = Math.max(gridValWidth, getValueWidth(gridValArray.get(i)));
+      }
+      return gridValWidth;
     }
   }
 }

@@ -56,6 +56,10 @@ public abstract class TIMDecoder extends Decoder {
   protected int rleGridCWidth;
   protected int rleGridSize;
 
+  protected int gridPosWidth;
+  protected int gridValWidth;
+  protected int gridArraySize;
+
   // protected int girdWidth;
 
   /** how many bytes data takes after encoding. */
@@ -259,6 +263,9 @@ public abstract class TIMDecoder extends Decoder {
     ArrayList<Long> rleGridV;
     ArrayList<Long> rleGridC;
 
+    ArrayList<Long> gridPosArray;
+    ArrayList<Long> gridValArray;
+
     private long grid;
 
     // private int gridWidth;
@@ -294,13 +301,21 @@ public abstract class TIMDecoder extends Decoder {
       rleGridVWidth = ReadWriteIOUtils.readInt(buffer);
       rleGridCWidth = ReadWriteIOUtils.readInt(buffer);
       rleGridSize = ReadWriteIOUtils.readInt(buffer);
+      gridPosWidth = ReadWriteIOUtils.readInt(buffer);
+      gridValWidth = ReadWriteIOUtils.readInt(buffer);
+      gridArraySize = ReadWriteIOUtils.readInt(buffer);
+
+      gridPosArray = new ArrayList<>();
+      gridValArray = new ArrayList<>();
+
       count++;
       readHeader(buffer);
 
       encodingLength =
           ceil(
-              ((rleGridVWidth + rleGridCWidth) * rleGridSize
-                  + (writeIndex - 1) * secondDDiffWidth));
+              (rleGridVWidth + rleGridCWidth) * rleGridSize
+                  + (writeIndex - 1) * secondDDiffWidth
+                  + gridArraySize * (gridPosWidth + gridValWidth));
 
       if (encodingLength == 0) {
         for (int i = 0; i < writeIndex; i++) {
@@ -312,6 +327,26 @@ public abstract class TIMDecoder extends Decoder {
       diffBuf = new byte[encodingLength];
       buffer.get(diffBuf);
       allocateDataArray();
+
+      for (int i = 0; i < gridArraySize; i++) {
+        long gridPos =
+            BytesUtils.bytesToLong(
+                diffBuf,
+                (rleGridVWidth + rleGridCWidth) * rleGridSize
+                    + (writeIndex - 1) * secondDDiffWidth
+                    + (gridPosWidth + gridValWidth) * i,
+                gridPosWidth);
+        long gridVal =
+            BytesUtils.bytesToLong(
+                diffBuf,
+                (rleGridVWidth + rleGridCWidth) * rleGridSize
+                    + (writeIndex - 1) * secondDDiffWidth
+                    + (gridPosWidth + gridValWidth) * i
+                    + gridPosWidth,
+                gridValWidth);
+        gridPosArray.add(gridPos);
+        gridValArray.add(gridVal);
+      }
 
       rleGridV = new ArrayList<>();
       rleGridC = new ArrayList<>();
@@ -410,6 +445,12 @@ public abstract class TIMDecoder extends Decoder {
             mark += 1;
           } else {
             gridNum = rleGridV.get(mark);
+            break;
+          }
+        }
+        for (int j = 0; j < gridArraySize; j++) {
+          if ((long) i == gridPosArray.get(j)) {
+            gridNum = gridValArray.get(j);
             break;
           }
         }
