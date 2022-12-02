@@ -249,8 +249,7 @@ public abstract class TIMDecoder extends Decoder {
                 diffBuf,
                 writeIndex * writeWidth
                     + (firstValueArrayWidth + segmentLengthArrayWidth) * i
-                    + firstValueArrayWidth
-                    + minDiffBaseArrayWidth,
+                    + firstValueArrayWidth,
                 segmentLengthArrayWidth);
         firstValueArray.add(firstValueArray_c);
         segmentLengthArray.add(segmentLengthArray_c);
@@ -270,13 +269,6 @@ public abstract class TIMDecoder extends Decoder {
         start = end;
         end = (int) (end + segmentLengthArray.get(i));
 
-        // Number num = segmentLengthArray.get(i);
-        // end = num.intValue();
-
-        // if (start + 1 == end) {
-        //  data[start] = firstValueArray.get(i);
-        // } else {
-
         minDiffBase = minDiffBaseArray.get(i);
         previous = firstValueArray.get(i);
         previousDiff = 0;
@@ -289,7 +281,6 @@ public abstract class TIMDecoder extends Decoder {
           readValue(j);
           previous = data[j];
         }
-        // }
       }
 
       // for (int i = 0; i < writeIndex; i++) {

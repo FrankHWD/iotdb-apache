@@ -109,7 +109,6 @@ public abstract class TIMEncoder extends Encoder {
                                 //                                    + minDiffBaseArrayWidth)
                                 * segmArraySize)
                     / 8.0);
-    // System.out.println((int) Math.ceil((double) (writeIndex * writeWidth) / 8.0));
     out.write(encodingBlockBuffer, 0, encodingLength);
   }
 
@@ -469,42 +468,28 @@ public abstract class TIMEncoder extends Encoder {
 
       firstValueArray.add(values.get(0));
 
-      // if (dSize < blockSize) {
-      //  segmentLengthArray.add((long) (dSize + 1));
-      //  segmArraySize = segmentLengthArray.size();
-      // } else {
       int count = 0;
       for (int i = 1; i < dSize; i++) {
         if ((values.get(i) - values.get(i - 1)) > 1.4 * grid
             && i + 1 < dSize
-            && (values.get(i + 1) - values.get(i - 1)) > 2.4 * grid) {
+            && (values.get(i + 1) - values.get(i - 1)) > 2.4 * grid
+            && i - count >= 10) {
           firstValueArray.add(values.get(i));
-          // segmentLengthArray.add((long) (i));
           segmentLengthArray.add((long) (i - count));
           count = i;
         }
       }
       segmentLengthArray.add((long) (dSize + 1 - count));
-      // segmentLengthArray.add((long) (dSize + 1));
       segmArraySize = segmentLengthArray.size();
-      // }
 
       writeIndex = 0;
       int start = 0;
       int end = 0;
       for (int i = 0; i < segmArraySize; i++) {
         start = end;
-        // end = (int) (end + segmentLengthArray.get(i));
         Number num = segmentLengthArray.get(i);
         end = end + num.intValue();
 
-        // Number num = segmentLengthArray.get(i);
-        // end = num.intValue();
-
-        // if (start + 1 == end) {
-        //  diffBlockBuffer[writeIndex++] = 0;
-        //  minDiffBase = 0;
-        // } else {
         minDiffBase = Long.MAX_VALUE;
         firstValue = firstValueArray.get(i);
         previousValue = firstValue;
@@ -524,7 +509,6 @@ public abstract class TIMEncoder extends Encoder {
         for (int j = start; j < end - 1; j++) {
           diffBlockBuffer[j] = diffBlockBuffer[j] - minDiffBase;
         }
-        // }
         minDiffBaseArray.add(minDiffBase);
       }
       firstValue = firstValueArray.get(0);
