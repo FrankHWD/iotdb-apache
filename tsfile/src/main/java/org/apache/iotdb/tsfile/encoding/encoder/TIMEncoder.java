@@ -647,11 +647,17 @@ public abstract class TIMEncoder extends Encoder {
       }
 
       if (!isAllOne) {
+        int pos = 0;
         for (int i = 0; i < dSize; i++) {
           if (gridNumBuffer[i] > 3L) {
-            gridPosArray.add((long) i);
+            gridPosArray.add((long) i - pos);
+            pos = i;
             gridValArray.add(gridNumBuffer[i]);
-            gridNumBuffer[i] = 1;
+            if (i >= 1) {
+              gridNumBuffer[i] = gridNumBuffer[i - 1];
+            } else {
+              gridNumBuffer[i] = 1;
+            }
           }
         }
         gridArraySize = gridPosArray.size();

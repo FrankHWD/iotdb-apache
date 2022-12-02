@@ -328,6 +328,7 @@ public abstract class TIMDecoder extends Decoder {
       buffer.get(diffBuf);
       allocateDataArray();
 
+      int pos = 0;
       for (int i = 0; i < gridArraySize; i++) {
         long gridPos =
             BytesUtils.bytesToLong(
@@ -344,7 +345,8 @@ public abstract class TIMDecoder extends Decoder {
                     + (gridPosWidth + gridValWidth) * i
                     + gridPosWidth,
                 gridValWidth);
-        gridPosArray.add(gridPos);
+        gridPosArray.add(pos + gridPos);
+        pos = (int) (pos + gridPos);
         gridValArray.add(gridVal);
       }
 
@@ -436,6 +438,7 @@ public abstract class TIMDecoder extends Decoder {
       //      }
 
       long gridNum = 0;
+      int pos = 0;
       if (rleGridSize != 0) {
         long ii = i;
         int mark = 0;
