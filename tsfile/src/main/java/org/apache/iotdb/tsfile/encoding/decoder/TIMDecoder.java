@@ -56,6 +56,10 @@ public abstract class TIMDecoder extends Decoder {
   protected int gridValWidth;
   protected int gridArraySize;
 
+  protected int diffPosWidth;
+  protected int diffValWidth;
+  protected int diffArraySize;
+
   // protected int girdWidth;
 
   /** how many bytes data takes after encoding. */
@@ -256,10 +260,15 @@ public abstract class TIMDecoder extends Decoder {
     private long minGDiffBase2;
     private long minDDiffBase2;
 
+    private long minDDiffBase3;
+
     private long grid;
 
     ArrayList<Long> gridPosArray;
     ArrayList<Long> gridValArray;
+
+    ArrayList<Long> diffPosArray;
+    ArrayList<Long> diffValArray;
 
     // private int gridWidth;
 
@@ -294,6 +303,9 @@ public abstract class TIMDecoder extends Decoder {
       gridPosWidth = ReadWriteIOUtils.readInt(buffer);
       gridValWidth = ReadWriteIOUtils.readInt(buffer);
       gridArraySize = ReadWriteIOUtils.readInt(buffer);
+      diffPosWidth = ReadWriteIOUtils.readInt(buffer);
+      diffValWidth = ReadWriteIOUtils.readInt(buffer);
+      diffArraySize = ReadWriteIOUtils.readInt(buffer);
 
       count++;
       readHeader(buffer);
@@ -302,10 +314,14 @@ public abstract class TIMDecoder extends Decoder {
           ceil(
               (writeIndex - 1) * secondGDiffWidth
                   + (writeIndex - 1) * secondDDiffWidth
-                  + gridArraySize * (gridPosWidth + gridValWidth));
+                  + gridArraySize * (gridPosWidth + gridValWidth)
+                  + diffArraySize * (diffPosWidth + diffValWidth));
 
       gridPosArray = new ArrayList<>();
       gridValArray = new ArrayList<>();
+
+      diffPosArray = new ArrayList<>();
+      diffValArray = new ArrayList<>();
 
       if (encodingLength == 0) {
         for (int i = 0; i < writeIndex; i++) {
@@ -336,6 +352,28 @@ public abstract class TIMDecoder extends Decoder {
                 gridValWidth);
         gridPosArray.add(gridPos);
         gridValArray.add(gridVal);
+      }
+
+      for (int i = 0; i < diffArraySize; i++) {
+        long diffPos =
+            BytesUtils.bytesToLong(
+                diffBuf,
+                (writeIndex - 1) * secondGDiffWidth
+                    + (writeIndex - 1) * secondDDiffWidth
+                    + (gridPosWidth + gridValWidth) * gridArraySize
+                    + (diffPosWidth + diffValWidth) * i,
+                diffPosWidth);
+        long diffVal =
+            BytesUtils.bytesToLong(
+                diffBuf,
+                (writeIndex - 1) * secondGDiffWidth
+                    + (writeIndex - 1) * secondDDiffWidth
+                    + (gridPosWidth + gridValWidth) * gridArraySize
+                    + (diffPosWidth + diffValWidth) * i
+                    + diffPosWidth,
+                diffValWidth);
+        diffPosArray.add(diffPos);
+        diffValArray.add(diffVal);
       }
 
       previous = firstValue;
@@ -370,6 +408,7 @@ public abstract class TIMDecoder extends Decoder {
       firstGValue2 = ReadWriteIOUtils.readLong(buffer);
       minDDiffBase2 = ReadWriteIOUtils.readLong(buffer);
       firstDValue2 = ReadWriteIOUtils.readLong(buffer);
+      minDDiffBase3 = ReadWriteIOUtils.readLong(buffer);
       // gridWidth = ReadWriteIOUtils.readInt(buffer);
     }
 
@@ -417,9 +456,16 @@ public abstract class TIMDecoder extends Decoder {
         } else {
           long v2_c =
               BytesUtils.bytesToLong(
-                  diffBuf,
-                  secondGDiffWidth * (writeIndex - 1) + secondDDiffWidth * (i - 1),
-                  secondDDiffWidth);
+                      diffBuf,
+                      secondGDiffWidth * (writeIndex - 1) + secondDDiffWidth * (i - 1),
+                      secondDDiffWidth)
+                  + minDDiffBase3;
+          for (int j = 0; j < diffArraySize; j++) {
+            if ((long) i - 1 == diffPosArray.get(j)) {
+              v2_c = diffValArray.get(j);
+              break;
+            }
+          }
           v2 = prevDV + v2_c + minDDiffBase2;
         }
       }
