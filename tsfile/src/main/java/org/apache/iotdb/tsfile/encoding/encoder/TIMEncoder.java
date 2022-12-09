@@ -688,9 +688,11 @@ public abstract class TIMEncoder extends Encoder {
       }
 
       if (!isAllOne) {
+        int last_i = 0;
         for (int i = 1; i < dSize; i++) {
           if (Math.abs(gridNumBuffer[i] - gridNumBuffer[i - 1]) > 3) {
-            gridPosArray.add((long) i);
+            gridPosArray.add((long) i - last_i);
+            last_i = i;
             gridValArray.add(gridNumBuffer[i] - gridNumBuffer[i - 1]);
             gridNumBuffer[i] = 0;
           }
@@ -809,7 +811,6 @@ public abstract class TIMEncoder extends Encoder {
     @Override
     protected int calculateDiffPosWidthsForDeltaBlockBuffer() {
       int diffPosWidth = 0;
-      if (isAllOne) return diffPosWidth;
       for (int i = 0; i < diffArraySize; i++) {
         diffPosWidth = Math.max(diffPosWidth, getValueWidth(diffPosArray.get(i)));
       }
@@ -819,7 +820,6 @@ public abstract class TIMEncoder extends Encoder {
     @Override
     protected int calculateDiffValWidthsForDeltaBlockBuffer() {
       int diffValWidth = 0;
-      if (isAllOne) return diffValWidth;
       for (int i = 0; i < diffArraySize; i++) {
         diffValWidth = Math.max(diffValWidth, getValueWidth(diffValArray.get(i)));
       }
