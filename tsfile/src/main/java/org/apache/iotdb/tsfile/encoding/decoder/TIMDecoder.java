@@ -262,6 +262,8 @@ public abstract class TIMDecoder extends Decoder {
 
     private long minDDiffBase3;
 
+    private long minGDiffBase4;
+
     private long grid;
 
     ArrayList<Long> gridPosArray;
@@ -414,6 +416,7 @@ public abstract class TIMDecoder extends Decoder {
       minDDiffBase2 = ReadWriteIOUtils.readLong(buffer);
       firstDValue2 = ReadWriteIOUtils.readLong(buffer);
       minDDiffBase3 = ReadWriteIOUtils.readLong(buffer);
+      minGDiffBase4 = ReadWriteIOUtils.readLong(buffer);
       // gridWidth = ReadWriteIOUtils.readInt(buffer);
     }
 
@@ -429,24 +432,18 @@ public abstract class TIMDecoder extends Decoder {
       // data[i] = previous - previousDiff + grid + minDiffBase + v;
       // previousDiff = minDiffBase + v;
 
+      long gridGap;
       long gridNum = 1;
+      gridGap = gridNum * grid;
       if (gridArraySize != 0) {
         for (int j = 0; j < gridArraySize; j++) {
           if ((long) i == gridPosArray.get(j)) {
-            gridNum = gridValArray.get(j);
+            // gridGap = gridValArray.get(j);
+            gridGap = gridValArray.get(j) + minGDiffBase4;
             break;
           }
         }
       }
-
-      //      long gridNum = 1;
-      //      if (gridArraySize != 0) {
-      //        long gridNum_c = BytesUtils.bytesToLong(diffBuf, i, 1);
-      //        if(gridNum_c==0){
-      //          gridNum=gridValArray.get(pos);
-      //          pos+=1;
-      //        }
-      //      }
 
       long v2;
       if (i == 0) {
@@ -473,10 +470,8 @@ public abstract class TIMDecoder extends Decoder {
       }
       prevDV = v2;
 
-      // long v = BytesUtils.bytesToLong(diffBuf, (writeWidth) * i, writeWidth);
-      // long gridNum =
-      //    BytesUtils.bytesToLong(diffBuf, (writeWidth) * i + writeWidth - gridWidth, gridWidth);
-      data[i] = previous - previousDiff + grid * gridNum + minDiffBase + v2;
+      // data[i] = previous - previousDiff + grid * gridNum + minDiffBase + v2;
+      data[i] = previous - previousDiff + gridGap + minDiffBase + v2;
       previousDiff = minDiffBase + v2;
     }
 
