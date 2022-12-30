@@ -429,29 +429,6 @@ public abstract class TIMDecoder extends Decoder {
       // data[i] = previous - previousDiff + grid + minDiffBase + v;
       // previousDiff = minDiffBase + v;
 
-      //      long gridNum;
-      //      long gridNum2;
-      //      if (secondGDiffWidth != 0) {
-      //        if (i == 0) {
-      //          gridNum = firstGValue2;
-      //          gridNum2 = gridNum;
-      //        } else {
-      //          long gridNum_c =
-      //              BytesUtils.bytesToLong(diffBuf, secondGDiffWidth * (i - 1), secondGDiffWidth);
-      //          gridNum = prevGV + gridNum_c + minGDiffBase2;
-      //          gridNum2 = gridNum;
-      //          for (int j = 0; j < gridArraySize; j++) {
-      //            if ((long) i == gridPosArray.get(j)) {
-      //              gridNum = prevGV + gridValArray.get(j);
-      //              break;
-      //            }
-      //          }
-      //        }
-      //        prevGV = gridNum2;
-      //      } else {
-      //        gridNum = 1;
-      //      }
-
       long gridNum = 1;
       if (gridArraySize != 0) {
         for (int j = 0; j < gridArraySize; j++) {

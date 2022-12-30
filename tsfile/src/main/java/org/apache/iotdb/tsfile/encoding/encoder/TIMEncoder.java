@@ -48,7 +48,6 @@ import java.util.Vector;
  */
 public abstract class TIMEncoder extends Encoder {
 
-  // protected static final int BLOCK_DEFAULT_SIZE = 64;
   protected static final int BLOCK_DEFAULT_SIZE = 192;
   private static final Logger logger = LoggerFactory.getLogger(TIMEncoder.class);
   protected ByteArrayOutputStream out;
@@ -695,38 +694,7 @@ public abstract class TIMEncoder extends Encoder {
             gridValArray.add(gridNumBuffer[i]);
           }
         }
-        gridArraySize = gridPosArray.size();
-
-        //        for (int i = 0; i < dSize; i++) {
-        //          if (gridNumBuffer[i] != 1) {
-        //            gridNumBuffer[i] = 0;
-        //            gridValArray.add(gridNumBuffer[i]);
-        //          }
-        //        }
-        //        gridArraySize = gridPosArray.size();
-
-        //        int last_i = 0;
-        //        for (int i = 1; i < dSize; i++) {
-        //          if (Math.abs(gridNumBuffer[i] - gridNumBuffer[i - 1]) > 3) {
-        //            gridPosArray.add((long) i - last_i);
-        //            last_i = i;
-        //            gridValArray.add(gridNumBuffer[i] - gridNumBuffer[i - 1]);
-        //            gridNumBuffer[i] = 0;
-        //          }
-        //        }
-        //        gridArraySize = gridPosArray.size();
-        //
-        //        for (int i = 1; i < dSize; i++) {
-        //          long secondGDiff = gridNumBuffer[i] - gridNumBuffer[i - 1];
-        //          if (secondGDiff < minGDiffBase2) {
-        //            minGDiffBase2 = secondGDiff;
-        //          }
-        //        }
-        //        firstGValue2 = gridNumBuffer[0];
-        //        for (int i = 1; i < dSize; i++) {
-        //          long secondGDiff = gridNumBuffer[i] - gridNumBuffer[i - 1];
-        //          secondGDiffs.add(secondGDiff - minGDiffBase2);
-        //        }
+        gridArraySize = gridValArray.size();
       }
 
       for (int i = 1; i < dSize; i++) {
@@ -744,17 +712,13 @@ public abstract class TIMEncoder extends Encoder {
       ArrayList<Long> secondDDiffs_med = new ArrayList<>(secondDDiffs);
       Collections.sort(secondDDiffs_med);
       Long med = secondDDiffs_med.get(dSize / 2);
-      long low = secondDDiffs_med.get(Math.min(10, dSize - 2));
-      long high = secondDDiffs_med.get(Math.max(0, dSize - 19));
+      long low = secondDDiffs_med.get(Math.min(4, dSize - 2));
+      long high = secondDDiffs_med.get(Math.max(0, dSize - 9));
       int count_out = 0;
       for (int i = 0; i < dSize - 1; i++) {
         if (secondDDiffs.get(i) > Math.min(med + 48, high)
             || secondDDiffs.get(i) < Math.max(med - 15, low)) {
           count_out += 1;
-        } else {
-          if (secondDDiffs.get(i) < minDDiffBase3) {
-            minDDiffBase3 = secondDDiffs.get(i);
-          }
         }
       }
       if (count_out < 30) {
@@ -765,14 +729,48 @@ public abstract class TIMEncoder extends Encoder {
             diffPosArray.add((long) i - las_i);
             las_i = i;
             diffValArray.add(secondDDiffs.get(i));
-            secondDDiffs.set(i, med - minDDiffBase3);
-          } else {
-            long tmp = secondDDiffs.get(i);
-            secondDDiffs.set(i, tmp - minDDiffBase3);
+            secondDDiffs.set(i, med);
           }
         }
         diffArraySize = diffPosArray.size();
       }
+
+      for (int i = 0; i < dSize - 1; i++) {
+        if (secondDDiffs.get(i) < minDDiffBase3) {
+          minDDiffBase3 = secondDDiffs.get(i);
+        }
+      }
+      for (int i = 0; i < dSize - 1; i++) {
+        long tmp = secondDDiffs.get(i);
+        secondDDiffs.set(i, tmp - minDDiffBase3);
+      }
+
+      //      for (int i = 0; i < dSize - 1; i++) {
+      //        if (secondDDiffs.get(i) > Math.min(med + 48, high)
+      //            || secondDDiffs.get(i) < Math.max(med - 15, low)) {
+      //          count_out += 1;
+      //        } else {
+      //          if (secondDDiffs.get(i) < minDDiffBase3) {
+      //            minDDiffBase3 = secondDDiffs.get(i);
+      //          }
+      //        }
+      //      }
+      //      if (count_out < 30) {
+      //        int las_i = 0;
+      //        for (int i = 0; i < dSize - 1; i++) {
+      //          if (secondDDiffs.get(i) > Math.min(med + 48, high)
+      //              || secondDDiffs.get(i) < Math.max(med - 15, low)) {
+      //            diffPosArray.add((long) i - las_i);
+      //            las_i = i;
+      //            diffValArray.add(secondDDiffs.get(i));
+      //            secondDDiffs.set(i, med - minDDiffBase3);
+      //          } else {
+      //            long tmp = secondDDiffs.get(i);
+      //            secondDDiffs.set(i, tmp - minDDiffBase3);
+      //          }
+      //        }
+      //        diffArraySize = diffPosArray.size();
+      //      }
     }
 
     private void calcDelta(long value) {
