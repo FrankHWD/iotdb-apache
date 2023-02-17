@@ -42,7 +42,8 @@ public class CompareDBTest {
       };
       // select compression algorithms
       CompressionType[] compressList = {
-        CompressionType.LZ4,
+        CompressionType.UNCOMPRESSED,
+        // CompressionType.LZ4,
       };
       CsvWriter writer = new CsvWriter(Output, ',', StandardCharsets.UTF_8);
 
@@ -64,7 +65,7 @@ public class CompareDBTest {
       assert tempList != null;
       int fileRepeat = 0;
       ArrayList<Integer> columnIndexes = new ArrayList<>(); // set the column indexes of compressed
-      for (int i = 0; i < 3; i++) {
+      for (int i = 0; i < 2; i++) {
         columnIndexes.add(i, i);
       }
       for (File f : tempList) {

@@ -325,8 +325,6 @@ public class TestMultipleGridNumRaw {
     for (byte b : interval0_byte) encoded_result.add(b);
     byte[] value0_byte = int2Bytes(ts_block.get(0).get(1));
     for (byte b : value0_byte) encoded_result.add(b);
-    byte[] gridnum0_byte = int2Bytes(ts_block.get(0).get(2));
-    for (byte b : gridnum0_byte) encoded_result.add(b);
 
     // encode interval_min and value_min and gridnum_min
     byte[] interval_min_byte = int2Bytes(raw_length.get(4));
@@ -468,8 +466,6 @@ public class TestMultipleGridNumRaw {
       decode_pos += 4;
       int value0 = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
-      int gridnum0 = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
 
       int time_min = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
@@ -545,8 +541,6 @@ public class TestMultipleGridNumRaw {
       decode_pos += 4;
       int value0 = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
-      int gridnum0 = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
 
       int time_min = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
@@ -616,38 +610,43 @@ public class TestMultipleGridNumRaw {
     ArrayList<String> output_path_list = new ArrayList<>();
     ArrayList<Integer> dataset_block_size = new ArrayList<>();
 
-    input_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\iotdb_test\\Metro-Traffic");
+    //    input_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\iotdb_test\\Metro-Traffic");
+    //    output_path_list.add(
+    //        "E:\\thu\\TestTimeGrid\\test_path\\result_evaluation"
+    //            + "\\compression_ratio\\rr_ratio\\Metro-Traffic_ratio.csv");
+    //    input_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\iotdb_test\\Nifty-Stocks");
+    //    output_path_list.add(
+    //        "E:\\thu\\TestTimeGrid\\test_path\\result_evaluation"
+    //            + "\\compression_ratio\\rr_ratio\\Nifty-Stocks_ratio.csv");
+    //    input_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\iotdb_test\\USGS-Earthquakes");
+    //    output_path_list.add(
+    //        "E:\\thu\\TestTimeGrid\\test_path\\result_evaluation"
+    //            + "\\compression_ratio\\rr_ratio\\USGS-Earthquakes_ratio.csv");
+    //    input_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\iotdb_test\\Cyber-Vehicle");
+    //    output_path_list.add(
+    //        "E:\\thu\\TestTimeGrid\\test_path\\result_evaluation"
+    //            + "\\compression_ratio\\rr_ratio\\Cyber-Vehicle_ratio.csv");
+    //    input_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\iotdb_test\\TH-Climate");
+    //    output_path_list.add(
+    //        "E:\\thu\\TestTimeGrid\\test_path\\result_evaluation"
+    //            + "\\compression_ratio\\rr_ratio\\TH-Climate_ratio.csv");
+    //    input_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\iotdb_test\\TY-Transport");
+    //    output_path_list.add(
+    //        "E:\\thu\\TestTimeGrid\\test_path\\result_evaluation"
+    //            + "\\compression_ratio\\rr_ratio\\TY-Transport_ratio.csv");
+    //    input_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\iotdb_test\\TY-Fuel");
+    //    output_path_list.add(
+    //        "E:\\thu\\TestTimeGrid\\test_path\\result_evaluation"
+    //            + "\\compression_ratio\\rr_ratio\\TY-Fuel_ratio.csv");
+    //    input_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\iotdb_test\\GW-Magnetic");
+    //    output_path_list.add(
+    //        "E:\\thu\\TestTimeGrid\\test_path\\result_evaluation"
+    //            + "\\compression_ratio\\rr_ratio\\GW-Magnetic_ratio.csv");
+
+    input_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\iotdb_test\\ZY");
     output_path_list.add(
         "E:\\thu\\TestTimeGrid\\test_path\\result_evaluation"
-            + "\\compression_ratio\\rr_ratio\\Metro-Traffic_ratio.csv");
-    input_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\iotdb_test\\Nifty-Stocks");
-    output_path_list.add(
-        "E:\\thu\\TestTimeGrid\\test_path\\result_evaluation"
-            + "\\compression_ratio\\rr_ratio\\Nifty-Stocks_ratio.csv");
-    input_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\iotdb_test\\USGS-Earthquakes");
-    output_path_list.add(
-        "E:\\thu\\TestTimeGrid\\test_path\\result_evaluation"
-            + "\\compression_ratio\\rr_ratio\\USGS-Earthquakes_ratio.csv");
-    input_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\iotdb_test\\Cyber-Vehicle");
-    output_path_list.add(
-        "E:\\thu\\TestTimeGrid\\test_path\\result_evaluation"
-            + "\\compression_ratio\\rr_ratio\\Cyber-Vehicle_ratio.csv");
-    input_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\iotdb_test\\TH-Climate");
-    output_path_list.add(
-        "E:\\thu\\TestTimeGrid\\test_path\\result_evaluation"
-            + "\\compression_ratio\\rr_ratio\\TH-Climate_ratio.csv");
-    input_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\iotdb_test\\TY-Transport");
-    output_path_list.add(
-        "E:\\thu\\TestTimeGrid\\test_path\\result_evaluation"
-            + "\\compression_ratio\\rr_ratio\\TY-Transport_ratio.csv");
-    input_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\iotdb_test\\TY-Fuel");
-    output_path_list.add(
-        "E:\\thu\\TestTimeGrid\\test_path\\result_evaluation"
-            + "\\compression_ratio\\rr_ratio\\TY-Fuel_ratio.csv");
-    input_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\iotdb_test\\GW-Magnetic");
-    output_path_list.add(
-        "E:\\thu\\TestTimeGrid\\test_path\\result_evaluation"
-            + "\\compression_ratio\\rr_ratio\\GW-Magnetic_ratio.csv");
+            + "\\compression_ratio\\rr_ratio\\ZY.csv");
 
     for (int file_i = 0; file_i < input_path_list.size(); file_i++) {
 
@@ -698,7 +697,7 @@ public class TestMultipleGridNumRaw {
           long s = System.nanoTime();
           ArrayList<Byte> buffer = new ArrayList<>();
           for (int repeat = 0; repeat < repeatTime2; repeat++)
-            buffer = ReorderingRegressionEncoder(data, 192);
+            buffer = ReorderingRegressionEncoder(data, 256);
           long e = System.nanoTime();
           encodeTime += ((e - s) / repeatTime2);
           compressed_size += buffer.size();
