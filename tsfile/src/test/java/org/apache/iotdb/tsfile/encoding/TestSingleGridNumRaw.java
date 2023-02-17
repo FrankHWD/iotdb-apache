@@ -9,7 +9,6 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 
 public class TestSingleGridNumRaw {
@@ -188,14 +187,14 @@ public class TestSingleGridNumRaw {
     return n;
   }
 
-  public static int getGrid(ArrayList<ArrayList<Integer>> ts_block){
+  public static int getGrid(ArrayList<ArrayList<Integer>> ts_block) {
     int grid = 1;
     ArrayList<Integer> diff_block = new ArrayList<>();
     for (int i = 1; i < ts_block.size(); i++) {
-      diff_block.add(ts_block.get(i).get(0) - ts_block.get(i-1).get(0));
+      diff_block.add(ts_block.get(i).get(0) - ts_block.get(i - 1).get(0));
     }
     Collections.sort(diff_block);
-    grid = diff_block.get(diff_block.size()/2);
+    grid = diff_block.get(diff_block.size() / 2);
     return grid;
   }
 
@@ -296,9 +295,7 @@ public class TestSingleGridNumRaw {
   }
 
   public static ArrayList<Byte> encode2Bytes(
-      ArrayList<ArrayList<Integer>> ts_block,
-      ArrayList<Integer> raw_length,
-      int grid) {
+      ArrayList<ArrayList<Integer>> ts_block, ArrayList<Integer> raw_length, int grid) {
     ArrayList<Byte> encoded_result = new ArrayList<>();
 
     // encode interval0 and value0
@@ -352,10 +349,11 @@ public class TestSingleGridNumRaw {
 
       int grid = getGrid(ts_block);
 
-      //ArrayList<Integer> result2 = new ArrayList<>();
-      //splitTimeStamp3(ts_block, result2);
+      // ArrayList<Integer> result2 = new ArrayList<>();
+      // splitTimeStamp3(ts_block, result2);
 
-      ArrayList<Integer> raw_length = new ArrayList<>(); // length,max_bit_width_interval,max_bit_width_value
+      ArrayList<Integer> raw_length =
+          new ArrayList<>(); // length,max_bit_width_interval,max_bit_width_value
       ArrayList<ArrayList<Integer>> ts_block_delta =
           getEncodeBitsRegression(ts_block, block_size, grid, raw_length);
 
@@ -379,10 +377,11 @@ public class TestSingleGridNumRaw {
 
       int grid = getGrid(ts_block);
 
-      //ArrayList<Integer> result2 = new ArrayList<>();
-      //splitTimeStamp3(ts_block, result2);
+      // ArrayList<Integer> result2 = new ArrayList<>();
+      // splitTimeStamp3(ts_block, result2);
 
-      ArrayList<Integer> raw_length = new ArrayList<>(); // length,max_bit_width_interval,max_bit_width_value
+      ArrayList<Integer> raw_length =
+          new ArrayList<>(); // length,max_bit_width_interval,max_bit_width_value
       ArrayList<ArrayList<Integer>> ts_block_delta =
           getEncodeBitsRegression(ts_block, remaining_length, grid, raw_length);
 
@@ -454,12 +453,12 @@ public class TestSingleGridNumRaw {
       int grid = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
 
-      //int ti_pre = time0;
+      // int ti_pre = time0;
       int vi_pre = value0;
       for (int i = 0; i < block_size - 1; i++) {
-        int ti = time0 + (i+1) * grid + time_list.get(i) + time_min;
+        int ti = time0 + (i + 1) * grid + time_list.get(i) + time_min;
         time_list.set(i, ti);
-        //ti_pre = ti;
+        // ti_pre = ti;
 
         int vi = vi_pre + value_list.get(i) + value_min;
         value_list.set(i, vi);
@@ -506,7 +505,6 @@ public class TestSingleGridNumRaw {
       int value_min = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
 
-
       int max_bit_width_time = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
       time_list =
@@ -523,12 +521,12 @@ public class TestSingleGridNumRaw {
       int grid = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
 
-      //int ti_pre = time0;
+      // int ti_pre = time0;
       int vi_pre = value0;
       for (int i = 0; i < remain_length - 1; i++) {
-        int ti = time0 + (i+1) * grid + time_list.get(i) + time_min;
+        int ti = time0 + (i + 1) * grid + time_list.get(i) + time_min;
         time_list.set(i, ti);
-        //ti_pre = ti;
+        // ti_pre = ti;
 
         int vi = vi_pre + value_list.get(i) + value_min;
         value_list.set(i, vi);
@@ -653,13 +651,14 @@ public class TestSingleGridNumRaw {
           e = System.nanoTime();
           decodeTime += ((e - s) / repeatTime2);
 
-//          for(int j=0;j<data_decoded.size();j++){
-//            System.out.print(j);
-//            System.out.print(" ");
-//            System.out.print(data.get(j).get(0));
-//            System.out.print(" ");
-//            System.out.println(data_decoded.get(j).get(0));
-//          }
+          //          for(int j=0;j<data_decoded.size();j++){
+          //            System.out.print(j);
+          //            System.out.print(" ");
+          //            System.out.print(data.get(j).get(0));
+          //            System.out.print(" ");
+          //            System.out.println(data_decoded.get(j).get(0));
+          //          }
+
         }
 
         ratio /= repeatTime;
