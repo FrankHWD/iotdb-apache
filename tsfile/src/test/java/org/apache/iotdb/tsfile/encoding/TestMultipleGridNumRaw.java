@@ -246,13 +246,14 @@ public class TestMultipleGridNumRaw {
     tmp0.add(0);
     ts_block_delta.add(tmp0);
 
+    int pre_gridNum_r = 0;
     for (int j = 1; j < block_size; j++) {
       int gridNum_r =  (int) Math.round( (ts_block.get(j).get(0) - ts_block.get(0).get(0)) * 1.0 / grid);
       int epsilon_r = ts_block.get(j).get(0) - ts_block.get(0).get(0) - gridNum_r * grid;
       int epsilon_v = ts_block.get(j).get(1) - ts_block.get(j - 1).get(1);
 
-      if (gridNum_r < timestamp_gridnum_min) {
-        timestamp_gridnum_min = gridNum_r;
+      if (gridNum_r - pre_gridNum_r < timestamp_gridnum_min) {
+        timestamp_gridnum_min = gridNum_r - pre_gridNum_r;
       }
       if (epsilon_r < timestamp_delta_min) {
         timestamp_delta_min = epsilon_r;
@@ -263,8 +264,10 @@ public class TestMultipleGridNumRaw {
       ArrayList<Integer> tmp = new ArrayList<>();
       tmp.add(epsilon_r);
       tmp.add(epsilon_v);
-      tmp.add(gridNum_r);
+      tmp.add(gridNum_r - pre_gridNum_r);
       ts_block_delta.add(tmp);
+
+      pre_gridNum_r = gridNum_r;
     }
 
     int max_interval = Integer.MIN_VALUE;
@@ -493,8 +496,10 @@ public class TestMultipleGridNumRaw {
 
       //int ti_pre = time0;
       int vi_pre = value0;
+      int gridnum_pre = 0;
       for (int i = 0; i < block_size - 1; i++) {
-        int ti = time0 + (gridnum_list.get(i) + gridnum_min) * grid + time_list.get(i) + time_min;
+        int gridnum = (gridnum_list.get(i) + gridnum_min) + gridnum_pre;
+        int ti = time0 + gridnum * grid + time_list.get(i) + time_min;
         time_list.set(i, ti);
         //ti_pre = ti;
 
@@ -571,8 +576,10 @@ public class TestMultipleGridNumRaw {
 
       //int ti_pre = time0;
       int vi_pre = value0;
+      int gridnum_pre = 0;
       for (int i = 0; i < remain_length - 1; i++) {
-        int ti = time0 + (gridnum_list.get(i) + gridnum_min) * grid + time_list.get(i) + time_min;
+        int gridnum = (gridnum_list.get(i) + gridnum_min) + gridnum_pre;
+        int ti = time0 + gridnum * grid + time_list.get(i) + time_min;
         time_list.set(i, ti);
         //ti_pre = ti;
 
