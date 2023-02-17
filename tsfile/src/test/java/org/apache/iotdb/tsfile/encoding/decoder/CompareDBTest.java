@@ -38,10 +38,7 @@ public class CompareDBTest {
 
       // select encoding algorithms
       TSEncoding[] encodingList = {
-        TSEncoding.PLAIN,
-        TSEncoding.TS_2DIFF,
-        TSEncoding.RLE,
-        TSEncoding.GORILLA,
+        TSEncoding.PLAIN, TSEncoding.TS_2DIFF, TSEncoding.RLE, TSEncoding.GORILLA,
       };
       // select compression algorithms
       CompressionType[] compressList = {
