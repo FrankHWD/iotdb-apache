@@ -9,6 +9,8 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 
 public class TestSingleGridNumRaw {
   public static int getBitWith(int num) {
@@ -186,6 +188,17 @@ public class TestSingleGridNumRaw {
     return n;
   }
 
+  public static int getGrid(ArrayList<ArrayList<Integer>> ts_block){
+    int grid = 1;
+    ArrayList<Integer> diff_block = new ArrayList<>();
+    for (int i = 1; i < ts_block.size(); i++) {
+      diff_block.add(ts_block.get(i).get(0) - ts_block.get(i-1).get(0));
+    }
+    Collections.sort(diff_block);
+    grid = diff_block.get(diff_block.size()/2);
+    return grid;
+  }
+
   public static void splitTimeStamp3(
       ArrayList<ArrayList<Integer>> ts_block, ArrayList<Integer> result) {
     int td_common = 0;
@@ -222,7 +235,7 @@ public class TestSingleGridNumRaw {
   }
 
   public static ArrayList<ArrayList<Integer>> getEncodeBitsRegression(
-      ArrayList<ArrayList<Integer>> ts_block, int block_size, ArrayList<Integer> result) {
+      ArrayList<ArrayList<Integer>> ts_block, int block_size, int grid, ArrayList<Integer> result) {
     int timestamp_delta_min = Integer.MAX_VALUE;
     int value_delta_min = Integer.MAX_VALUE;
     ArrayList<ArrayList<Integer>> ts_block_delta = new ArrayList<>();
@@ -233,7 +246,7 @@ public class TestSingleGridNumRaw {
     ts_block_delta.add(tmp0);
 
     for (int j = 1; j < block_size; j++) {
-      int epsilon_r = ts_block.get(j).get(0) - ts_block.get(j - 1).get(0);
+      int epsilon_r = ts_block.get(j).get(0) - ts_block.get(0).get(0) - j * grid;
       int epsilon_v = ts_block.get(j).get(1) - ts_block.get(j - 1).get(1);
 
       if (epsilon_r < timestamp_delta_min) {
@@ -285,7 +298,7 @@ public class TestSingleGridNumRaw {
   public static ArrayList<Byte> encode2Bytes(
       ArrayList<ArrayList<Integer>> ts_block,
       ArrayList<Integer> raw_length,
-      ArrayList<Integer> result2) {
+      int grid) {
     ArrayList<Byte> encoded_result = new ArrayList<>();
 
     // encode interval0 and value0
@@ -312,8 +325,8 @@ public class TestSingleGridNumRaw {
     byte[] value_bytes = bitPacking(ts_block, 1, raw_length.get(2));
     for (byte b : value_bytes) encoded_result.add(b);
 
-    byte[] td_common_byte = int2Bytes(result2.get(0));
-    for (byte b : td_common_byte) encoded_result.add(b);
+    byte[] grid_byte = int2Bytes(grid);
+    for (byte b : grid_byte) encoded_result.add(b);
 
     return encoded_result;
   }
@@ -337,15 +350,16 @@ public class TestSingleGridNumRaw {
         ts_block.add(data.get(j + i * block_size));
       }
 
-      ArrayList<Integer> result2 = new ArrayList<>();
-      splitTimeStamp3(ts_block, result2);
+      int grid = getGrid(ts_block);
 
-      ArrayList<Integer> raw_length =
-          new ArrayList<>(); // length,max_bit_width_interval,max_bit_width_value,max_bit_width_deviation
+      //ArrayList<Integer> result2 = new ArrayList<>();
+      //splitTimeStamp3(ts_block, result2);
+
+      ArrayList<Integer> raw_length = new ArrayList<>(); // length,max_bit_width_interval,max_bit_width_value
       ArrayList<ArrayList<Integer>> ts_block_delta =
-          getEncodeBitsRegression(ts_block, block_size, raw_length);
+          getEncodeBitsRegression(ts_block, block_size, grid, raw_length);
 
-      ArrayList<Byte> cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, result2);
+      ArrayList<Byte> cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid);
       encoded_result.addAll(cur_encoded_result);
     }
 
@@ -362,13 +376,15 @@ public class TestSingleGridNumRaw {
       for (int j = block_num * block_size; j < length_all; j++) {
         ts_block.add(data.get(j));
       }
-      ArrayList<Integer> result2 = new ArrayList<>();
-      splitTimeStamp3(ts_block, result2);
 
-      ArrayList<Integer> raw_length =
-          new ArrayList<>(); // length,max_bit_width_interval,max_bit_width_value,max_bit_width_deviation
+      int grid = getGrid(ts_block);
+
+      //ArrayList<Integer> result2 = new ArrayList<>();
+      //splitTimeStamp3(ts_block, result2);
+
+      ArrayList<Integer> raw_length = new ArrayList<>(); // length,max_bit_width_interval,max_bit_width_value
       ArrayList<ArrayList<Integer>> ts_block_delta =
-          getEncodeBitsRegression(ts_block, remaining_length, raw_length);
+          getEncodeBitsRegression(ts_block, remaining_length, grid, raw_length);
 
       int supple_length;
       if (remaining_length % 8 == 0) {
@@ -384,7 +400,7 @@ public class TestSingleGridNumRaw {
         tmp.add(0);
         ts_block_delta.add(tmp);
       }
-      ArrayList<Byte> cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, result2);
+      ArrayList<Byte> cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid);
       encoded_result.addAll(cur_encoded_result);
     }
     return encoded_result;
@@ -435,15 +451,15 @@ public class TestSingleGridNumRaw {
       value_list = decodebitPacking(encoded, decode_pos, max_bit_width_value, 0, block_size);
       decode_pos += max_bit_width_value * (block_size - 1) / 8;
 
-      int td_common = bytes2Integer(encoded, decode_pos, 4);
+      int grid = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
 
-      int ti_pre = time0;
+      //int ti_pre = time0;
       int vi_pre = value0;
       for (int i = 0; i < block_size - 1; i++) {
-        int ti = ti_pre + time_list.get(i) + time_min;
+        int ti = time0 + (i+1) * grid + time_list.get(i) + time_min;
         time_list.set(i, ti);
-        ti_pre = ti;
+        //ti_pre = ti;
 
         int vi = vi_pre + value_list.get(i) + value_min;
         value_list.set(i, vi);
@@ -455,7 +471,7 @@ public class TestSingleGridNumRaw {
       ts_block_tmp0.add(value0);
       ts_block.add(ts_block_tmp0);
       for (int i = 0; i < block_size - 1; i++) {
-        int ti = (time_list.get(i) - time0) * td_common + time0;
+        int ti = time_list.get(i) - time0 + time0;
         ArrayList<Integer> ts_block_tmp = new ArrayList<>();
         ts_block_tmp.add(ti);
         ts_block_tmp.add(value_list.get(i));
@@ -504,15 +520,15 @@ public class TestSingleGridNumRaw {
               encoded, decode_pos, max_bit_width_value, 0, remain_length + zero_number);
       decode_pos += max_bit_width_value * (remain_length + zero_number - 1) / 8;
 
-      int td_common = bytes2Integer(encoded, decode_pos, 4);
+      int grid = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
 
-      int ti_pre = time0;
+      //int ti_pre = time0;
       int vi_pre = value0;
       for (int i = 0; i < remain_length - 1; i++) {
-        int ti = ti_pre + time_list.get(i) + time_min;
+        int ti = time0 + (i+1) * grid + time_list.get(i) + time_min;
         time_list.set(i, ti);
-        ti_pre = ti;
+        //ti_pre = ti;
 
         int vi = vi_pre + value_list.get(i) + value_min;
         value_list.set(i, vi);
@@ -524,7 +540,7 @@ public class TestSingleGridNumRaw {
       ts_block_tmp0.add(value0);
       ts_block.add(ts_block_tmp0);
       for (int i = 0; i < remain_length - 1; i++) {
-        int ti = (time_list.get(i) - time0) * td_common + time0;
+        int ti = time_list.get(i) - time0 + time0;
         ArrayList<Integer> ts_block_tmp = new ArrayList<>();
         ts_block_tmp.add(ti);
         ts_block_tmp.add(value_list.get(i));
@@ -640,9 +656,9 @@ public class TestSingleGridNumRaw {
 //          for(int j=0;j<data_decoded.size();j++){
 //            System.out.print(j);
 //            System.out.print(" ");
-//            System.out.print(data.get(j).get(1));
+//            System.out.print(data.get(j).get(0));
 //            System.out.print(" ");
-//            System.out.println(data_decoded.get(j).get(1));
+//            System.out.println(data_decoded.get(j).get(0));
 //          }
         }
 
