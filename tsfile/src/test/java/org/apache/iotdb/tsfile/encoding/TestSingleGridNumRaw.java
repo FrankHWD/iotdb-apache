@@ -117,7 +117,8 @@ public class TestSingleGridNumRaw {
     return result;
   }
 
-  public static ArrayList<Integer> decodebitPacking(ArrayList<Byte> encoded,int decode_pos,int bit_width,int min_delta,int block_size){
+  public static ArrayList<Integer> decodebitPacking(ArrayList<Byte> encoded,int decode_pos,int bit_width,
+                                                    int min_delta,int block_size){
     ArrayList<Integer> result_list = new ArrayList<>();
     for (int i = 0; i < (block_size-1) / 8; i++) { //bitpacking  纵向8个，bit width是多少列
       int[] val8 = new int[8];
@@ -218,57 +219,20 @@ public class TestSingleGridNumRaw {
     result.add(td_common);
   }
 
-  public static ArrayList<ArrayList<Integer>> getEncodeBitsRegression(ArrayList<ArrayList<Integer>> ts_block, int block_size,
-                                                                      ArrayList<Integer> result, ArrayList<Integer> i_star, ArrayList<Float> theta){
+  public static ArrayList<ArrayList<Integer>> getEncodeBitsRegression(ArrayList<ArrayList<Integer>> ts_block,
+                                      int block_size, ArrayList<Integer> result){
     int timestamp_delta_min = Integer.MAX_VALUE;
     int value_delta_min = Integer.MAX_VALUE;
     ArrayList<ArrayList<Integer>> ts_block_delta = new ArrayList<>();
-    theta.clear();
-
-    long sum_X_r = 0;
-    long sum_Y_r = 0;
-    long sum_squ_X_r = 0;
-    long sum_squ_XY_r = 0;
-    long sum_X_v = 0;
-    long sum_Y_v = 0;
-    long sum_squ_X_v = 0;
-    long sum_squ_XY_v = 0;
-
-    for(int i=1;i<block_size;i++){
-      sum_X_r += ts_block.get(i-1).get(0);
-      sum_X_v += ts_block.get(i-1).get(1);
-      sum_Y_r += ts_block.get(i).get(0);
-      sum_Y_v += ts_block.get(i).get(1);
-      sum_squ_X_r += ((long) ts_block.get(i - 1).get(0) *ts_block.get(i-1).get(0));
-      sum_squ_X_v += ((long) ts_block.get(i - 1).get(1) *ts_block.get(i-1).get(1));
-      sum_squ_XY_r += ((long) ts_block.get(i - 1).get(0) *ts_block.get(i).get(0));
-      sum_squ_XY_v += ((long) ts_block.get(i - 1).get(1) *ts_block.get(i).get(1));
-    }
-
-    int m_reg = block_size -1;
-    float theta0_r = 0.0F;
-    float theta1_r = 1.0F;
-    if(m_reg*sum_squ_X_r != sum_X_r*sum_X_r ){
-      theta0_r = (float) (sum_squ_X_r*sum_Y_r - sum_X_r*sum_squ_XY_r) / (float) (m_reg*sum_squ_X_r - sum_X_r*sum_X_r);
-      theta1_r = (float) (m_reg*sum_squ_XY_r - sum_X_r*sum_Y_r) / (float) (m_reg*sum_squ_X_r - sum_X_r*sum_X_r);
-    }
-
-    float theta0_v = 0.0F;
-    float theta1_v = 1.0F;
-    if(m_reg*sum_squ_X_v != sum_X_v*sum_X_v ){
-      theta0_v = (float) (sum_squ_X_v*sum_Y_v - sum_X_v*sum_squ_XY_v) / (float) (m_reg*sum_squ_X_v - sum_X_v*sum_X_v);
-      theta1_v = (float) (m_reg*sum_squ_XY_v - sum_X_v*sum_Y_v) / (float) (m_reg*sum_squ_X_v - sum_X_v*sum_X_v);
-    }
 
     ArrayList<Integer> tmp0 = new ArrayList<>();
     tmp0.add(ts_block.get(0).get(0));
     tmp0.add(ts_block.get(0).get(1));
     ts_block_delta.add(tmp0);
 
-    // delta to Regression
     for(int j=1;j<block_size;j++) {
-      int epsilon_r = ts_block.get(j).get(0) - (int) ( theta0_r + theta1_r * (double)ts_block.get(j-1).get(0));
-      int epsilon_v = ts_block.get(j).get(1) - (int) ( theta0_v + theta1_v * (double)ts_block.get(j-1).get(1));
+      int epsilon_r = ts_block.get(j).get(0) - ts_block.get(j-1).get(0);
+      int epsilon_v = ts_block.get(j).get(1) - ts_block.get(j-1).get(1);
 
       if(epsilon_r<timestamp_delta_min){
         timestamp_delta_min = epsilon_r;
@@ -283,19 +247,15 @@ public class TestSingleGridNumRaw {
     }
 
     int max_interval = Integer.MIN_VALUE;
-    int max_interval_i = -1;
     int max_value = Integer.MIN_VALUE;
-    int max_value_i = -1;
     for(int j=block_size-1;j>0;j--) {
       int epsilon_r = ts_block_delta.get(j).get(0) - timestamp_delta_min;
       int epsilon_v = ts_block_delta.get(j).get(1) - value_delta_min;
       if(epsilon_r>max_interval){
         max_interval = epsilon_r;
-        max_interval_i = j;
       }
       if(epsilon_v>max_value){
         max_value = epsilon_v;
-        max_value_i = j;
       }
       ArrayList<Integer> tmp = new ArrayList<>();
       tmp.add(epsilon_r);
@@ -317,19 +277,11 @@ public class TestSingleGridNumRaw {
     result.add(timestamp_delta_min);
     result.add(value_delta_min);
 
-    theta.add(theta0_r);
-    theta.add(theta1_r);
-    theta.add(theta0_v);
-    theta.add(theta1_v);
-
-    i_star.add(max_interval_i);
-    i_star.add(max_value_i);
-
     return ts_block_delta;
   }
 
   public static ArrayList<Byte> encode2Bytes(ArrayList<ArrayList<Integer>> ts_block,
-                                             ArrayList<Integer> raw_length,ArrayList<Float> theta,ArrayList<Integer> result2){
+                                             ArrayList<Integer> raw_length,ArrayList<Integer> result2){
     ArrayList<Byte> encoded_result = new ArrayList<>();
 
     // encode interval0 and value0
@@ -337,16 +289,6 @@ public class TestSingleGridNumRaw {
     for (byte b : interval0_byte) encoded_result.add(b);
     byte[] value0_byte = int2Bytes(ts_block.get(0).get(1));
     for (byte b : value0_byte) encoded_result.add(b);
-
-    // encode theta
-    byte[] theta0_r_byte = float2bytes(theta.get(0)+raw_length.get(3));
-    for (byte b : theta0_r_byte) encoded_result.add(b);
-    byte[] theta1_r_byte = float2bytes(theta.get(1));
-    for (byte b : theta1_r_byte) encoded_result.add(b);
-    byte[] theta0_v_byte = float2bytes(theta.get(2)+raw_length.get(4));
-    for (byte b : theta0_v_byte) encoded_result.add(b);
-    byte[] theta1_v_byte = float2bytes(theta.get(3));
-    for (byte b : theta1_v_byte) encoded_result.add(b);
 
     // encode interval
     byte[] max_bit_width_interval_byte = int2Bytes(raw_length.get(1));
@@ -386,16 +328,10 @@ public class TestSingleGridNumRaw {
       ArrayList<Integer> result2 = new ArrayList<>();
       splitTimeStamp3(ts_block,result2);
 
-      quickSort(ts_block,0,0,block_size-1);
-
-      // time-order
       ArrayList<Integer> raw_length = new ArrayList<>(); // length,max_bit_width_interval,max_bit_width_value,max_bit_width_deviation
-      ArrayList<Integer> i_star_ready = new ArrayList<>();
-      ArrayList<Float> theta = new ArrayList<>();
-      ArrayList<ArrayList<Integer>> ts_block_delta = getEncodeBitsRegression( ts_block,  block_size, raw_length,
-              i_star_ready,theta);
+      ArrayList<ArrayList<Integer>> ts_block_delta = getEncodeBitsRegression(ts_block, block_size, raw_length);
 
-      ArrayList<Byte> cur_encoded_result = encode2Bytes(ts_block_delta,raw_length,theta,result2);
+      ArrayList<Byte> cur_encoded_result = encode2Bytes(ts_block_delta,raw_length,result2);
       encoded_result.addAll(cur_encoded_result);
     }
 
@@ -415,13 +351,8 @@ public class TestSingleGridNumRaw {
       ArrayList<Integer> result2 = new ArrayList<>();
       splitTimeStamp3(ts_block,result2);
 
-      quickSort(ts_block,0,0,remaining_length-1);
-
       ArrayList<Integer> raw_length = new ArrayList<>(); // length,max_bit_width_interval,max_bit_width_value,max_bit_width_deviation
-      ArrayList<Integer> i_star_ready = new ArrayList<>();
-      ArrayList<Float> theta = new ArrayList<>();
-      ArrayList<ArrayList<Integer>> ts_block_delta = getEncodeBitsRegression( ts_block,  remaining_length, raw_length,
-              i_star_ready,theta);
+      ArrayList<ArrayList<Integer>> ts_block_delta = getEncodeBitsRegression(ts_block, remaining_length, raw_length);
 
       int supple_length;
       if(remaining_length % 8 == 0){
@@ -439,7 +370,7 @@ public class TestSingleGridNumRaw {
         tmp.add(0);
         ts_block_delta.add(tmp);
       }
-      ArrayList<Byte> cur_encoded_result = encode2Bytes(ts_block_delta,raw_length,theta,result2);
+      ArrayList<Byte> cur_encoded_result = encode2Bytes(ts_block_delta,raw_length,result2);
       encoded_result.addAll(cur_encoded_result);
     }
     return encoded_result;
@@ -477,15 +408,6 @@ public class TestSingleGridNumRaw {
       int value0 = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
 
-      float theta0_r = bytes2float(encoded, decode_pos);
-      decode_pos += 4;
-      float theta1_r = bytes2float(encoded, decode_pos);
-      decode_pos += 4;
-      float theta0_v = bytes2float(encoded, decode_pos);
-      decode_pos += 4;
-      float theta1_v = bytes2float(encoded, decode_pos);
-      decode_pos += 4;
-
       int max_bit_width_time = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
       time_list = decodebitPacking(encoded,decode_pos,max_bit_width_time,0,block_size);
@@ -502,11 +424,11 @@ public class TestSingleGridNumRaw {
       int ti_pre = time0;
       int vi_pre = value0;
       for (int i = 0; i < block_size-1; i++) {
-        int ti = (int) ((double) theta1_r * ti_pre + (double) theta0_r + time_list.get(i));
+        int ti = ti_pre + time_list.get(i);
         time_list.set(i,ti);
         ti_pre = ti;
 
-        int vi = (int) ((double) theta1_v * vi_pre + (double) theta0_v + value_list.get(i));
+        int vi = vi_pre + value_list.get(i);
         value_list.set(i,vi);
         vi_pre = vi;
       }
@@ -522,7 +444,6 @@ public class TestSingleGridNumRaw {
         ts_block_tmp.add(value_list.get(i));
         ts_block.add(ts_block_tmp);
       }
-      quickSort(ts_block, 0, 0, block_size-1);
       data.addAll(ts_block);
     }
 
@@ -547,15 +468,6 @@ public class TestSingleGridNumRaw {
       int value0 = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
 
-      float theta0_r = bytes2float(encoded, decode_pos);
-      decode_pos += 4;
-      float theta1_r = bytes2float(encoded, decode_pos);
-      decode_pos += 4;
-      float theta0_v = bytes2float(encoded, decode_pos);
-      decode_pos += 4;
-      float theta1_v = bytes2float(encoded, decode_pos);
-      decode_pos += 4;
-
       int max_bit_width_time = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
       time_list = decodebitPacking(encoded,decode_pos,max_bit_width_time,0,remain_length+zero_number);
@@ -571,12 +483,12 @@ public class TestSingleGridNumRaw {
 
       int ti_pre = time0;
       int vi_pre = value0;
-      for (int i = 0; i < remain_length+zero_number-1; i++) {
-        int ti = (int) ((double) theta1_r * ti_pre + (double) theta0_r + time_list.get(i));
+      for (int i = 0; i < remain_length-1; i++) {
+        int ti = ti_pre + time_list.get(i);
         time_list.set(i,ti);
         ti_pre = ti;
 
-        int vi = (int) ((double) theta1_v * vi_pre + (double) theta0_v + value_list.get(i));
+        int vi = vi_pre + value_list.get(i);
         value_list.set(i,vi);
         vi_pre = vi;
       }
@@ -585,7 +497,7 @@ public class TestSingleGridNumRaw {
       ts_block_tmp0.add(time0);
       ts_block_tmp0.add(value0);
       ts_block.add(ts_block_tmp0);
-      for (int i=0;i<remain_length+zero_number-1;i++){
+      for (int i=0;i<remain_length-1;i++){
         int ti = (time_list.get(i) - time0) * td_common  + time0;
         ArrayList<Integer> ts_block_tmp = new ArrayList<>();
         ts_block_tmp.add(ti);
@@ -593,9 +505,7 @@ public class TestSingleGridNumRaw {
         ts_block.add(ts_block_tmp);
       }
 
-      quickSort(ts_block, 0, 0, remain_length+zero_number-1);
-
-      for(int i = zero_number; i < remain_length+zero_number; i++){
+      for(int i = 0; i < remain_length; i++){
         data.add(ts_block.get(i));
       }
     }
@@ -608,29 +518,29 @@ public class TestSingleGridNumRaw {
     ArrayList<String> output_path_list = new ArrayList<>();
     ArrayList<Integer> dataset_block_size = new ArrayList<>();
 
-    input_path_list.add("E:\\thu\\Lab\\Group\\31编码论文\\encoding-reorder\\reorder\\iotdb_test\\Metro-Traffic");
-    output_path_list.add("E:\\thu\\Lab\\Group\\31编码论文\\encoding-reorder\\reorder\\result_evaluation" +
+    input_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\iotdb_test\\Metro-Traffic");
+    output_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\result_evaluation" +
             "\\compression_ratio\\rr_ratio\\Metro-Traffic_ratio.csv");
-    input_path_list.add("E:\\thu\\Lab\\Group\\31编码论文\\encoding-reorder\\reorder\\iotdb_test\\Nifty-Stocks");
-    output_path_list.add("E:\\thu\\Lab\\Group\\31编码论文\\encoding-reorder\\reorder\\result_evaluation" +
+    input_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\iotdb_test\\Nifty-Stocks");
+    output_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\result_evaluation" +
             "\\compression_ratio\\rr_ratio\\Nifty-Stocks_ratio.csv");
-    input_path_list.add("E:\\thu\\Lab\\Group\\31编码论文\\encoding-reorder\\reorder\\iotdb_test\\USGS-Earthquakes");
-    output_path_list.add("E:\\thu\\Lab\\Group\\31编码论文\\encoding-reorder\\reorder\\result_evaluation" +
+    input_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\iotdb_test\\USGS-Earthquakes");
+    output_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\result_evaluation" +
             "\\compression_ratio\\rr_ratio\\USGS-Earthquakes_ratio.csv");
-    input_path_list.add("E:\\thu\\Lab\\Group\\31编码论文\\encoding-reorder\\reorder\\iotdb_test\\Cyber-Vehicle");
-    output_path_list.add("E:\\thu\\Lab\\Group\\31编码论文\\encoding-reorder\\reorder\\result_evaluation" +
+    input_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\iotdb_test\\Cyber-Vehicle");
+    output_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\result_evaluation" +
             "\\compression_ratio\\rr_ratio\\Cyber-Vehicle_ratio.csv");
-    input_path_list.add( "E:\\thu\\Lab\\Group\\31编码论文\\encoding-reorder\\reorder\\iotdb_test\\TH-Climate");
-    output_path_list.add("E:\\thu\\Lab\\Group\\31编码论文\\encoding-reorder\\reorder\\result_evaluation" +
+    input_path_list.add( "E:\\thu\\TestTimeGrid\\test_path\\iotdb_test\\TH-Climate");
+    output_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\result_evaluation" +
             "\\compression_ratio\\rr_ratio\\TH-Climate_ratio.csv");
-    input_path_list.add("E:\\thu\\Lab\\Group\\31编码论文\\encoding-reorder\\reorder\\iotdb_test\\TY-Transport");
-    output_path_list.add("E:\\thu\\Lab\\Group\\31编码论文\\encoding-reorder\\reorder\\result_evaluation" +
+    input_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\iotdb_test\\TY-Transport");
+    output_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\result_evaluation" +
             "\\compression_ratio\\rr_ratio\\TY-Transport_ratio.csv");
-    input_path_list.add( "E:\\thu\\Lab\\Group\\31编码论文\\encoding-reorder\\reorder\\iotdb_test\\TY-Fuel");
-    output_path_list.add("E:\\thu\\Lab\\Group\\31编码论文\\encoding-reorder\\reorder\\result_evaluation" +
+    input_path_list.add( "E:\\thu\\TestTimeGrid\\test_path\\iotdb_test\\TY-Fuel");
+    output_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\result_evaluation" +
             "\\compression_ratio\\rr_ratio\\TY-Fuel_ratio.csv");
-    input_path_list.add( "E:\\thu\\Lab\\Group\\31编码论文\\encoding-reorder\\reorder\\iotdb_test\\GW-Magnetic");
-    output_path_list.add("E:\\thu\\Lab\\Group\\31编码论文\\encoding-reorder\\reorder\\result_evaluation" +
+    input_path_list.add( "E:\\thu\\TestTimeGrid\\test_path\\iotdb_test\\GW-Magnetic");
+    output_path_list.add("E:\\thu\\TestTimeGrid\\test_path\\result_evaluation" +
             "\\compression_ratio\\rr_ratio\\GW-Magnetic_ratio.csv");
 
     for(int file_i=0;file_i<input_path_list.size();file_i++){
@@ -677,7 +587,7 @@ public class TestSingleGridNumRaw {
         long decodeTime = 0;
         double ratio = 0;
         double compressed_size = 0;
-        int repeatTime2 = 100;
+        int repeatTime2 = 1;
         for (int i = 0; i < repeatTime; i++) {
           long s = System.nanoTime();
           ArrayList<Byte> buffer = new ArrayList<>();
@@ -703,7 +613,7 @@ public class TestSingleGridNumRaw {
 
         String[] record = {
                 f.toString(),
-                "MultipleGridNumRaw",
+                "SingleGridNumRaw",
                 String.valueOf(encodeTime),
                 String.valueOf(decodeTime),
                 String.valueOf(data.size()),
