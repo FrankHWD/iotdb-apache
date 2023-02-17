@@ -9,6 +9,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Collections;
 
 public class TestMultipleGridNumRaw {
   public static int getBitWith(int num) {
@@ -186,6 +187,17 @@ public class TestMultipleGridNumRaw {
     return n;
   }
 
+  public static int getGrid(ArrayList<ArrayList<Integer>> ts_block){
+    int grid = 1;
+    ArrayList<Integer> diff_block = new ArrayList<>();
+    for (int i = 1; i < ts_block.size(); i++) {
+      diff_block.add(ts_block.get(i).get(0) - ts_block.get(i-1).get(0));
+    }
+    Collections.sort(diff_block);
+    grid = diff_block.get(diff_block.size()/2);
+    return grid;
+  }
+
   public static void splitTimeStamp3(
       ArrayList<ArrayList<Integer>> ts_block, ArrayList<Integer> result) {
     int td_common = 0;
@@ -222,73 +234,26 @@ public class TestMultipleGridNumRaw {
   }
 
   public static ArrayList<ArrayList<Integer>> getEncodeBitsRegression(
-      ArrayList<ArrayList<Integer>> ts_block,
-      int block_size,
-      ArrayList<Integer> result,
-      ArrayList<Integer> i_star,
-      ArrayList<Float> theta) {
+          ArrayList<ArrayList<Integer>> ts_block, int block_size, int grid, ArrayList<Integer> result) {
+    int timestamp_gridnum_min = Integer.MAX_VALUE;
     int timestamp_delta_min = Integer.MAX_VALUE;
     int value_delta_min = Integer.MAX_VALUE;
     ArrayList<ArrayList<Integer>> ts_block_delta = new ArrayList<>();
-    theta.clear();
-
-    long sum_X_r = 0;
-    long sum_Y_r = 0;
-    long sum_squ_X_r = 0;
-    long sum_squ_XY_r = 0;
-    long sum_X_v = 0;
-    long sum_Y_v = 0;
-    long sum_squ_X_v = 0;
-    long sum_squ_XY_v = 0;
-
-    for (int i = 1; i < block_size; i++) {
-      sum_X_r += ts_block.get(i - 1).get(0);
-      sum_X_v += ts_block.get(i - 1).get(1);
-      sum_Y_r += ts_block.get(i).get(0);
-      sum_Y_v += ts_block.get(i).get(1);
-      sum_squ_X_r += ((long) ts_block.get(i - 1).get(0) * ts_block.get(i - 1).get(0));
-      sum_squ_X_v += ((long) ts_block.get(i - 1).get(1) * ts_block.get(i - 1).get(1));
-      sum_squ_XY_r += ((long) ts_block.get(i - 1).get(0) * ts_block.get(i).get(0));
-      sum_squ_XY_v += ((long) ts_block.get(i - 1).get(1) * ts_block.get(i).get(1));
-    }
-
-    int m_reg = block_size - 1;
-    float theta0_r = 0.0F;
-    float theta1_r = 1.0F;
-    if (m_reg * sum_squ_X_r != sum_X_r * sum_X_r) {
-      theta0_r =
-          (float) (sum_squ_X_r * sum_Y_r - sum_X_r * sum_squ_XY_r)
-              / (float) (m_reg * sum_squ_X_r - sum_X_r * sum_X_r);
-      theta1_r =
-          (float) (m_reg * sum_squ_XY_r - sum_X_r * sum_Y_r)
-              / (float) (m_reg * sum_squ_X_r - sum_X_r * sum_X_r);
-    }
-
-    float theta0_v = 0.0F;
-    float theta1_v = 1.0F;
-    if (m_reg * sum_squ_X_v != sum_X_v * sum_X_v) {
-      theta0_v =
-          (float) (sum_squ_X_v * sum_Y_v - sum_X_v * sum_squ_XY_v)
-              / (float) (m_reg * sum_squ_X_v - sum_X_v * sum_X_v);
-      theta1_v =
-          (float) (m_reg * sum_squ_XY_v - sum_X_v * sum_Y_v)
-              / (float) (m_reg * sum_squ_X_v - sum_X_v * sum_X_v);
-    }
 
     ArrayList<Integer> tmp0 = new ArrayList<>();
     tmp0.add(ts_block.get(0).get(0));
     tmp0.add(ts_block.get(0).get(1));
+    tmp0.add(0);
     ts_block_delta.add(tmp0);
 
-    // delta to Regression
     for (int j = 1; j < block_size; j++) {
-      int epsilon_r =
-          ts_block.get(j).get(0)
-              - (int) (theta0_r + theta1_r * (double) ts_block.get(j - 1).get(0));
-      int epsilon_v =
-          ts_block.get(j).get(1)
-              - (int) (theta0_v + theta1_v * (double) ts_block.get(j - 1).get(1));
+      int gridNum_r =  (int) Math.round( (ts_block.get(j).get(0) - ts_block.get(0).get(0)) * 1.0 / grid);
+      int epsilon_r = ts_block.get(j).get(0) - ts_block.get(0).get(0) - gridNum_r * grid;
+      int epsilon_v = ts_block.get(j).get(1) - ts_block.get(j - 1).get(1);
 
+      if (gridNum_r < timestamp_gridnum_min) {
+        timestamp_gridnum_min = gridNum_r;
+      }
       if (epsilon_r < timestamp_delta_min) {
         timestamp_delta_min = epsilon_r;
       }
@@ -298,51 +263,49 @@ public class TestMultipleGridNumRaw {
       ArrayList<Integer> tmp = new ArrayList<>();
       tmp.add(epsilon_r);
       tmp.add(epsilon_v);
+      tmp.add(gridNum_r);
       ts_block_delta.add(tmp);
     }
 
     int max_interval = Integer.MIN_VALUE;
-    int max_interval_i = -1;
     int max_value = Integer.MIN_VALUE;
-    int max_value_i = -1;
+    int max_gridnum = Integer.MIN_VALUE;
     for (int j = block_size - 1; j > 0; j--) {
       int epsilon_r = ts_block_delta.get(j).get(0) - timestamp_delta_min;
       int epsilon_v = ts_block_delta.get(j).get(1) - value_delta_min;
+      int gridNum_r = ts_block_delta.get(j).get(2) - timestamp_gridnum_min;
+      if (gridNum_r > max_gridnum) {
+        max_gridnum = gridNum_r;
+      }
       if (epsilon_r > max_interval) {
         max_interval = epsilon_r;
-        max_interval_i = j;
       }
       if (epsilon_v > max_value) {
         max_value = epsilon_v;
-        max_value_i = j;
       }
       ArrayList<Integer> tmp = new ArrayList<>();
       tmp.add(epsilon_r);
       tmp.add(epsilon_v);
+      tmp.add(gridNum_r);
       ts_block_delta.set(j, tmp);
     }
 
     int max_bit_width_interval = getBitWith(max_interval);
     int max_bit_width_value = getBitWith(max_value);
+    int max_bit_width_gridnum = getBitWith(max_gridnum);
 
     // calculate error
-    int length = (max_bit_width_interval + max_bit_width_value) * (block_size - 1);
+    int length = (max_bit_width_interval + max_bit_width_value + max_bit_width_gridnum) * (block_size - 1);
     result.clear();
 
     result.add(length);
     result.add(max_bit_width_interval);
     result.add(max_bit_width_value);
+    result.add(max_bit_width_gridnum);
 
     result.add(timestamp_delta_min);
     result.add(value_delta_min);
-
-    theta.add(theta0_r);
-    theta.add(theta1_r);
-    theta.add(theta0_v);
-    theta.add(theta1_v);
-
-    i_star.add(max_interval_i);
-    i_star.add(max_value_i);
+    result.add(timestamp_gridnum_min);
 
     return ts_block_delta;
   }
@@ -350,25 +313,25 @@ public class TestMultipleGridNumRaw {
   public static ArrayList<Byte> encode2Bytes(
       ArrayList<ArrayList<Integer>> ts_block,
       ArrayList<Integer> raw_length,
-      ArrayList<Float> theta,
-      ArrayList<Integer> result2) {
+      int grid) {
+
     ArrayList<Byte> encoded_result = new ArrayList<>();
 
-    // encode interval0 and value0
+    // encode interval0 and value0 and gridnum0
     byte[] interval0_byte = int2Bytes(ts_block.get(0).get(0));
     for (byte b : interval0_byte) encoded_result.add(b);
     byte[] value0_byte = int2Bytes(ts_block.get(0).get(1));
     for (byte b : value0_byte) encoded_result.add(b);
+    byte[] gridnum0_byte = int2Bytes(ts_block.get(0).get(2));
+    for (byte b : gridnum0_byte) encoded_result.add(b);
 
-    // encode theta
-    byte[] theta0_r_byte = float2bytes(theta.get(0) + raw_length.get(3));
-    for (byte b : theta0_r_byte) encoded_result.add(b);
-    byte[] theta1_r_byte = float2bytes(theta.get(1));
-    for (byte b : theta1_r_byte) encoded_result.add(b);
-    byte[] theta0_v_byte = float2bytes(theta.get(2) + raw_length.get(4));
-    for (byte b : theta0_v_byte) encoded_result.add(b);
-    byte[] theta1_v_byte = float2bytes(theta.get(3));
-    for (byte b : theta1_v_byte) encoded_result.add(b);
+    // encode interval_min and value_min and gridnum_min
+    byte[] interval_min_byte = int2Bytes(raw_length.get(4));
+    for (byte b : interval_min_byte) encoded_result.add(b);
+    byte[] value_min_byte = int2Bytes(raw_length.get(5));
+    for (byte b : value_min_byte) encoded_result.add(b);
+    byte[] gridnum_min_byte = int2Bytes(raw_length.get(6));
+    for (byte b : gridnum_min_byte) encoded_result.add(b);
 
     // encode interval
     byte[] max_bit_width_interval_byte = int2Bytes(raw_length.get(1));
@@ -382,8 +345,14 @@ public class TestMultipleGridNumRaw {
     byte[] value_bytes = bitPacking(ts_block, 1, raw_length.get(2));
     for (byte b : value_bytes) encoded_result.add(b);
 
-    byte[] td_common_byte = int2Bytes(result2.get(0));
-    for (byte b : td_common_byte) encoded_result.add(b);
+    // encode gridnum
+    byte[] max_bit_width_gridnum_byte = int2Bytes(raw_length.get(3));
+    for (byte b : max_bit_width_gridnum_byte) encoded_result.add(b);
+    byte[] gridnum_bytes = bitPacking(ts_block, 2, raw_length.get(3));
+    for (byte b : gridnum_bytes) encoded_result.add(b);
+
+    byte[] grid_byte = int2Bytes(grid);
+    for (byte b : grid_byte) encoded_result.add(b);
 
     return encoded_result;
   }
@@ -407,20 +376,16 @@ public class TestMultipleGridNumRaw {
         ts_block.add(data.get(j + i * block_size));
       }
 
-      ArrayList<Integer> result2 = new ArrayList<>();
-      splitTimeStamp3(ts_block, result2);
+      int grid = getGrid(ts_block);
 
-      quickSort(ts_block, 0, 0, block_size - 1);
+      //ArrayList<Integer> result2 = new ArrayList<>();
+      //splitTimeStamp3(ts_block, result2);
 
-      // time-order
-      ArrayList<Integer> raw_length =
-          new ArrayList<>(); // length,max_bit_width_interval,max_bit_width_value,max_bit_width_deviation
-      ArrayList<Integer> i_star_ready = new ArrayList<>();
-      ArrayList<Float> theta = new ArrayList<>();
+      ArrayList<Integer> raw_length = new ArrayList<>(); // length,max_bit_width_interval,max_bit_width_value
       ArrayList<ArrayList<Integer>> ts_block_delta =
-          getEncodeBitsRegression(ts_block, block_size, raw_length, i_star_ready, theta);
+              getEncodeBitsRegression(ts_block, block_size, grid, raw_length);
 
-      ArrayList<Byte> cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, theta, result2);
+      ArrayList<Byte> cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid);
       encoded_result.addAll(cur_encoded_result);
     }
 
@@ -437,17 +402,15 @@ public class TestMultipleGridNumRaw {
       for (int j = block_num * block_size; j < length_all; j++) {
         ts_block.add(data.get(j));
       }
-      ArrayList<Integer> result2 = new ArrayList<>();
-      splitTimeStamp3(ts_block, result2);
 
-      quickSort(ts_block, 0, 0, remaining_length - 1);
+      int grid = getGrid(ts_block);
 
-      ArrayList<Integer> raw_length =
-          new ArrayList<>(); // length,max_bit_width_interval,max_bit_width_value,max_bit_width_deviation
-      ArrayList<Integer> i_star_ready = new ArrayList<>();
-      ArrayList<Float> theta = new ArrayList<>();
+      //ArrayList<Integer> result2 = new ArrayList<>();
+      //splitTimeStamp3(ts_block, result2);
+
+      ArrayList<Integer> raw_length = new ArrayList<>(); // length,max_bit_width_interval,max_bit_width_value
       ArrayList<ArrayList<Integer>> ts_block_delta =
-          getEncodeBitsRegression(ts_block, remaining_length, raw_length, i_star_ready, theta);
+              getEncodeBitsRegression(ts_block, remaining_length, grid, raw_length);
 
       int supple_length;
       if (remaining_length % 8 == 0) {
@@ -461,9 +424,10 @@ public class TestMultipleGridNumRaw {
         ArrayList<Integer> tmp = new ArrayList<>();
         tmp.add(0);
         tmp.add(0);
+        tmp.add(0);
         ts_block_delta.add(tmp);
       }
-      ArrayList<Byte> cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, theta, result2);
+      ArrayList<Byte> cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid);
       encoded_result.addAll(cur_encoded_result);
     }
     return encoded_result;
@@ -491,6 +455,7 @@ public class TestMultipleGridNumRaw {
     for (int k = 0; k < block_num; k++) {
       ArrayList<Integer> time_list = new ArrayList<>();
       ArrayList<Integer> value_list = new ArrayList<>();
+      ArrayList<Integer> gridnum_list = new ArrayList<>();
 
       ArrayList<ArrayList<Integer>> ts_block = new ArrayList<>();
 
@@ -498,14 +463,14 @@ public class TestMultipleGridNumRaw {
       decode_pos += 4;
       int value0 = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
+      int gridnum0 = bytes2Integer(encoded, decode_pos, 4);
+      decode_pos += 4;
 
-      float theta0_r = bytes2float(encoded, decode_pos);
+      int time_min = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
-      float theta1_r = bytes2float(encoded, decode_pos);
+      int value_min = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
-      float theta0_v = bytes2float(encoded, decode_pos);
-      decode_pos += 4;
-      float theta1_v = bytes2float(encoded, decode_pos);
+      int gridnum_min = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
 
       int max_bit_width_time = bytes2Integer(encoded, decode_pos, 4);
@@ -518,17 +483,22 @@ public class TestMultipleGridNumRaw {
       value_list = decodebitPacking(encoded, decode_pos, max_bit_width_value, 0, block_size);
       decode_pos += max_bit_width_value * (block_size - 1) / 8;
 
-      int td_common = bytes2Integer(encoded, decode_pos, 4);
+      int max_bit_width_gridnum = bytes2Integer(encoded, decode_pos, 4);
+      decode_pos += 4;
+      gridnum_list = decodebitPacking(encoded, decode_pos, max_bit_width_gridnum, 0, block_size);
+      decode_pos += max_bit_width_gridnum * (block_size - 1) / 8;
+
+      int grid = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
 
-      int ti_pre = time0;
+      //int ti_pre = time0;
       int vi_pre = value0;
       for (int i = 0; i < block_size - 1; i++) {
-        int ti = (int) ((double) theta1_r * ti_pre + (double) theta0_r + time_list.get(i));
+        int ti = time0 + (gridnum_list.get(i) + gridnum_min) * grid + time_list.get(i) + time_min;
         time_list.set(i, ti);
-        ti_pre = ti;
+        //ti_pre = ti;
 
-        int vi = (int) ((double) theta1_v * vi_pre + (double) theta0_v + value_list.get(i));
+        int vi = vi_pre + value_list.get(i) + value_min;
         value_list.set(i, vi);
         vi_pre = vi;
       }
@@ -538,13 +508,12 @@ public class TestMultipleGridNumRaw {
       ts_block_tmp0.add(value0);
       ts_block.add(ts_block_tmp0);
       for (int i = 0; i < block_size - 1; i++) {
-        int ti = (time_list.get(i) - time0) * td_common + time0;
+        int ti = time_list.get(i) - time0 + time0;
         ArrayList<Integer> ts_block_tmp = new ArrayList<>();
         ts_block_tmp.add(ti);
         ts_block_tmp.add(value_list.get(i));
         ts_block.add(ts_block_tmp);
       }
-      quickSort(ts_block, 0, 0, block_size - 1);
       data.addAll(ts_block);
     }
 
@@ -561,6 +530,7 @@ public class TestMultipleGridNumRaw {
     if (remain_length != 0 && remain_length != 1) {
       ArrayList<Integer> time_list = new ArrayList<>();
       ArrayList<Integer> value_list = new ArrayList<>();
+      ArrayList<Integer> gridnum_list = new ArrayList<>();
 
       ArrayList<ArrayList<Integer>> ts_block = new ArrayList<>();
 
@@ -568,14 +538,14 @@ public class TestMultipleGridNumRaw {
       decode_pos += 4;
       int value0 = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
+      int gridnum0 = bytes2Integer(encoded, decode_pos, 4);
+      decode_pos += 4;
 
-      float theta0_r = bytes2float(encoded, decode_pos);
+      int time_min = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
-      float theta1_r = bytes2float(encoded, decode_pos);
+      int value_min = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
-      float theta0_v = bytes2float(encoded, decode_pos);
-      decode_pos += 4;
-      float theta1_v = bytes2float(encoded, decode_pos);
+      int gridnum_min = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
 
       int max_bit_width_time = bytes2Integer(encoded, decode_pos, 4);
@@ -587,21 +557,26 @@ public class TestMultipleGridNumRaw {
       int max_bit_width_value = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
       value_list =
-          decodebitPacking(
-              encoded, decode_pos, max_bit_width_value, 0, remain_length + zero_number);
+          decodebitPacking(encoded, decode_pos, max_bit_width_value, 0, remain_length + zero_number);
       decode_pos += max_bit_width_value * (remain_length + zero_number - 1) / 8;
 
-      int td_common = bytes2Integer(encoded, decode_pos, 4);
+      int max_bit_width_gridnum = bytes2Integer(encoded, decode_pos, 4);
+      decode_pos += 4;
+      gridnum_list =
+        decodebitPacking(encoded, decode_pos, max_bit_width_gridnum, 0, remain_length + zero_number);
+      decode_pos += max_bit_width_gridnum * (remain_length + zero_number - 1) / 8;
+
+      int grid = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
 
-      int ti_pre = time0;
+      //int ti_pre = time0;
       int vi_pre = value0;
-      for (int i = 0; i < remain_length + zero_number - 1; i++) {
-        int ti = (int) ((double) theta1_r * ti_pre + (double) theta0_r + time_list.get(i));
+      for (int i = 0; i < remain_length - 1; i++) {
+        int ti = time0 + (gridnum_list.get(i) + gridnum_min) * grid + time_list.get(i) + time_min;
         time_list.set(i, ti);
-        ti_pre = ti;
+        //ti_pre = ti;
 
-        int vi = (int) ((double) theta1_v * vi_pre + (double) theta0_v + value_list.get(i));
+        int vi = vi_pre + value_list.get(i) + value_min;
         value_list.set(i, vi);
         vi_pre = vi;
       }
@@ -610,17 +585,15 @@ public class TestMultipleGridNumRaw {
       ts_block_tmp0.add(time0);
       ts_block_tmp0.add(value0);
       ts_block.add(ts_block_tmp0);
-      for (int i = 0; i < remain_length + zero_number - 1; i++) {
-        int ti = (time_list.get(i) - time0) * td_common + time0;
+      for (int i = 0; i < remain_length - 1; i++) {
+        int ti = time_list.get(i) - time0 + time0;
         ArrayList<Integer> ts_block_tmp = new ArrayList<>();
         ts_block_tmp.add(ti);
         ts_block_tmp.add(value_list.get(i));
         ts_block.add(ts_block_tmp);
       }
 
-      quickSort(ts_block, 0, 0, remain_length + zero_number - 1);
-
-      for (int i = zero_number; i < remain_length + zero_number; i++) {
+      for (int i = 0; i < remain_length; i++) {
         data.add(ts_block.get(i));
       }
     }
@@ -725,6 +698,15 @@ public class TestMultipleGridNumRaw {
             data_decoded = ReorderingRegressionDecoder(buffer);
           e = System.nanoTime();
           decodeTime += ((e - s) / repeatTime2);
+
+//          for(int j=0;j<data_decoded.size();j++){
+//            System.out.print(j);
+//            System.out.print(" ");
+//            System.out.print(data.get(j).get(0));
+//            System.out.print(" ");
+//            System.out.println(data_decoded.get(j).get(0));
+//          }
+
         }
 
         ratio /= repeatTime;
