@@ -294,6 +294,12 @@ public class TestSingleGridNumRaw {
     byte[] value0_byte = int2Bytes(ts_block.get(0).get(1));
     for (byte b : value0_byte) encoded_result.add(b);
 
+    // encode interval_min and value_min
+    byte[] interval_min_byte = int2Bytes(raw_length.get(3));
+    for (byte b : interval_min_byte) encoded_result.add(b);
+    byte[] value_min_byte = int2Bytes(raw_length.get(4));
+    for (byte b : value_min_byte) encoded_result.add(b);
+
     // encode interval
     byte[] max_bit_width_interval_byte = int2Bytes(raw_length.get(1));
     for (byte b : max_bit_width_interval_byte) encoded_result.add(b);
@@ -414,6 +420,11 @@ public class TestSingleGridNumRaw {
       int value0 = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
 
+      int time_min = bytes2Integer(encoded, decode_pos, 4);
+      decode_pos += 4;
+      int value_min = bytes2Integer(encoded, decode_pos, 4);
+      decode_pos += 4;
+
       int max_bit_width_time = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
       time_list = decodebitPacking(encoded, decode_pos, max_bit_width_time, 0, block_size);
@@ -430,11 +441,11 @@ public class TestSingleGridNumRaw {
       int ti_pre = time0;
       int vi_pre = value0;
       for (int i = 0; i < block_size - 1; i++) {
-        int ti = ti_pre + time_list.get(i);
+        int ti = ti_pre + time_list.get(i) + time_min;
         time_list.set(i, ti);
         ti_pre = ti;
 
-        int vi = vi_pre + value_list.get(i);
+        int vi = vi_pre + value_list.get(i) + value_min;
         value_list.set(i, vi);
         vi_pre = vi;
       }
@@ -474,6 +485,12 @@ public class TestSingleGridNumRaw {
       int value0 = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
 
+      int time_min = bytes2Integer(encoded, decode_pos, 4);
+      decode_pos += 4;
+      int value_min = bytes2Integer(encoded, decode_pos, 4);
+      decode_pos += 4;
+
+
       int max_bit_width_time = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
       time_list =
@@ -493,11 +510,11 @@ public class TestSingleGridNumRaw {
       int ti_pre = time0;
       int vi_pre = value0;
       for (int i = 0; i < remain_length - 1; i++) {
-        int ti = ti_pre + time_list.get(i);
+        int ti = ti_pre + time_list.get(i) + time_min;
         time_list.set(i, ti);
         ti_pre = ti;
 
-        int vi = vi_pre + value_list.get(i);
+        int vi = vi_pre + value_list.get(i) + value_min;
         value_list.set(i, vi);
         vi_pre = vi;
       }
@@ -619,6 +636,14 @@ public class TestSingleGridNumRaw {
             data_decoded = ReorderingRegressionDecoder(buffer);
           e = System.nanoTime();
           decodeTime += ((e - s) / repeatTime2);
+
+//          for(int j=0;j<data_decoded.size();j++){
+//            System.out.print(j);
+//            System.out.print(" ");
+//            System.out.print(data.get(j).get(1));
+//            System.out.print(" ");
+//            System.out.println(data_decoded.get(j).get(1));
+//          }
         }
 
         ratio /= repeatTime;
