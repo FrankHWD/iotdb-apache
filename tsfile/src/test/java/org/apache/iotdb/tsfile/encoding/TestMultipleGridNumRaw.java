@@ -497,6 +497,7 @@ public class TestMultipleGridNumRaw {
       int gridnum_pre = 0;
       for (int i = 0; i < block_size - 1; i++) {
         int gridnum = (gridnum_list.get(i) + gridnum_min) + gridnum_pre;
+        gridnum_pre = gridnum;
         int ti = time0 + gridnum * grid + time_list.get(i) + time_min;
         time_list.set(i, ti);
         // ti_pre = ti;
@@ -577,6 +578,7 @@ public class TestMultipleGridNumRaw {
       int gridnum_pre = 0;
       for (int i = 0; i < remain_length - 1; i++) {
         int gridnum = (gridnum_list.get(i) + gridnum_min) + gridnum_pre;
+        gridnum_pre = gridnum;
         int ti = time0 + gridnum * grid + time_list.get(i) + time_min;
         time_list.set(i, ti);
         // ti_pre = ti;
@@ -610,34 +612,34 @@ public class TestMultipleGridNumRaw {
     ArrayList<String> output_path_list = new ArrayList<>();
     ArrayList<Integer> dataset_block_size = new ArrayList<>();
 
-    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\Metro-Traffic");
-    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
-                + "\\compression_ratio\\rr_ratio\\Metro-Traffic_ratio.csv");
-    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\Nifty-Stocks");
-    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
-                + "\\compression_ratio\\rr_ratio\\Nifty-Stocks_ratio.csv");
-    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\USGS-Earthquakes");
-    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
-                + "\\compression_ratio\\rr_ratio\\USGS-Earthquakes_ratio.csv");
-    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\Cyber-Vehicle");
-    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
-                + "\\compression_ratio\\rr_ratio\\Cyber-Vehicle_ratio.csv");
-    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\TH-Climate");
-    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
-                + "\\compression_ratio\\rr_ratio\\TH-Climate_ratio.csv");
-    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\TY-Transport");
-    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
-                + "\\compression_ratio\\rr_ratio\\TY-Transport_ratio.csv");
-    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\TY-Fuel");
-    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
-                + "\\compression_ratio\\rr_ratio\\TY-Fuel_ratio.csv");
+//    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\Metro-Traffic");
+//    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
+//                + "\\compression_ratio\\rr_ratio\\Metro-Traffic_ratio.csv");
+//    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\Nifty-Stocks");
+//    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
+//                + "\\compression_ratio\\rr_ratio\\Nifty-Stocks_ratio.csv");
+//    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\USGS-Earthquakes");
+//    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
+//                + "\\compression_ratio\\rr_ratio\\USGS-Earthquakes_ratio.csv");
+//    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\Cyber-Vehicle");
+//    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
+//                + "\\compression_ratio\\rr_ratio\\Cyber-Vehicle_ratio.csv");
+//    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\TH-Climate");
+//    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
+//                + "\\compression_ratio\\rr_ratio\\TH-Climate_ratio.csv");
+//    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\TY-Transport");
+//    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
+//                + "\\compression_ratio\\rr_ratio\\TY-Transport_ratio.csv");
+//    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\TY-Fuel");
+//    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
+//                + "\\compression_ratio\\rr_ratio\\TY-Fuel_ratio.csv");
     input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\GW-Magnetic");
     output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
                 + "\\compression_ratio\\rr_ratio\\GW-Magnetic_ratio.csv");
 
-//    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\ZY");
-//    output_path_list.add(
-//        "E:\\thu\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\rr_ratio\\ZY.csv");  //224
+    //input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\ZY");
+    //output_path_list.add(
+    //    "E:\\thu\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\rr_ratio\\ZY.csv");  //224
 
     for (int file_i = 0; file_i < input_path_list.size(); file_i++) {
 
@@ -702,13 +704,13 @@ public class TestMultipleGridNumRaw {
           e = System.nanoTime();
           decodeTime += ((e - s) / repeatTime2);
 
-          //          for(int j=0;j<data_decoded.size();j++){
-          //            System.out.print(j);
-          //            System.out.print(" ");
-          //            System.out.print(data.get(j).get(0));
-          //            System.out.print(" ");
-          //            System.out.println(data_decoded.get(j).get(0));
-          //          }
+//          for(int j=0;j<data_decoded.size();j++){
+//            System.out.print(j);
+//            System.out.print(" ");
+//            System.out.print(data.get(j).get(0));
+//            System.out.print(" ");
+//            System.out.println(data_decoded.get(j).get(0));
+//          }
 
         }
 
