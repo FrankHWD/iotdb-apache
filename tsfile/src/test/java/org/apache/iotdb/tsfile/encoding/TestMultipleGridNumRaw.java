@@ -120,6 +120,21 @@ public class TestMultipleGridNumRaw {
     return result;
   }
 
+  public static byte[] bitPacking2(ArrayList<ArrayList<Integer>> numbers, int index, int bit_width) {
+    int block_num = numbers.size() / 8;
+    byte[] result = new byte[bit_width * block_num];
+    for (int i = 0; i < block_num; i++) {
+      for (int j = 0; j < bit_width; j++) {
+        int tmp_int = 0;
+        for (int k = 0; k < 8; k++) {
+          tmp_int += (((numbers.get(i * 8 + k).get(index) >> j) % 2) << k);
+        }
+        result[i * bit_width + j] = (byte) tmp_int;
+      }
+    }
+    return result;
+  }
+
   public static ArrayList<Integer> decodebitPacking(
       ArrayList<Byte> encoded, int decode_pos, int bit_width, int min_delta, int block_size) {
     ArrayList<Integer> result_list = new ArrayList<>();
@@ -234,11 +249,11 @@ public class TestMultipleGridNumRaw {
   }
 
   public static ArrayList<ArrayList<Integer>> getEncodeBitsRegression(
-      ArrayList<ArrayList<Integer>> ts_block, int block_size, int grid, ArrayList<Integer> result) {
+      ArrayList<ArrayList<Integer>> ts_block, int block_size, int grid, ArrayList<Integer> result,
+      ArrayList<ArrayList<Integer>> gridnum_block) {
     int timestamp_delta_min = Integer.MAX_VALUE;
     int value_delta_min = Integer.MAX_VALUE;
     ArrayList<ArrayList<Integer>> ts_block_delta = new ArrayList<>();
-    ArrayList<ArrayList<Integer>> gridnum_block = new ArrayList<>();
 
     ArrayList<Integer> tmp0 = new ArrayList<>();
     tmp0.add(ts_block.get(0).get(0));
@@ -284,8 +299,20 @@ public class TestMultipleGridNumRaw {
         }
       }
     }
-
     int timestamp_gridnum_length = gridnum_block.size();
+    int timestamp_gridnum_remain_length;
+    if(timestamp_gridnum_length % 8 == 0){
+      timestamp_gridnum_remain_length = 0;
+    }
+    else{
+      timestamp_gridnum_remain_length = 8 - timestamp_gridnum_length % 8;
+    }
+    for (int j=0;j<timestamp_gridnum_remain_length;j++){
+      ArrayList<Integer> tmp_gridnum0 = new ArrayList<>();
+      tmp_gridnum0.add(0);
+      tmp_gridnum0.add(0);
+      gridnum_block.add(tmp_gridnum0);
+    }
 
     int max_interval = Integer.MIN_VALUE;
     int max_value = Integer.MIN_VALUE;
@@ -312,8 +339,9 @@ public class TestMultipleGridNumRaw {
     int max_bit_width_gridnum_val = getBitWith(max_gridnum_val);
 
     // calculate error
-    int length = (max_bit_width_interval + max_bit_width_value
-            + max_bit_width_gridnum_pos + max_bit_width_gridnum_val) * (block_size - 1);
+    int length = (max_bit_width_interval + max_bit_width_value) * (block_size - 1)
+            + (max_bit_width_gridnum_pos + max_bit_width_gridnum_val)
+            * (timestamp_gridnum_length+timestamp_gridnum_remain_length);
     result.clear();
 
     result.add(length);
@@ -330,7 +358,8 @@ public class TestMultipleGridNumRaw {
   }
 
   public static ArrayList<Byte> encode2Bytes(
-      ArrayList<ArrayList<Integer>> ts_block, ArrayList<Integer> raw_length, int grid) {
+      ArrayList<ArrayList<Integer>> ts_block, ArrayList<Integer> raw_length, int grid,
+      ArrayList<ArrayList<Integer>> gridnum_block) {
 
     ArrayList<Byte> encoded_result = new ArrayList<>();
 
@@ -341,12 +370,10 @@ public class TestMultipleGridNumRaw {
     for (byte b : value0_byte) encoded_result.add(b);
 
     // encode interval_min and value_min and gridnum_min
-    byte[] interval_min_byte = int2Bytes(raw_length.get(4));
+    byte[] interval_min_byte = int2Bytes(raw_length.get(5));
     for (byte b : interval_min_byte) encoded_result.add(b);
-    byte[] value_min_byte = int2Bytes(raw_length.get(5));
+    byte[] value_min_byte = int2Bytes(raw_length.get(6));
     for (byte b : value_min_byte) encoded_result.add(b);
-    byte[] gridnum_min_byte = int2Bytes(raw_length.get(6));
-    for (byte b : gridnum_min_byte) encoded_result.add(b);
 
     // encode interval
     byte[] max_bit_width_interval_byte = int2Bytes(raw_length.get(1));
@@ -361,10 +388,16 @@ public class TestMultipleGridNumRaw {
     for (byte b : value_bytes) encoded_result.add(b);
 
     // encode gridnum
-    byte[] max_bit_width_gridnum_byte = int2Bytes(raw_length.get(3));
-    for (byte b : max_bit_width_gridnum_byte) encoded_result.add(b);
-    byte[] gridnum_bytes = bitPacking(ts_block, 2, raw_length.get(3));
-    for (byte b : gridnum_bytes) encoded_result.add(b);
+    byte[] max_bit_width_gridnum_pos_byte = int2Bytes(raw_length.get(3));
+    for (byte b : max_bit_width_gridnum_pos_byte) encoded_result.add(b);
+    byte[] gridnum_pos_bytes = bitPacking2(gridnum_block, 0, raw_length.get(3));
+    for (byte b : gridnum_pos_bytes) encoded_result.add(b);
+
+    // encode gridnum
+    byte[] max_bit_width_gridnum_value_byte = int2Bytes(raw_length.get(4));
+    for (byte b : max_bit_width_gridnum_value_byte) encoded_result.add(b);
+    byte[] gridnum_val_bytes = bitPacking2(gridnum_block, 1, raw_length.get(4));
+    for (byte b : gridnum_val_bytes) encoded_result.add(b);
 
     byte[] grid_byte = int2Bytes(grid);
     for (byte b : grid_byte) encoded_result.add(b);
@@ -398,10 +431,11 @@ public class TestMultipleGridNumRaw {
 
       ArrayList<Integer> raw_length =
           new ArrayList<>(); // length,max_bit_width_interval,max_bit_width_value
+      ArrayList<ArrayList<Integer>> gridnum_block = new ArrayList<>();
       ArrayList<ArrayList<Integer>> ts_block_delta =
-          getEncodeBitsRegression(ts_block, block_size, grid, raw_length);
+          getEncodeBitsRegression(ts_block, block_size, grid, raw_length,gridnum_block);
 
-      ArrayList<Byte> cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid);
+      ArrayList<Byte> cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block);
       encoded_result.addAll(cur_encoded_result);
     }
 
@@ -426,8 +460,9 @@ public class TestMultipleGridNumRaw {
 
       ArrayList<Integer> raw_length =
           new ArrayList<>(); // length,max_bit_width_interval,max_bit_width_value
+      ArrayList<ArrayList<Integer>> gridnum_block = new ArrayList<>();
       ArrayList<ArrayList<Integer>> ts_block_delta =
-          getEncodeBitsRegression(ts_block, remaining_length, grid, raw_length);
+          getEncodeBitsRegression(ts_block, remaining_length, grid, raw_length,gridnum_block);
 
       int supple_length;
       if (remaining_length % 8 == 0) {
@@ -444,7 +479,7 @@ public class TestMultipleGridNumRaw {
         tmp.add(0);
         ts_block_delta.add(tmp);
       }
-      ArrayList<Byte> cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid);
+      ArrayList<Byte> cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block);
       encoded_result.addAll(cur_encoded_result);
     }
     return encoded_result;
@@ -626,27 +661,27 @@ public class TestMultipleGridNumRaw {
     ArrayList<String> output_path_list = new ArrayList<>();
     ArrayList<Integer> dataset_block_size = new ArrayList<>();
 
-//    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\Metro-Traffic");
-//    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
-//                + "\\compression_ratio\\rr_ratio\\Metro-Traffic_ratio.csv");
-//    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\Nifty-Stocks");
-//    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
-//                + "\\compression_ratio\\rr_ratio\\Nifty-Stocks_ratio.csv");
-//    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\USGS-Earthquakes");
-//    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
-//                + "\\compression_ratio\\rr_ratio\\USGS-Earthquakes_ratio.csv");
-//    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\Cyber-Vehicle");
-//    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
-//                + "\\compression_ratio\\rr_ratio\\Cyber-Vehicle_ratio.csv");
-//    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\TH-Climate");
-//    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
-//                + "\\compression_ratio\\rr_ratio\\TH-Climate_ratio.csv");
-//    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\TY-Transport");
-//    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
-//                + "\\compression_ratio\\rr_ratio\\TY-Transport_ratio.csv");
-//    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\TY-Fuel");
-//    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
-//                + "\\compression_ratio\\rr_ratio\\TY-Fuel_ratio.csv");
+    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\Metro-Traffic");
+    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
+                + "\\compression_ratio\\rr_ratio\\Metro-Traffic_ratio.csv");
+    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\Nifty-Stocks");
+    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
+                + "\\compression_ratio\\rr_ratio\\Nifty-Stocks_ratio.csv");
+    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\USGS-Earthquakes");
+    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
+                + "\\compression_ratio\\rr_ratio\\USGS-Earthquakes_ratio.csv");
+    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\Cyber-Vehicle");
+    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
+                + "\\compression_ratio\\rr_ratio\\Cyber-Vehicle_ratio.csv");
+    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\TH-Climate");
+    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
+                + "\\compression_ratio\\rr_ratio\\TH-Climate_ratio.csv");
+    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\TY-Transport");
+    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
+                + "\\compression_ratio\\rr_ratio\\TY-Transport_ratio.csv");
+    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\TY-Fuel");
+    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
+                + "\\compression_ratio\\rr_ratio\\TY-Fuel_ratio.csv");
     input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\GW-Magnetic");
     output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation"
                 + "\\compression_ratio\\rr_ratio\\GW-Magnetic_ratio.csv");
@@ -713,8 +748,8 @@ public class TestMultipleGridNumRaw {
           double ratioTmp = (double) buffer.size() / (double) (data.size() * Integer.BYTES * 2);
           ratio += ratioTmp;
           s = System.nanoTime();
-          for (int repeat = 0; repeat < repeatTime2; repeat++)
-            data_decoded = ReorderingRegressionDecoder(buffer);
+          //for (int repeat = 0; repeat < repeatTime2; repeat++)
+            //data_decoded = ReorderingRegressionDecoder(buffer);
           e = System.nanoTime();
           decodeTime += ((e - s) / repeatTime2);
 
