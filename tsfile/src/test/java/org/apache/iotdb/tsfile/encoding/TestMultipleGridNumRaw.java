@@ -235,10 +235,10 @@ public class TestMultipleGridNumRaw {
 
   public static ArrayList<ArrayList<Integer>> getEncodeBitsRegression(
       ArrayList<ArrayList<Integer>> ts_block, int block_size, int grid, ArrayList<Integer> result) {
-    int timestamp_gridnum_min = Integer.MAX_VALUE;
     int timestamp_delta_min = Integer.MAX_VALUE;
     int value_delta_min = Integer.MAX_VALUE;
     ArrayList<ArrayList<Integer>> ts_block_delta = new ArrayList<>();
+    ArrayList<ArrayList<Integer>> gridnum_block = new ArrayList<>();
 
     ArrayList<Integer> tmp0 = new ArrayList<>();
     tmp0.add(ts_block.get(0).get(0));
@@ -253,9 +253,6 @@ public class TestMultipleGridNumRaw {
       int epsilon_r = ts_block.get(j).get(0) - ts_block.get(0).get(0) - gridNum_r * grid;
       int epsilon_v = ts_block.get(j).get(1) - ts_block.get(j - 1).get(1);
 
-      if (gridNum_r - pre_gridNum_r < timestamp_gridnum_min) {
-        timestamp_gridnum_min = gridNum_r - pre_gridNum_r;
-      }
       if (epsilon_r < timestamp_delta_min) {
         timestamp_delta_min = epsilon_r;
       }
@@ -271,16 +268,31 @@ public class TestMultipleGridNumRaw {
       pre_gridNum_r = gridNum_r;
     }
 
+    int max_gridnum_pos = Integer.MIN_VALUE;
+    int max_gridnum_val = Integer.MIN_VALUE;
+    for(int j=1;j<block_size;j++){
+      if(ts_block_delta.get(j).get(2) != 1){
+        ArrayList<Integer> tmp_gridnum = new ArrayList<>();
+        tmp_gridnum.add(j);
+        tmp_gridnum.add(ts_block_delta.get(j).get(2));
+        gridnum_block.add(tmp_gridnum);
+        if (j > max_gridnum_pos) {
+          max_gridnum_pos = j;
+        }
+        if (ts_block_delta.get(j).get(2) > max_gridnum_val) {
+          max_gridnum_val = ts_block_delta.get(j).get(2);
+        }
+      }
+    }
+
+    int timestamp_gridnum_length = gridnum_block.size();
+
     int max_interval = Integer.MIN_VALUE;
     int max_value = Integer.MIN_VALUE;
-    int max_gridnum = Integer.MIN_VALUE;
     for (int j = block_size - 1; j > 0; j--) {
       int epsilon_r = ts_block_delta.get(j).get(0) - timestamp_delta_min;
       int epsilon_v = ts_block_delta.get(j).get(1) - value_delta_min;
-      int gridNum_r = ts_block_delta.get(j).get(2) - timestamp_gridnum_min;
-      if (gridNum_r > max_gridnum) {
-        max_gridnum = gridNum_r;
-      }
+      //int gridNum_r = ts_block_delta.get(j).get(2) - timestamp_gridnum_min;
       if (epsilon_r > max_interval) {
         max_interval = epsilon_r;
       }
@@ -290,27 +302,29 @@ public class TestMultipleGridNumRaw {
       ArrayList<Integer> tmp = new ArrayList<>();
       tmp.add(epsilon_r);
       tmp.add(epsilon_v);
-      tmp.add(gridNum_r);
+      //tmp.add(gridNum_r);
       ts_block_delta.set(j, tmp);
     }
 
     int max_bit_width_interval = getBitWith(max_interval);
     int max_bit_width_value = getBitWith(max_value);
-    int max_bit_width_gridnum = getBitWith(max_gridnum);
+    int max_bit_width_gridnum_pos = getBitWith(max_gridnum_pos);
+    int max_bit_width_gridnum_val = getBitWith(max_gridnum_val);
 
     // calculate error
-    int length =
-        (max_bit_width_interval + max_bit_width_value + max_bit_width_gridnum) * (block_size - 1);
+    int length = (max_bit_width_interval + max_bit_width_value
+            + max_bit_width_gridnum_pos + max_bit_width_gridnum_val) * (block_size - 1);
     result.clear();
 
     result.add(length);
     result.add(max_bit_width_interval);
     result.add(max_bit_width_value);
-    result.add(max_bit_width_gridnum);
+    result.add(max_bit_width_gridnum_pos);
+    result.add(max_bit_width_gridnum_val);
 
     result.add(timestamp_delta_min);
     result.add(value_delta_min);
-    result.add(timestamp_gridnum_min);
+    result.add(timestamp_gridnum_length);
 
     return ts_block_delta;
   }
