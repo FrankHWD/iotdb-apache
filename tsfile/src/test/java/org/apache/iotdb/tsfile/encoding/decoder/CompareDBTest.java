@@ -22,8 +22,33 @@ public class CompareDBTest {
     ArrayList<String> input_path_list = new ArrayList<>();
     ArrayList<String> output_path_list = new ArrayList<>();
 
-    input_path_list.add("E:\\compareDB\\test");
-    output_path_list.add("E:\\compareDB\\result\\result.csv");
+//    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\Metro-Traffic");
+//    output_path_list.add(
+//            "E:\\thu\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\Metro-Traffic_ratio.csv");
+//    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\Nifty-Stocks");
+//    output_path_list.add(
+//            "E:\\thu\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\Nifty-Stocks_ratio.csv");
+//    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\USGS-Earthquakes");
+//    output_path_list.add(
+//            "E:\\thu\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\USGS-Earthquakes_ratio.csv");
+//    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\Cyber-Vehicle");
+//    output_path_list.add(
+//            "E:\\thu\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\Cyber-Vehicle_ratio.csv");
+//    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\TH-Climate");
+//    output_path_list.add(
+//            "E:\\thu\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\TH-Climate_ratio.csv");
+//    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\TY-Transport");
+//    output_path_list.add(
+//            "E:\\thu\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\TY-Transport_ratio.csv");
+//    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\TY-Fuel");
+//    output_path_list.add(
+//            "E:\\thu\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\TY-Fuel_ratio.csv");
+//    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\GW-Magnetic");
+//    output_path_list.add(
+//            "E:\\thu\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\GW-Magnetic_ratio.csv");
+
+    input_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\iotdb_test\\ZY");
+    output_path_list.add("E:\\thu\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\ZY.csv");
 
     for (int file_i = 0; file_i < input_path_list.size(); file_i++) {
       String inputPath = input_path_list.get(file_i);
@@ -58,6 +83,7 @@ public class CompareDBTest {
         "Uncompress Time",
         "Points",
         "Compressed Size",
+        "Raw Size",
         "Compression Ratio"
       };
       writer.writeRecord(head); // write header to output file
@@ -79,10 +105,15 @@ public class CompareDBTest {
           // add a column to "data"
           loader.readHeaders();
           data.clear();
-          //        int sb = 0;&&sb<256
           while (loader.readRecord()) {
+//            if(index==0){
+//              String s = loader.getValues()[0];
+//              data.add(s.substring(0,s.length()-2));
+//            }
+//            else{
+//              data.add(loader.getValues()[index]);
+//            }
             data.add(loader.getValues()[index]);
-            //          sb++;
           }
           inputStream.close();
 
@@ -109,6 +140,7 @@ public class CompareDBTest {
 
                     double ratio = 0;
                     double compressed_size = 0;
+                    double raw_size = 0;
 
                     long compressTime = 0;
                     long uncompressTime = 0;
@@ -136,6 +168,7 @@ public class CompareDBTest {
 
                       // test compression ratio and compressed size
                       compressed_size += compressed.length;
+                      raw_size += tmp.size() * Integer.BYTES;
                       double ratioTmp =
                           (double) compressed.length / (double) (tmp.size() * Integer.BYTES);
                       ratio += ratioTmp;
@@ -160,6 +193,7 @@ public class CompareDBTest {
 
                     ratio /= repeatTime;
                     compressed_size /= repeatTime;
+                    raw_size /= repeatTime;
                     encodeTime /= repeatTime;
                     decodeTime /= repeatTime;
                     compressTime /= repeatTime;
@@ -176,6 +210,7 @@ public class CompareDBTest {
                       String.valueOf(uncompressTime),
                       String.valueOf(data.size()),
                       String.valueOf(compressed_size),
+                      String.valueOf(raw_size),
                       String.valueOf(ratio)
                     };
                     writer.writeRecord(record);
@@ -205,6 +240,7 @@ public class CompareDBTest {
                     IUnCompressor unCompressor = IUnCompressor.getUnCompressor(comp);
                     double ratio = 0;
                     double compressed_size = 0;
+                    double raw_size = 0;
 
                     long compressTime = 0;
                     long uncompressTime = 0;
@@ -227,6 +263,7 @@ public class CompareDBTest {
 
                       // test compression ratio and compressed size
                       compressed_size = compressed.length;
+                      raw_size += tmp.size() * Long.BYTES;
                       double ratioTmp =
                           (double) compressed.length / (double) (tmp.size() * Long.BYTES);
                       ratio += ratioTmp;
@@ -251,6 +288,7 @@ public class CompareDBTest {
 
                     ratio /= repeatTime;
                     compressed_size /= repeatTime;
+                    raw_size /= repeatTime;
                     encodeTime /= repeatTime;
                     decodeTime /= repeatTime;
                     compressTime /= repeatTime;
@@ -267,6 +305,7 @@ public class CompareDBTest {
                       String.valueOf(compressTime),
                       String.valueOf(uncompressTime),
                       String.valueOf(compressed_size),
+                      String.valueOf(raw_size),
                       String.valueOf(ratio)
                     };
                     writer.writeRecord(record);
@@ -297,6 +336,7 @@ public class CompareDBTest {
                     long uncompressTime = 0;
                     double ratio = 0;
                     double compressed_size = 0;
+                    double raw_size = 0;
 
                     // repeat many times to test time
                     for (int i = 0; i < repeatTime; i++) {
@@ -318,6 +358,7 @@ public class CompareDBTest {
 
                       // test compression ratio and compressed size
                       compressed_size = compressed.length;
+                      raw_size += tmp.size() * Double.BYTES;
                       double ratioTmp =
                           (double) compressed.length / (double) (tmp.size() * Double.BYTES);
                       ratio += ratioTmp;
@@ -342,6 +383,7 @@ public class CompareDBTest {
 
                     ratio /= repeatTime;
                     compressed_size /= repeatTime;
+                    raw_size /= repeatTime;
                     encodeTime /= repeatTime;
                     decodeTime /= repeatTime;
                     compressTime /= repeatTime;
@@ -358,6 +400,7 @@ public class CompareDBTest {
                       String.valueOf(compressTime),
                       String.valueOf(uncompressTime),
                       String.valueOf(compressed_size),
+                      String.valueOf(raw_size),
                       String.valueOf(ratio)
                     };
                     writer.writeRecord(record);
@@ -389,6 +432,7 @@ public class CompareDBTest {
                     long uncompressTime = 0;
                     double ratio = 0;
                     double compressed_size = 0;
+                    double raw_size = 0;
 
                     // repeat many times to test time
                     for (int i = 0; i < repeatTime; i++) {
@@ -412,6 +456,7 @@ public class CompareDBTest {
 
                       // test compression ratio and compressed size
                       compressed_size += compressed.length;
+                      raw_size += tmp.size() * Float.BYTES;
                       double ratioTmp =
                           (double) compressed.length / (double) (tmp.size() * Float.BYTES);
                       ratio += ratioTmp;
@@ -434,6 +479,7 @@ public class CompareDBTest {
                     }
                     ratio /= repeatTime;
                     compressed_size /= repeatTime;
+                    raw_size /= repeatTime;
                     encodeTime /= repeatTime;
                     decodeTime /= repeatTime;
                     compressTime /= repeatTime;
@@ -450,6 +496,7 @@ public class CompareDBTest {
                       String.valueOf(compressTime),
                       String.valueOf(uncompressTime),
                       String.valueOf(compressed_size),
+                      String.valueOf(raw_size),
                       String.valueOf(ratio)
                     };
                     writer.writeRecord(record);
