@@ -254,6 +254,7 @@ public class TestMultipleGridNumRaw {
       ArrayList<ArrayList<Integer>> ts_outlier_block) {
     int timestamp_delta_min = Integer.MAX_VALUE;
     int value_delta_min = Integer.MAX_VALUE;
+    int ts_outlier_min = Integer.MAX_VALUE;
     ArrayList<ArrayList<Integer>> ts_block_delta = new ArrayList<>();
 
     ArrayList<Integer> tmp0 = new ArrayList<>();
@@ -315,11 +316,15 @@ public class TestMultipleGridNumRaw {
     int max_ts_outlier_val = Integer.MIN_VALUE;
     int pre_pos_outlier = 0;
     for (int j = 1; j < block_size; j++) {
-      if(Math.abs(ts_block_delta.get(j).get(0)) >= 32){
+      if(Math.abs(ts_block_delta.get(j).get(0)) >= 8){
         ArrayList<Integer> tmp_ts_outlier = new ArrayList<>();
         tmp_ts_outlier.add(j - pre_pos_outlier);
         tmp_ts_outlier.add(ts_block_delta.get(j).get(0));
         ts_outlier_block.add(tmp_ts_outlier);
+
+        if(ts_block_delta.get(j).get(0)<ts_outlier_min){
+          ts_outlier_min = ts_block_delta.get(j).get(0);
+        }
 
         if (j - pre_pos_outlier > max_ts_outlier_pos) {
           max_ts_outlier_pos = j - pre_pos_outlier;
@@ -341,10 +346,17 @@ public class TestMultipleGridNumRaw {
       if (ts_block_delta.get(j).get(1) < value_delta_min) {
         value_delta_min = ts_block_delta.get(j).get(1);
       }
-      System.out.println(ts_block_delta.get(j).get(0));
     }
 
-    int ts_outlier_length = gridnum_block.size();
+    int ts_outlier_length = ts_outlier_block.size();
+    for(int j=0;j<ts_outlier_length;j++){
+      int t = ts_outlier_block.get(j).get(1) - ts_outlier_min;
+      ArrayList<Integer> tmp = new ArrayList<>();
+      tmp.add(ts_outlier_block.get(j).get(0));
+      tmp.add(t);
+      ts_outlier_block.set(j,tmp);
+    }
+
     int ts_outlier_remain_length;
     if(ts_outlier_length % 8 == 0){
       ts_outlier_remain_length = 0;
@@ -356,7 +368,7 @@ public class TestMultipleGridNumRaw {
       ArrayList<Integer> tmp_ts_outlier0 = new ArrayList<>();
       tmp_ts_outlier0.add(0);
       tmp_ts_outlier0.add(0);
-      gridnum_block.add(tmp_ts_outlier0);
+      ts_outlier_block.add(tmp_ts_outlier0);
     }
 
     int max_interval = Integer.MIN_VALUE;
@@ -404,6 +416,8 @@ public class TestMultipleGridNumRaw {
     result.add(timestamp_gridnum_length);
     result.add(ts_outlier_length);
 
+    result.add(ts_outlier_min);
+
     return ts_block_delta;
   }
 
@@ -425,6 +439,8 @@ public class TestMultipleGridNumRaw {
     for (byte b : interval_min_byte) encoded_result.add(b);
     byte[] value_min_byte = int2Bytes(raw_length.get(8));
     for (byte b : value_min_byte) encoded_result.add(b);
+    byte[] ts_outlier_min_byte = int2Bytes(raw_length.get(11));
+    for (byte b : ts_outlier_min_byte) encoded_result.add(b);
 
     // encode interval
     byte[] max_bit_width_interval_byte = int2Bytes(raw_length.get(1));
