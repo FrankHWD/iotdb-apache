@@ -106,7 +106,7 @@ public class TestMultipleGridNumRaw {
   }
 
   public static byte[] bitPacking(ArrayList<ArrayList<Integer>> numbers, int index, int bit_width) {
-    int block_num = numbers.size() / 8;
+    int block_num = (numbers.size()-1) / 8;
     byte[] result = new byte[bit_width * block_num];
     for (int i = 0; i < block_num; i++) {
       for (int j = 0; j < bit_width; j++) {
@@ -262,13 +262,11 @@ public class TestMultipleGridNumRaw {
     ArrayList<Integer> tmp0 = new ArrayList<>();
     tmp0.add(ts_block.get(0).get(0));
     tmp0.add(ts_block.get(0).get(1));
-    tmp0.add(0);
     ts_block_delta.add(tmp0);
 
     int pre_gridNum_r = 0;
     for (int j = 1; j < block_size; j++) {
-      int gridNum_r =
-          (int) Math.round((ts_block.get(j).get(0) - ts_block.get(0).get(0)) * 1.0 / grid);
+      int gridNum_r = (int) Math.round((ts_block.get(j).get(0) - ts_block.get(0).get(0)) * 1.0 / grid);
       int epsilon_r = ts_block.get(j).get(0) - ts_block.get(0).get(0) - gridNum_r * grid;
       int epsilon_v = ts_block.get(j).get(1) - ts_block.get(j - 1).get(1);
 
@@ -341,7 +339,6 @@ public class TestMultipleGridNumRaw {
     int max_bit_width_gridnum_pos = getBitWith(max_gridnum_pos);
     int max_bit_width_gridnum_val = getBitWith(max_gridnum_val);
 
-    // calculate error
     int length =
         (max_bit_width_interval + max_bit_width_value) * (block_size - 1)
             + (max_bit_width_gridnum_pos + max_bit_width_gridnum_val)
@@ -525,9 +522,6 @@ public class TestMultipleGridNumRaw {
 
       int grid = getGrid(ts_block);
 
-      // ArrayList<Integer> result2 = new ArrayList<>();
-      // splitTimeStamp3(ts_block, result2);
-
       ArrayList<Integer> raw_length = new ArrayList<>(); // parameters
       ArrayList<Integer> raw_length2 = new ArrayList<>(); // parameters
       ArrayList<ArrayList<Integer>> gridnum_block = new ArrayList<>();
@@ -537,9 +531,9 @@ public class TestMultipleGridNumRaw {
       ArrayList<ArrayList<Integer>> ts_block_delta2 =
           getEncodeBitsRegressionTs2diff(ts_block, block_size, raw_length2);
 
-      //      System.out.print(raw_length.get(0));
-      //      System.out.print(" ");
-      //      System.out.println(raw_length2.get(0));
+      //System.out.print(raw_length.get(0));
+      //System.out.print(" ");
+      //System.out.println(raw_length2.get(0));
 
       ArrayList<Byte> cur_encoded_result;
       if (raw_length.get(0) <= raw_length2.get(0)) {
@@ -566,11 +560,8 @@ public class TestMultipleGridNumRaw {
 
       int grid = getGrid(ts_block);
 
-      // ArrayList<Integer> result2 = new ArrayList<>();
-      // splitTimeStamp3(ts_block, result2);
-
       ArrayList<Integer> raw_length = new ArrayList<>(); // parameters
-      ArrayList<Integer> raw_length2 = new ArrayList<>();
+      ArrayList<Integer> raw_length2 = new ArrayList<>(); // parameters
       ArrayList<ArrayList<Integer>> gridnum_block = new ArrayList<>();
 
       ArrayList<ArrayList<Integer>> ts_block_delta =
@@ -885,7 +876,7 @@ public class TestMultipleGridNumRaw {
           long s = System.nanoTime();
           ArrayList<Byte> buffer = new ArrayList<>();
           for (int repeat = 0; repeat < repeatTime2; repeat++)
-            buffer = ReorderingRegressionEncoder(data, 256);
+            buffer = ReorderingRegressionEncoder(data, 256); //transport 318 可以再大 +8
           long e = System.nanoTime();
           encodeTime += ((e - s) / repeatTime2);
           compressed_size += buffer.size();
