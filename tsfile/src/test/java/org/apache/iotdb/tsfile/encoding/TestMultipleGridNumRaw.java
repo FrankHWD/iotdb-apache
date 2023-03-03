@@ -362,10 +362,7 @@ public class TestMultipleGridNumRaw {
   }
 
   public static ArrayList<ArrayList<Integer>> getEncodeBitsRegressionTs2diff(
-      ArrayList<ArrayList<Integer>> ts_block,
-      int block_size,
-      ArrayList<Integer> result,
-      ArrayList<ArrayList<Integer>> gridnum_block) {
+      ArrayList<ArrayList<Integer>> ts_block, int block_size, ArrayList<Integer> result) {
     int timestamp_delta_min = Integer.MAX_VALUE;
     int value_delta_min = Integer.MAX_VALUE;
     ArrayList<ArrayList<Integer>> ts_block_delta = new ArrayList<>();
@@ -418,12 +415,9 @@ public class TestMultipleGridNumRaw {
     result.add(length);
     result.add(max_bit_width_interval);
     result.add(max_bit_width_value);
-    result.add(0);
-    result.add(0);
 
     result.add(timestamp_delta_min);
     result.add(value_delta_min);
-    result.add(0);
 
     return ts_block_delta;
   }
@@ -478,6 +472,38 @@ public class TestMultipleGridNumRaw {
     return encoded_result;
   }
 
+  public static ArrayList<Byte> encode2Bytes2(
+      ArrayList<ArrayList<Integer>> ts_block, ArrayList<Integer> raw_length) {
+
+    ArrayList<Byte> encoded_result = new ArrayList<>();
+
+    // encode interval0 and value0
+    byte[] interval0_byte = int2Bytes(ts_block.get(0).get(0));
+    for (byte b : interval0_byte) encoded_result.add(b);
+    byte[] value0_byte = int2Bytes(ts_block.get(0).get(1));
+    for (byte b : value0_byte) encoded_result.add(b);
+
+    // encode interval_min and value_min
+    byte[] interval_min_byte = int2Bytes(raw_length.get(3));
+    for (byte b : interval_min_byte) encoded_result.add(b);
+    byte[] value_min_byte = int2Bytes(raw_length.get(4));
+    for (byte b : value_min_byte) encoded_result.add(b);
+
+    // encode interval
+    byte[] max_bit_width_interval_byte = int2Bytes(raw_length.get(1));
+    for (byte b : max_bit_width_interval_byte) encoded_result.add(b);
+    byte[] timestamp_bytes = bitPacking(ts_block, 0, raw_length.get(1));
+    for (byte b : timestamp_bytes) encoded_result.add(b);
+
+    // encode value
+    byte[] max_bit_width_value_byte = int2Bytes(raw_length.get(2));
+    for (byte b : max_bit_width_value_byte) encoded_result.add(b);
+    byte[] value_bytes = bitPacking(ts_block, 1, raw_length.get(2));
+    for (byte b : value_bytes) encoded_result.add(b);
+
+    return encoded_result;
+  }
+
   public static ArrayList<Byte> ReorderingRegressionEncoder(
       ArrayList<ArrayList<Integer>> data, int block_size) {
     block_size++;
@@ -502,14 +528,25 @@ public class TestMultipleGridNumRaw {
       // ArrayList<Integer> result2 = new ArrayList<>();
       // splitTimeStamp3(ts_block, result2);
 
-      ArrayList<Integer> raw_length =
-          new ArrayList<>(); // length,max_bit_width_interval,max_bit_width_value
+      ArrayList<Integer> raw_length = new ArrayList<>(); // parameters
+      ArrayList<Integer> raw_length2 = new ArrayList<>(); // parameters
       ArrayList<ArrayList<Integer>> gridnum_block = new ArrayList<>();
+
       ArrayList<ArrayList<Integer>> ts_block_delta =
           getEncodeBitsRegression(ts_block, block_size, grid, raw_length, gridnum_block);
+      ArrayList<ArrayList<Integer>> ts_block_delta2 =
+          getEncodeBitsRegressionTs2diff(ts_block, block_size, raw_length2);
 
-      ArrayList<Byte> cur_encoded_result =
-          encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block);
+      //      System.out.print(raw_length.get(0));
+      //      System.out.print(" ");
+      //      System.out.println(raw_length2.get(0));
+
+      ArrayList<Byte> cur_encoded_result;
+      if (raw_length.get(0) <= raw_length2.get(0)) {
+        cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block);
+      } else {
+        cur_encoded_result = encode2Bytes2(ts_block_delta2, raw_length2);
+      }
       encoded_result.addAll(cur_encoded_result);
     }
 
@@ -532,15 +569,14 @@ public class TestMultipleGridNumRaw {
       // ArrayList<Integer> result2 = new ArrayList<>();
       // splitTimeStamp3(ts_block, result2);
 
-      ArrayList<Integer> raw_length = new ArrayList<>(); // 参数
+      ArrayList<Integer> raw_length = new ArrayList<>(); // parameters
       ArrayList<Integer> raw_length2 = new ArrayList<>();
       ArrayList<ArrayList<Integer>> gridnum_block = new ArrayList<>();
-      ArrayList<ArrayList<Integer>> gridnum_block2 = new ArrayList<>();
 
       ArrayList<ArrayList<Integer>> ts_block_delta =
           getEncodeBitsRegression(ts_block, remaining_length, grid, raw_length, gridnum_block);
       ArrayList<ArrayList<Integer>> ts_block_delta2 =
-          getEncodeBitsRegressionTs2diff(ts_block, remaining_length, raw_length2, gridnum_block2);
+          getEncodeBitsRegressionTs2diff(ts_block, remaining_length, raw_length2);
 
       int supple_length;
       if (remaining_length % 8 == 0) {
@@ -567,15 +603,11 @@ public class TestMultipleGridNumRaw {
         ts_block_delta2.add(tmp);
       }
 
-      System.out.print(raw_length.get(0));
-      System.out.print(" ");
-      System.out.println(raw_length2.get(0));
-
       ArrayList<Byte> cur_encoded_result;
       if (raw_length.get(0) <= raw_length2.get(0)) {
         cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block);
       } else {
-        cur_encoded_result = encode2Bytes(ts_block_delta2, raw_length2, grid, gridnum_block2);
+        cur_encoded_result = encode2Bytes2(ts_block_delta2, raw_length2);
       }
       encoded_result.addAll(cur_encoded_result);
     }
