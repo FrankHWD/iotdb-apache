@@ -398,7 +398,7 @@ public class TestMultipleGridNumRaw {
     ts_block_delta.add(tmp0);
 
     for (int j = 1; j < block_size; j++) {
-      int epsilon_r = ts_block.get(j).get(1) - ts_block.get(j - 1).get(1);
+      int epsilon_r = ts_block.get(j).get(0) - ts_block.get(j - 1).get(0);
       int epsilon_v = ts_block.get(j).get(1) - ts_block.get(j - 1).get(1);
 
       if (epsilon_r < timestamp_delta_min) {
@@ -455,8 +455,11 @@ public class TestMultipleGridNumRaw {
 
     ArrayList<Byte> encoded_result = new ArrayList<>();
 
-    byte flag = 1;
-    encoded_result.add(flag);
+    //    byte flag = 1;
+    //    encoded_result.add(flag);
+
+    byte[] flag_byte = int2Bytes(1);
+    for (byte b : flag_byte) encoded_result.add(b);
 
     // encode interval0 and value0
     byte[] interval0_byte = int2Bytes(ts_block.get(0).get(0));
@@ -508,8 +511,11 @@ public class TestMultipleGridNumRaw {
 
     ArrayList<Byte> encoded_result = new ArrayList<>();
 
-    byte flag = 0;
-    encoded_result.add(flag);
+    // byte flag = 0;
+    // encoded_result.add(flag);
+
+    byte[] flag_byte = int2Bytes(0);
+    for (byte b : flag_byte) encoded_result.add(b);
 
     // encode interval0 and value0
     byte[] interval0_byte = int2Bytes(ts_block.get(0).get(0));
@@ -576,8 +582,7 @@ public class TestMultipleGridNumRaw {
       if (raw_length.get(0) <= raw_length2.get(0)) {
         cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block);
       } else {
-        cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block);
-        // cur_encoded_result = encode2Bytes2(ts_block_delta2, raw_length2);
+        cur_encoded_result = encode2Bytes2(ts_block_delta2, raw_length2);
       }
       encoded_result.addAll(cur_encoded_result);
     }
@@ -636,8 +641,7 @@ public class TestMultipleGridNumRaw {
       if (raw_length.get(0) <= raw_length2.get(0)) {
         cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block);
       } else {
-        cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block);
-        // cur_encoded_result = encode2Bytes2(ts_block_delta2, raw_length2);
+        cur_encoded_result = encode2Bytes2(ts_block_delta2, raw_length2);
       }
       encoded_result.addAll(cur_encoded_result);
     }
@@ -671,87 +675,134 @@ public class TestMultipleGridNumRaw {
 
       ArrayList<ArrayList<Integer>> ts_block = new ArrayList<>();
 
-      int flag = encoded.get(0);
-      decode_pos += 1;
+      // int flag = encoded.get(decode_pos);
+      // decode_pos += 1;
 
-      // if(flag==1){
-
-      int time0 = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-      int value0 = bytes2Integer(encoded, decode_pos, 4);
+      int flag = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
 
-      int time_min = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-      int value_min = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
+      if (flag == 1) {
+        int time0 = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        int value0 = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
 
-      int timestamp_gridnum_length = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-      int timestamp_gridnum_remain_length;
-      if (timestamp_gridnum_length % 8 == 0) {
-        timestamp_gridnum_remain_length = 0;
-      } else {
-        timestamp_gridnum_remain_length = 8 - timestamp_gridnum_length % 8;
-      }
-      int grid_length = timestamp_gridnum_length + timestamp_gridnum_remain_length;
+        int time_min = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        int value_min = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
 
-      int max_bit_width_time = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-      time_list = decodebitPacking(encoded, decode_pos, max_bit_width_time, 0, block_size);
-      decode_pos += max_bit_width_time * (block_size - 1) / 8;
-
-      int max_bit_width_value = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-      value_list = decodebitPacking(encoded, decode_pos, max_bit_width_value, 0, block_size);
-      decode_pos += max_bit_width_value * (block_size - 1) / 8;
-
-      int max_bit_width_gridnum_pos = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-      gridnum_pos_list =
-          decodebitPacking2(encoded, decode_pos, max_bit_width_gridnum_pos, 0, grid_length);
-      decode_pos += max_bit_width_gridnum_pos * grid_length / 8;
-
-      int max_bit_width_gridnum_val = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-      gridnum_val_list =
-          decodebitPacking2(encoded, decode_pos, max_bit_width_gridnum_val, 0, grid_length);
-      decode_pos += max_bit_width_gridnum_val * grid_length / 8;
-
-      int grid = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-
-      int vi_pre = value0;
-      int gridnum_pre = 0;
-      int gridnum_pos = 0;
-      int g = 0;
-      for (int i = 0; i < block_size - 1; i++) {
-        int gridnum = 1;
-        if (g < timestamp_gridnum_length && (gridnum_pos + gridnum_pos_list.get(g)) == i) {
-          gridnum = gridnum_val_list.get(g);
-          gridnum_pos = gridnum_pos + gridnum_pos_list.get(g);
-          g += 1;
+        int timestamp_gridnum_length = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        int timestamp_gridnum_remain_length;
+        if (timestamp_gridnum_length % 8 == 0) {
+          timestamp_gridnum_remain_length = 0;
+        } else {
+          timestamp_gridnum_remain_length = 8 - timestamp_gridnum_length % 8;
         }
-        int ti = time0 + (gridnum + gridnum_pre) * grid + time_list.get(i) + time_min;
-        time_list.set(i, ti);
-        gridnum_pre = gridnum + gridnum_pre;
+        int grid_length = timestamp_gridnum_length + timestamp_gridnum_remain_length;
 
-        int vi = vi_pre + value_list.get(i) + value_min;
-        value_list.set(i, vi);
-        vi_pre = vi;
-      }
+        int max_bit_width_time = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        time_list = decodebitPacking(encoded, decode_pos, max_bit_width_time, 0, block_size);
+        decode_pos += max_bit_width_time * (block_size - 1) / 8;
 
-      ArrayList<Integer> ts_block_tmp0 = new ArrayList<>();
-      ts_block_tmp0.add(time0);
-      ts_block_tmp0.add(value0);
-      ts_block.add(ts_block_tmp0);
-      for (int i = 0; i < block_size - 1; i++) {
-        ArrayList<Integer> ts_block_tmp = new ArrayList<>();
-        ts_block_tmp.add(time_list.get(i));
-        ts_block_tmp.add(value_list.get(i));
-        ts_block.add(ts_block_tmp);
+        int max_bit_width_value = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        value_list = decodebitPacking(encoded, decode_pos, max_bit_width_value, 0, block_size);
+        decode_pos += max_bit_width_value * (block_size - 1) / 8;
+
+        int max_bit_width_gridnum_pos = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        gridnum_pos_list =
+            decodebitPacking2(encoded, decode_pos, max_bit_width_gridnum_pos, 0, grid_length);
+        decode_pos += max_bit_width_gridnum_pos * grid_length / 8;
+
+        int max_bit_width_gridnum_val = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        gridnum_val_list =
+            decodebitPacking2(encoded, decode_pos, max_bit_width_gridnum_val, 0, grid_length);
+        decode_pos += max_bit_width_gridnum_val * grid_length / 8;
+
+        int grid = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+
+        int vi_pre = value0;
+        int gridnum_pre = 0;
+        int gridnum_pos = 0;
+        int g = 0;
+        for (int i = 0; i < block_size - 1; i++) {
+          int gridnum = 1;
+          if (g < timestamp_gridnum_length && (gridnum_pos + gridnum_pos_list.get(g)) == i) {
+            gridnum = gridnum_val_list.get(g);
+            gridnum_pos = gridnum_pos + gridnum_pos_list.get(g);
+            g += 1;
+          }
+          int ti = time0 + (gridnum + gridnum_pre) * grid + time_list.get(i) + time_min;
+          time_list.set(i, ti);
+          gridnum_pre = gridnum + gridnum_pre;
+
+          int vi = vi_pre + value_list.get(i) + value_min;
+          value_list.set(i, vi);
+          vi_pre = vi;
+        }
+
+        ArrayList<Integer> ts_block_tmp0 = new ArrayList<>();
+        ts_block_tmp0.add(time0);
+        ts_block_tmp0.add(value0);
+        ts_block.add(ts_block_tmp0);
+        for (int i = 0; i < block_size - 1; i++) {
+          ArrayList<Integer> ts_block_tmp = new ArrayList<>();
+          ts_block_tmp.add(time_list.get(i));
+          ts_block_tmp.add(value_list.get(i));
+          ts_block.add(ts_block_tmp);
+        }
+        data.addAll(ts_block);
+      } else {
+        int time0 = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        int value0 = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+
+        int time_min = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        int value_min = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+
+        int max_bit_width_time = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        time_list = decodebitPacking(encoded, decode_pos, max_bit_width_time, 0, block_size);
+        decode_pos += max_bit_width_time * (block_size - 1) / 8;
+
+        int max_bit_width_value = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        value_list = decodebitPacking(encoded, decode_pos, max_bit_width_value, 0, block_size);
+        decode_pos += max_bit_width_value * (block_size - 1) / 8;
+
+        int ti_pre = time0;
+        int vi_pre = value0;
+        for (int i = 0; i < block_size - 1; i++) {
+          int ti = ti_pre + time_list.get(i) + time_min;
+          time_list.set(i, ti);
+          ti_pre = ti;
+
+          int vi = vi_pre + value_list.get(i) + value_min;
+          value_list.set(i, vi);
+          vi_pre = vi;
+        }
+
+        ArrayList<Integer> ts_block_tmp0 = new ArrayList<>();
+        ts_block_tmp0.add(time0);
+        ts_block_tmp0.add(value0);
+        ts_block.add(ts_block_tmp0);
+        for (int i = 0; i < block_size - 1; i++) {
+          ArrayList<Integer> ts_block_tmp = new ArrayList<>();
+          ts_block_tmp.add(time_list.get(i));
+          ts_block_tmp.add(value_list.get(i));
+          ts_block.add(ts_block_tmp);
+        }
+        data.addAll(ts_block);
       }
-      data.addAll(ts_block);
     }
 
     if (remain_length == 1) {
@@ -772,90 +823,147 @@ public class TestMultipleGridNumRaw {
 
       ArrayList<ArrayList<Integer>> ts_block = new ArrayList<>();
 
-      int flag = encoded.get(0);
-      decode_pos += 1;
+      // int flag = encoded.get(decode_pos);
+      // decode_pos += 1;
 
-      int time0 = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-      int value0 = bytes2Integer(encoded, decode_pos, 4);
+      int flag = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
 
-      int time_min = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-      int value_min = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
+      if (flag == 1) {
+        int time0 = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        int value0 = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
 
-      int timestamp_gridnum_length = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-      int timestamp_gridnum_remain_length;
-      if (timestamp_gridnum_length % 8 == 0) {
-        timestamp_gridnum_remain_length = 0;
-      } else {
-        timestamp_gridnum_remain_length = 8 - timestamp_gridnum_length % 8;
-      }
-      int grid_length = timestamp_gridnum_length + timestamp_gridnum_remain_length;
+        int time_min = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        int value_min = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
 
-      int max_bit_width_time = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-      time_list =
-          decodebitPacking(encoded, decode_pos, max_bit_width_time, 0, remain_length + zero_number);
-      decode_pos += max_bit_width_time * (remain_length + zero_number - 1) / 8;
-
-      int max_bit_width_value = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-      value_list =
-          decodebitPacking(
-              encoded, decode_pos, max_bit_width_value, 0, remain_length + zero_number);
-      decode_pos += max_bit_width_value * (remain_length + zero_number - 1) / 8;
-
-      int max_bit_width_gridnum_pos = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-      gridnum_pos_list =
-          decodebitPacking2(encoded, decode_pos, max_bit_width_gridnum_pos, 0, grid_length);
-      decode_pos += max_bit_width_gridnum_pos * grid_length / 8;
-
-      int max_bit_width_gridnum_val = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-      gridnum_val_list =
-          decodebitPacking2(encoded, decode_pos, max_bit_width_gridnum_val, 0, grid_length);
-      decode_pos += max_bit_width_gridnum_val * grid_length / 8;
-
-      int grid = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-
-      int vi_pre = value0;
-      int gridnum_pre = 0;
-      int gridnum_pos = 0;
-      int g = 0;
-      for (int i = 0; i < remain_length - 1; i++) {
-        int gridnum = 1;
-        if (g < timestamp_gridnum_length && (gridnum_pos + gridnum_pos_list.get(g)) == i) {
-          gridnum = gridnum_val_list.get(g);
-          gridnum_pos = gridnum_pos + gridnum_pos_list.get(g);
-          g += 1;
+        int timestamp_gridnum_length = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        int timestamp_gridnum_remain_length;
+        if (timestamp_gridnum_length % 8 == 0) {
+          timestamp_gridnum_remain_length = 0;
+        } else {
+          timestamp_gridnum_remain_length = 8 - timestamp_gridnum_length % 8;
         }
-        int ti = time0 + (gridnum + gridnum_pre) * grid + time_list.get(i) + time_min;
-        time_list.set(i, ti);
-        gridnum_pre = gridnum + gridnum_pre;
+        int grid_length = timestamp_gridnum_length + timestamp_gridnum_remain_length;
 
-        int vi = vi_pre + value_list.get(i) + value_min;
-        value_list.set(i, vi);
-        vi_pre = vi;
-      }
+        int max_bit_width_time = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        time_list =
+            decodebitPacking(
+                encoded, decode_pos, max_bit_width_time, 0, remain_length + zero_number);
+        decode_pos += max_bit_width_time * (remain_length + zero_number - 1) / 8;
 
-      ArrayList<Integer> ts_block_tmp0 = new ArrayList<>();
-      ts_block_tmp0.add(time0);
-      ts_block_tmp0.add(value0);
-      ts_block.add(ts_block_tmp0);
-      for (int i = 0; i < remain_length - 1; i++) {
-        ArrayList<Integer> ts_block_tmp = new ArrayList<>();
-        ts_block_tmp.add(time_list.get(i));
-        ts_block_tmp.add(value_list.get(i));
-        ts_block.add(ts_block_tmp);
-      }
+        int max_bit_width_value = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        value_list =
+            decodebitPacking(
+                encoded, decode_pos, max_bit_width_value, 0, remain_length + zero_number);
+        decode_pos += max_bit_width_value * (remain_length + zero_number - 1) / 8;
 
-      for (int i = 0; i < remain_length; i++) {
-        data.add(ts_block.get(i));
+        int max_bit_width_gridnum_pos = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        gridnum_pos_list =
+            decodebitPacking2(encoded, decode_pos, max_bit_width_gridnum_pos, 0, grid_length);
+        decode_pos += max_bit_width_gridnum_pos * grid_length / 8;
+
+        int max_bit_width_gridnum_val = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        gridnum_val_list =
+            decodebitPacking2(encoded, decode_pos, max_bit_width_gridnum_val, 0, grid_length);
+        decode_pos += max_bit_width_gridnum_val * grid_length / 8;
+
+        int grid = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+
+        int vi_pre = value0;
+        int gridnum_pre = 0;
+        int gridnum_pos = 0;
+        int g = 0;
+        for (int i = 0; i < remain_length - 1; i++) {
+          int gridnum = 1;
+          if (g < timestamp_gridnum_length && (gridnum_pos + gridnum_pos_list.get(g)) == i) {
+            gridnum = gridnum_val_list.get(g);
+            gridnum_pos = gridnum_pos + gridnum_pos_list.get(g);
+            g += 1;
+          }
+          int ti = time0 + (gridnum + gridnum_pre) * grid + time_list.get(i) + time_min;
+          time_list.set(i, ti);
+          gridnum_pre = gridnum + gridnum_pre;
+
+          int vi = vi_pre + value_list.get(i) + value_min;
+          value_list.set(i, vi);
+          vi_pre = vi;
+        }
+
+        ArrayList<Integer> ts_block_tmp0 = new ArrayList<>();
+        ts_block_tmp0.add(time0);
+        ts_block_tmp0.add(value0);
+        ts_block.add(ts_block_tmp0);
+        for (int i = 0; i < remain_length - 1; i++) {
+          ArrayList<Integer> ts_block_tmp = new ArrayList<>();
+          ts_block_tmp.add(time_list.get(i));
+          ts_block_tmp.add(value_list.get(i));
+          ts_block.add(ts_block_tmp);
+        }
+
+        for (int i = 0; i < remain_length; i++) {
+          data.add(ts_block.get(i));
+        }
+      } else {
+        int time0 = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        int value0 = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+
+        int time_min = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        int value_min = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+
+        int max_bit_width_time = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        time_list =
+            decodebitPacking(
+                encoded, decode_pos, max_bit_width_time, 0, remain_length + zero_number);
+        decode_pos += max_bit_width_time * (remain_length + zero_number - 1) / 8;
+
+        int max_bit_width_value = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        value_list =
+            decodebitPacking(
+                encoded, decode_pos, max_bit_width_value, 0, remain_length + zero_number);
+        decode_pos += max_bit_width_value * (remain_length + zero_number - 1) / 8;
+
+        int ti_pre = time0;
+        int vi_pre = value0;
+        for (int i = 0; i < remain_length - 1; i++) {
+          int ti = ti_pre + time_list.get(i) + time_min;
+          time_list.set(i, ti);
+          ti_pre = ti;
+
+          int vi = vi_pre + value_list.get(i) + value_min;
+          value_list.set(i, vi);
+          vi_pre = vi;
+        }
+
+        ArrayList<Integer> ts_block_tmp0 = new ArrayList<>();
+        ts_block_tmp0.add(time0);
+        ts_block_tmp0.add(value0);
+        ts_block.add(ts_block_tmp0);
+        for (int i = 0; i < remain_length - 1; i++) {
+          ArrayList<Integer> ts_block_tmp = new ArrayList<>();
+          ts_block_tmp.add(time_list.get(i));
+          ts_block_tmp.add(value_list.get(i));
+          ts_block.add(ts_block_tmp);
+        }
+
+        for (int i = 0; i < remain_length; i++) {
+          data.add(ts_block.get(i));
+        }
       }
     }
     return data;
