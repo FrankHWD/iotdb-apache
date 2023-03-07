@@ -1055,7 +1055,7 @@ public class TestMultipleGridNumRaw {
           ArrayList<Integer> tmp = new ArrayList<>();
           String s = loader.getValues()[0];
           tmp.add(Integer.valueOf(s));
-          // tmp.add(Integer.valueOf(s.substring(0,s.length()-2)));
+          // tmp.add(Integer.valueOf(s.substring(0,s.length()-2))); //ZY
           tmp.add(Integer.valueOf(loader.getValues()[1]));
           data.add(tmp);
         }
@@ -1069,7 +1069,7 @@ public class TestMultipleGridNumRaw {
           long s = System.nanoTime();
           ArrayList<Byte> buffer = new ArrayList<>();
           for (int repeat = 0; repeat < repeatTime2; repeat++) {
-            buffer = ReorderingRegressionEncoder(data, 256); // transport 318 可以再大 +8
+            buffer = ReorderingRegressionEncoder(data, 256);
           }
           long e = System.nanoTime();
           encodeTime += ((e - s) / repeatTime2);
@@ -1100,7 +1100,7 @@ public class TestMultipleGridNumRaw {
 
         String[] record = {
           f.toString(),
-          "MultipleGridNumRaw",
+          "TIM",
           String.valueOf(encodeTime),
           String.valueOf(decodeTime),
           String.valueOf(data.size()),
