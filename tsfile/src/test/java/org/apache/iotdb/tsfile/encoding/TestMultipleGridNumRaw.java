@@ -106,7 +106,7 @@ public class TestMultipleGridNumRaw {
   }
 
   public static byte[] bitPacking(ArrayList<ArrayList<Integer>> numbers, int index, int bit_width) {
-    int block_num = numbers.size() / 8;
+    int block_num = (numbers.size() - 1) / 8;
     byte[] result = new byte[bit_width * block_num];
     for (int i = 0; i < block_num; i++) {
       for (int j = 0; j < bit_width; j++) {
@@ -121,7 +121,7 @@ public class TestMultipleGridNumRaw {
   }
 
   public static byte[] bitPacking2(
-      ArrayList<ArrayList<Integer>> numbers, int index, int bit_width) {
+          ArrayList<ArrayList<Integer>> numbers, int index, int bit_width) {
     int block_num = numbers.size() / 8;
     byte[] result = new byte[bit_width * block_num];
     for (int i = 0; i < block_num; i++) {
@@ -137,7 +137,7 @@ public class TestMultipleGridNumRaw {
   }
 
   public static ArrayList<Integer> decodebitPacking(
-      ArrayList<Byte> encoded, int decode_pos, int bit_width, int min_delta, int block_size) {
+          ArrayList<Byte> encoded, int decode_pos, int bit_width, int min_delta, int block_size) {
     ArrayList<Integer> result_list = new ArrayList<>();
     for (int i = 0; i < (block_size - 1) / 8; i++) { // bitpacking  纵向8个，bit width是多少列
       int[] val8 = new int[8];
@@ -164,7 +164,7 @@ public class TestMultipleGridNumRaw {
   }
 
   public static ArrayList<Integer> decodebitPacking2(
-      ArrayList<Byte> encoded, int decode_pos, int bit_width, int min_delta, int block_size) {
+          ArrayList<Byte> encoded, int decode_pos, int bit_width, int min_delta, int block_size) {
     ArrayList<Integer> result_list = new ArrayList<>();
     for (int i = 0; i < block_size / 8; i++) { // bitpacking  纵向8个，bit width是多少列
       int[] val8 = new int[8];
@@ -191,7 +191,7 @@ public class TestMultipleGridNumRaw {
   }
 
   public static void quickSort(
-      ArrayList<ArrayList<Integer>> ts_block, int index, int low, int high) {
+          ArrayList<ArrayList<Integer>> ts_block, int index, int low, int high) {
     if (low >= high) return;
     ArrayList<Integer> pivot = ts_block.get(low);
     int l = low;
@@ -242,7 +242,7 @@ public class TestMultipleGridNumRaw {
   }
 
   public static void splitTimeStamp3(
-      ArrayList<ArrayList<Integer>> ts_block, ArrayList<Integer> result) {
+          ArrayList<ArrayList<Integer>> ts_block, ArrayList<Integer> result) {
     int td_common = 0;
     for (int i = 1; i < ts_block.size(); i++) {
       int time_diffi = ts_block.get(i).get(0) - ts_block.get(i - 1).get(0);
@@ -277,11 +277,11 @@ public class TestMultipleGridNumRaw {
   }
 
   public static ArrayList<ArrayList<Integer>> getEncodeBitsRegression(
-      ArrayList<ArrayList<Integer>> ts_block,
-      int block_size,
-      int grid,
-      ArrayList<Integer> result,
-      ArrayList<ArrayList<Integer>> gridnum_block) {
+          ArrayList<ArrayList<Integer>> ts_block,
+          int block_size,
+          int grid,
+          ArrayList<Integer> result,
+          ArrayList<ArrayList<Integer>> gridnum_block) {
     int timestamp_delta_min = Integer.MAX_VALUE;
     int value_delta_min = Integer.MAX_VALUE;
     ArrayList<ArrayList<Integer>> ts_block_delta = new ArrayList<>();
@@ -289,13 +289,12 @@ public class TestMultipleGridNumRaw {
     ArrayList<Integer> tmp0 = new ArrayList<>();
     tmp0.add(ts_block.get(0).get(0));
     tmp0.add(ts_block.get(0).get(1));
-    tmp0.add(0);
     ts_block_delta.add(tmp0);
 
     int pre_gridNum_r = 0;
     for (int j = 1; j < block_size; j++) {
       int gridNum_r =
-          (int) Math.round((ts_block.get(j).get(0) - ts_block.get(0).get(0)) * 1.0 / grid);
+              (int) Math.round((ts_block.get(j).get(0) - ts_block.get(0).get(0)) * 1.0 / grid);
       int epsilon_r = ts_block.get(j).get(0) - ts_block.get(0).get(0) - gridNum_r * grid;
       int epsilon_v = ts_block.get(j).get(1) - ts_block.get(j - 1).get(1);
 
@@ -316,7 +315,7 @@ public class TestMultipleGridNumRaw {
 
     int max_gridnum_pos = Integer.MIN_VALUE;
     int max_gridnum_val = Integer.MIN_VALUE;
-    int pre_pos = 0;
+    int pre_pos = 1;
     for (int j = 1; j < block_size; j++) {
       if (ts_block_delta.get(j).get(2) != 1) {
         ArrayList<Integer> tmp_gridnum = new ArrayList<>();
@@ -368,11 +367,10 @@ public class TestMultipleGridNumRaw {
     int max_bit_width_gridnum_pos = getBitWith(max_gridnum_pos);
     int max_bit_width_gridnum_val = getBitWith(max_gridnum_val);
 
-    // calculate error
     int length =
-        (max_bit_width_interval + max_bit_width_value) * (block_size - 1)
-            + (max_bit_width_gridnum_pos + max_bit_width_gridnum_val)
-                * (timestamp_gridnum_length + timestamp_gridnum_remain_length);
+            (max_bit_width_interval + max_bit_width_value) * (block_size - 1)
+                    + (max_bit_width_gridnum_pos + max_bit_width_gridnum_val)
+                    * (timestamp_gridnum_length + timestamp_gridnum_remain_length);
     result.clear();
 
     result.add(length);
@@ -384,6 +382,67 @@ public class TestMultipleGridNumRaw {
     result.add(timestamp_delta_min);
     result.add(value_delta_min);
     result.add(timestamp_gridnum_length);
+
+    return ts_block_delta;
+  }
+
+  public static ArrayList<ArrayList<Integer>> getEncodeBitsRegressionTs2diff(
+          ArrayList<ArrayList<Integer>> ts_block, int block_size, ArrayList<Integer> result) {
+    int timestamp_delta_min = Integer.MAX_VALUE;
+    int value_delta_min = Integer.MAX_VALUE;
+    ArrayList<ArrayList<Integer>> ts_block_delta = new ArrayList<>();
+
+    ArrayList<Integer> tmp0 = new ArrayList<>();
+    tmp0.add(ts_block.get(0).get(0));
+    tmp0.add(ts_block.get(0).get(1));
+    ts_block_delta.add(tmp0);
+
+    for (int j = 1; j < block_size; j++) {
+      int epsilon_r = ts_block.get(j).get(0) - ts_block.get(j - 1).get(0);
+      int epsilon_v = ts_block.get(j).get(1) - ts_block.get(j - 1).get(1);
+
+      if (epsilon_r < timestamp_delta_min) {
+        timestamp_delta_min = epsilon_r;
+      }
+      if (epsilon_v < value_delta_min) {
+        value_delta_min = epsilon_v;
+      }
+      ArrayList<Integer> tmp = new ArrayList<>();
+      tmp.add(epsilon_r);
+      tmp.add(epsilon_v);
+      ts_block_delta.add(tmp);
+    }
+
+    int max_interval = Integer.MIN_VALUE;
+    int max_value = Integer.MIN_VALUE;
+    for (int j = block_size - 1; j > 0; j--) {
+      int epsilon_r = ts_block_delta.get(j).get(0) - timestamp_delta_min;
+      int epsilon_v = ts_block_delta.get(j).get(1) - value_delta_min;
+      if (epsilon_r > max_interval) {
+        max_interval = epsilon_r;
+      }
+      if (epsilon_v > max_value) {
+        max_value = epsilon_v;
+      }
+      ArrayList<Integer> tmp = new ArrayList<>();
+      tmp.add(epsilon_r);
+      tmp.add(epsilon_v);
+      ts_block_delta.set(j, tmp);
+    }
+
+    int max_bit_width_interval = getBitWith(max_interval);
+    int max_bit_width_value = getBitWith(max_value);
+
+    int length = (max_bit_width_interval + max_bit_width_value) * (block_size - 1);
+
+    result.clear();
+
+    result.add(length);
+    result.add(max_bit_width_interval);
+    result.add(max_bit_width_value);
+
+    result.add(timestamp_delta_min);
+    result.add(value_delta_min);
 
     return ts_block_delta;
   }
@@ -438,12 +497,18 @@ public class TestMultipleGridNumRaw {
   }
 
   public static ArrayList<Byte> encode2Bytes(
-      ArrayList<ArrayList<Integer>> ts_block,
-      ArrayList<Integer> raw_length,
-      int grid,
-      ArrayList<ArrayList<Integer>> gridnum_block) {
+          ArrayList<ArrayList<Integer>> ts_block,
+          ArrayList<Integer> raw_length,
+          int grid,
+          ArrayList<ArrayList<Integer>> gridnum_block) {
 
     ArrayList<Byte> encoded_result = new ArrayList<>();
+
+    //    byte flag = 1;
+    //    encoded_result.add(flag);
+
+    byte[] flag_byte = int2Bytes(1);
+    for (byte b : flag_byte) encoded_result.add(b);
 
     // encode interval0 and value0
     byte[] interval0_byte = int2Bytes(ts_block.get(0).get(0));
@@ -490,8 +555,46 @@ public class TestMultipleGridNumRaw {
     return encoded_result;
   }
 
+  public static ArrayList<Byte> encode2Bytes2(
+          ArrayList<ArrayList<Integer>> ts_block, ArrayList<Integer> raw_length) {
+
+    ArrayList<Byte> encoded_result = new ArrayList<>();
+
+    // byte flag = 0;
+    // encoded_result.add(flag);
+
+    byte[] flag_byte = int2Bytes(0);
+    for (byte b : flag_byte) encoded_result.add(b);
+
+    // encode interval0 and value0
+    byte[] interval0_byte = int2Bytes(ts_block.get(0).get(0));
+    for (byte b : interval0_byte) encoded_result.add(b);
+    byte[] value0_byte = int2Bytes(ts_block.get(0).get(1));
+    for (byte b : value0_byte) encoded_result.add(b);
+
+    // encode interval_min and value_min
+    byte[] interval_min_byte = int2Bytes(raw_length.get(3));
+    for (byte b : interval_min_byte) encoded_result.add(b);
+    byte[] value_min_byte = int2Bytes(raw_length.get(4));
+    for (byte b : value_min_byte) encoded_result.add(b);
+
+    // encode interval
+    byte[] max_bit_width_interval_byte = int2Bytes(raw_length.get(1));
+    for (byte b : max_bit_width_interval_byte) encoded_result.add(b);
+    byte[] timestamp_bytes = bitPacking(ts_block, 0, raw_length.get(1));
+    for (byte b : timestamp_bytes) encoded_result.add(b);
+
+    // encode value
+    byte[] max_bit_width_value_byte = int2Bytes(raw_length.get(2));
+    for (byte b : max_bit_width_value_byte) encoded_result.add(b);
+    byte[] value_bytes = bitPacking(ts_block, 1, raw_length.get(2));
+    for (byte b : value_bytes) encoded_result.add(b);
+
+    return encoded_result;
+  }
+
   public static ArrayList<Byte> ReorderingRegressionEncoder(
-      ArrayList<ArrayList<Integer>> data, int block_size) {
+          ArrayList<ArrayList<Integer>> data, int block_size) {
     block_size++;
     ArrayList<Byte> encoded_result = new ArrayList<>();
     int length_all = data.size();
@@ -511,18 +614,28 @@ public class TestMultipleGridNumRaw {
 
       int grid = getGrid(ts_block);
 
-      // ArrayList<Integer> result2 = new ArrayList<>();
-      // splitTimeStamp3(ts_block, result2);
-
-      ArrayList<Integer> raw_length =
-          new ArrayList<>(); // length,max_bit_width_interval,max_bit_width_value
+      ArrayList<Integer> raw_length = new ArrayList<>(); // parameters
+      ArrayList<Integer> raw_length2 = new ArrayList<>(); // parameters
       ArrayList<ArrayList<Integer>> gridnum_block = new ArrayList<>();
-      double rr = getRR2(ts_block, block_size);
-      ArrayList<ArrayList<Integer>> ts_block_delta =
-          getEncodeBitsRegression(ts_block, block_size, grid, raw_length, gridnum_block);
 
-      ArrayList<Byte> cur_encoded_result =
-          encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block);
+      double rr = getRR2(ts_block, block_size);
+
+      ArrayList<ArrayList<Integer>> ts_block_delta =
+              getEncodeBitsRegression(ts_block, block_size, grid, raw_length, gridnum_block);
+      ArrayList<ArrayList<Integer>> ts_block_delta2 =
+              getEncodeBitsRegressionTs2diff(ts_block, block_size, raw_length2);
+
+      // System.out.print(raw_length.get(0));
+      // System.out.print(" ");
+      // System.out.println(raw_length2.get(0));
+
+      ArrayList<Byte> cur_encoded_result;
+      //if (raw_length.get(0) <= raw_length2.get(0)) {
+      if (rr > 0.9) {
+        cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block);
+      } else {
+        cur_encoded_result = encode2Bytes2(ts_block_delta2, raw_length2);
+      }
       encoded_result.addAll(cur_encoded_result);
     }
 
@@ -542,15 +655,16 @@ public class TestMultipleGridNumRaw {
 
       int grid = getGrid(ts_block);
 
-      // ArrayList<Integer> result2 = new ArrayList<>();
-      // splitTimeStamp3(ts_block, result2);
-
-      ArrayList<Integer> raw_length =
-          new ArrayList<>(); // length,max_bit_width_interval,max_bit_width_value
+      ArrayList<Integer> raw_length = new ArrayList<>(); // parameters
+      ArrayList<Integer> raw_length2 = new ArrayList<>(); // parameters
       ArrayList<ArrayList<Integer>> gridnum_block = new ArrayList<>();
+
       double rr = getRR2(ts_block, remaining_length);
+
       ArrayList<ArrayList<Integer>> ts_block_delta =
-          getEncodeBitsRegression(ts_block, remaining_length, grid, raw_length, gridnum_block);
+              getEncodeBitsRegression(ts_block, remaining_length, grid, raw_length, gridnum_block);
+      ArrayList<ArrayList<Integer>> ts_block_delta2 =
+              getEncodeBitsRegressionTs2diff(ts_block, remaining_length, raw_length2);
 
       int supple_length;
       if (remaining_length % 8 == 0) {
@@ -560,6 +674,7 @@ public class TestMultipleGridNumRaw {
       } else {
         supple_length = 9 - remaining_length % 8;
       }
+
       for (int s = 0; s < supple_length; s++) {
         ArrayList<Integer> tmp = new ArrayList<>();
         tmp.add(0);
@@ -567,8 +682,22 @@ public class TestMultipleGridNumRaw {
         tmp.add(0);
         ts_block_delta.add(tmp);
       }
-      ArrayList<Byte> cur_encoded_result =
-          encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block);
+
+      for (int s = 0; s < supple_length; s++) {
+        ArrayList<Integer> tmp = new ArrayList<>();
+        tmp.add(0);
+        tmp.add(0);
+        tmp.add(0);
+        ts_block_delta2.add(tmp);
+      }
+
+      ArrayList<Byte> cur_encoded_result;
+      //if (raw_length.get(0) <= raw_length2.get(0)) {
+      if (rr > 0.9) {
+        cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block);
+      } else {
+        cur_encoded_result = encode2Bytes2(ts_block_delta2, raw_length2);
+      }
       encoded_result.addAll(cur_encoded_result);
     }
     return encoded_result;
@@ -601,84 +730,134 @@ public class TestMultipleGridNumRaw {
 
       ArrayList<ArrayList<Integer>> ts_block = new ArrayList<>();
 
-      int time0 = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-      int value0 = bytes2Integer(encoded, decode_pos, 4);
+      // int flag = encoded.get(decode_pos);
+      // decode_pos += 1;
+
+      int flag = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
 
-      int time_min = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-      int value_min = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
+      if (flag == 1) {
+        int time0 = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        int value0 = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
 
-      int timestamp_gridnum_length = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-      int timestamp_gridnum_remain_length;
-      if (timestamp_gridnum_length % 8 == 0) {
-        timestamp_gridnum_remain_length = 0;
-      } else {
-        timestamp_gridnum_remain_length = 8 - timestamp_gridnum_length % 8;
-      }
-      int grid_length = timestamp_gridnum_length + timestamp_gridnum_remain_length;
+        int time_min = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        int value_min = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
 
-      int max_bit_width_time = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-      time_list = decodebitPacking(encoded, decode_pos, max_bit_width_time, 0, block_size);
-      decode_pos += max_bit_width_time * (block_size - 1) / 8;
+        int timestamp_gridnum_length = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        int timestamp_gridnum_remain_length;
+        if (timestamp_gridnum_length % 8 == 0) {
+          timestamp_gridnum_remain_length = 0;
+        } else {
+          timestamp_gridnum_remain_length = 8 - timestamp_gridnum_length % 8;
+        }
+        int grid_length = timestamp_gridnum_length + timestamp_gridnum_remain_length;
 
-      int max_bit_width_value = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-      value_list = decodebitPacking(encoded, decode_pos, max_bit_width_value, 0, block_size);
-      decode_pos += max_bit_width_value * (block_size - 1) / 8;
+        int max_bit_width_time = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        time_list = decodebitPacking(encoded, decode_pos, max_bit_width_time, 0, block_size);
+        decode_pos += max_bit_width_time * (block_size - 1) / 8;
 
-      int max_bit_width_gridnum_pos = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-      gridnum_pos_list =
-          decodebitPacking2(encoded, decode_pos, max_bit_width_gridnum_pos, 0, grid_length);
-      decode_pos += max_bit_width_gridnum_pos * grid_length / 8;
+        int max_bit_width_value = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        value_list = decodebitPacking(encoded, decode_pos, max_bit_width_value, 0, block_size);
+        decode_pos += max_bit_width_value * (block_size - 1) / 8;
 
-      int max_bit_width_gridnum_val = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-      gridnum_val_list =
-          decodebitPacking2(encoded, decode_pos, max_bit_width_gridnum_val, 0, grid_length);
-      decode_pos += max_bit_width_gridnum_val * grid_length / 8;
+        int max_bit_width_gridnum_pos = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        gridnum_pos_list =
+                decodebitPacking2(encoded, decode_pos, max_bit_width_gridnum_pos, 0, grid_length);
+        decode_pos += max_bit_width_gridnum_pos * grid_length / 8;
 
-      int grid = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
+        int max_bit_width_gridnum_val = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        gridnum_val_list =
+                decodebitPacking2(encoded, decode_pos, max_bit_width_gridnum_val, 0, grid_length);
+        decode_pos += max_bit_width_gridnum_val * grid_length / 8;
 
-      int vi_pre = value0;
-      int gridnum_pre = 0;
-      int gridnum_pos = 0;
-      int g = 0;
-      for (int i = 0; i < block_size - 1; i++) {
-        int gridnum = 1;
-        if (g < timestamp_gridnum_length && (gridnum_pos + gridnum_pos_list.get(g)) == i) {
-          gridnum = gridnum_val_list.get(g);
-          gridnum_pos = gridnum_pos + gridnum_pos_list.get(g);
-          g += 1;
+        int grid = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+
+        int vi_pre = value0;
+        int gridnum_pre = 0;
+        int gridnum_pos = 0;
+        int g = 0;
+        for (int i = 0; i < block_size - 1; i++) {
+          int gridnum = 1;
+          if (g < timestamp_gridnum_length && (gridnum_pos + gridnum_pos_list.get(g)) == i) {
+            gridnum = gridnum_val_list.get(g);
+            gridnum_pos = gridnum_pos + gridnum_pos_list.get(g);
+            g += 1;
+          }
+          int ti = time0 + (gridnum + gridnum_pre) * grid + time_list.get(i) + time_min;
+          time_list.set(i, ti);
+          gridnum_pre = gridnum + gridnum_pre;
+
+          int vi = vi_pre + value_list.get(i) + value_min;
+          value_list.set(i, vi);
+          vi_pre = vi;
         }
 
-        int ti = time0 + (gridnum + gridnum_pre) * grid + time_list.get(i) + time_min;
-        time_list.set(i, ti);
-        gridnum_pre = gridnum + gridnum_pre;
+        ArrayList<Integer> ts_block_tmp0 = new ArrayList<>();
+        ts_block_tmp0.add(time0);
+        ts_block_tmp0.add(value0);
+        ts_block.add(ts_block_tmp0);
+        for (int i = 0; i < block_size - 1; i++) {
+          ArrayList<Integer> ts_block_tmp = new ArrayList<>();
+          ts_block_tmp.add(time_list.get(i));
+          ts_block_tmp.add(value_list.get(i));
+          ts_block.add(ts_block_tmp);
+        }
+        data.addAll(ts_block);
+      } else {
+        int time0 = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        int value0 = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
 
-        int vi = vi_pre + value_list.get(i) + value_min;
-        value_list.set(i, vi);
-        vi_pre = vi;
-      }
+        int time_min = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        int value_min = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
 
-      ArrayList<Integer> ts_block_tmp0 = new ArrayList<>();
-      ts_block_tmp0.add(time0);
-      ts_block_tmp0.add(value0);
-      ts_block.add(ts_block_tmp0);
-      for (int i = 0; i < block_size - 1; i++) {
-        int ti = time_list.get(i) - time0 + time0;
-        ArrayList<Integer> ts_block_tmp = new ArrayList<>();
-        ts_block_tmp.add(ti);
-        ts_block_tmp.add(value_list.get(i));
-        ts_block.add(ts_block_tmp);
+        int max_bit_width_time = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        time_list = decodebitPacking(encoded, decode_pos, max_bit_width_time, 0, block_size);
+        decode_pos += max_bit_width_time * (block_size - 1) / 8;
+
+        int max_bit_width_value = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        value_list = decodebitPacking(encoded, decode_pos, max_bit_width_value, 0, block_size);
+        decode_pos += max_bit_width_value * (block_size - 1) / 8;
+
+        int ti_pre = time0;
+        int vi_pre = value0;
+        for (int i = 0; i < block_size - 1; i++) {
+          int ti = ti_pre + time_list.get(i) + time_min;
+          time_list.set(i, ti);
+          ti_pre = ti;
+
+          int vi = vi_pre + value_list.get(i) + value_min;
+          value_list.set(i, vi);
+          vi_pre = vi;
+        }
+
+        ArrayList<Integer> ts_block_tmp0 = new ArrayList<>();
+        ts_block_tmp0.add(time0);
+        ts_block_tmp0.add(value0);
+        ts_block.add(ts_block_tmp0);
+        for (int i = 0; i < block_size - 1; i++) {
+          ArrayList<Integer> ts_block_tmp = new ArrayList<>();
+          ts_block_tmp.add(time_list.get(i));
+          ts_block_tmp.add(value_list.get(i));
+          ts_block.add(ts_block_tmp);
+        }
+        data.addAll(ts_block);
       }
-      data.addAll(ts_block);
     }
 
     if (remain_length == 1) {
@@ -699,88 +878,147 @@ public class TestMultipleGridNumRaw {
 
       ArrayList<ArrayList<Integer>> ts_block = new ArrayList<>();
 
-      int time0 = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-      int value0 = bytes2Integer(encoded, decode_pos, 4);
+      // int flag = encoded.get(decode_pos);
+      // decode_pos += 1;
+
+      int flag = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
 
-      int time_min = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-      int value_min = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
+      if (flag == 1) {
+        int time0 = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        int value0 = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
 
-      int timestamp_gridnum_length = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-      int timestamp_gridnum_remain_length;
-      if (timestamp_gridnum_length % 8 == 0) {
-        timestamp_gridnum_remain_length = 0;
-      } else {
-        timestamp_gridnum_remain_length = 8 - timestamp_gridnum_length % 8;
-      }
-      int grid_length = timestamp_gridnum_length + timestamp_gridnum_remain_length;
+        int time_min = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        int value_min = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
 
-      int max_bit_width_time = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-      time_list =
-          decodebitPacking(encoded, decode_pos, max_bit_width_time, 0, remain_length + zero_number);
-      decode_pos += max_bit_width_time * (remain_length + zero_number - 1) / 8;
-
-      int max_bit_width_value = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-      value_list =
-          decodebitPacking(
-              encoded, decode_pos, max_bit_width_value, 0, remain_length + zero_number);
-      decode_pos += max_bit_width_value * (remain_length + zero_number - 1) / 8;
-
-      int max_bit_width_gridnum_pos = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-      gridnum_pos_list =
-          decodebitPacking2(encoded, decode_pos, max_bit_width_gridnum_pos, 0, grid_length);
-      decode_pos += max_bit_width_gridnum_pos * grid_length / 8;
-
-      int max_bit_width_gridnum_val = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-      gridnum_val_list =
-          decodebitPacking2(encoded, decode_pos, max_bit_width_gridnum_val, 0, grid_length);
-      decode_pos += max_bit_width_gridnum_val * grid_length / 8;
-
-      int grid = bytes2Integer(encoded, decode_pos, 4);
-      decode_pos += 4;
-
-      int vi_pre = value0;
-      int gridnum_pre = 0;
-      int gridnum_pos = 0;
-      int g = 0;
-      for (int i = 0; i < remain_length - 1; i++) {
-        int gridnum = 1;
-        if (g < timestamp_gridnum_length && (gridnum_pos + gridnum_pos_list.get(g)) == i) {
-          gridnum = gridnum_val_list.get(g);
-          gridnum_pos = gridnum_pos + gridnum_pos_list.get(g);
-          g += 1;
+        int timestamp_gridnum_length = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        int timestamp_gridnum_remain_length;
+        if (timestamp_gridnum_length % 8 == 0) {
+          timestamp_gridnum_remain_length = 0;
+        } else {
+          timestamp_gridnum_remain_length = 8 - timestamp_gridnum_length % 8;
         }
-        int ti = time0 + (gridnum + gridnum_pre) * grid + time_list.get(i) + time_min;
-        time_list.set(i, ti);
-        gridnum_pre = gridnum + gridnum_pre;
+        int grid_length = timestamp_gridnum_length + timestamp_gridnum_remain_length;
 
-        int vi = vi_pre + value_list.get(i) + value_min;
-        value_list.set(i, vi);
-        vi_pre = vi;
-      }
+        int max_bit_width_time = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        time_list =
+                decodebitPacking(
+                        encoded, decode_pos, max_bit_width_time, 0, remain_length + zero_number);
+        decode_pos += max_bit_width_time * (remain_length + zero_number - 1) / 8;
 
-      ArrayList<Integer> ts_block_tmp0 = new ArrayList<>();
-      ts_block_tmp0.add(time0);
-      ts_block_tmp0.add(value0);
-      ts_block.add(ts_block_tmp0);
-      for (int i = 0; i < remain_length - 1; i++) {
-        int ti = time_list.get(i) - time0 + time0;
-        ArrayList<Integer> ts_block_tmp = new ArrayList<>();
-        ts_block_tmp.add(ti);
-        ts_block_tmp.add(value_list.get(i));
-        ts_block.add(ts_block_tmp);
-      }
+        int max_bit_width_value = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        value_list =
+                decodebitPacking(
+                        encoded, decode_pos, max_bit_width_value, 0, remain_length + zero_number);
+        decode_pos += max_bit_width_value * (remain_length + zero_number - 1) / 8;
 
-      for (int i = 0; i < remain_length; i++) {
-        data.add(ts_block.get(i));
+        int max_bit_width_gridnum_pos = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        gridnum_pos_list =
+                decodebitPacking2(encoded, decode_pos, max_bit_width_gridnum_pos, 0, grid_length);
+        decode_pos += max_bit_width_gridnum_pos * grid_length / 8;
+
+        int max_bit_width_gridnum_val = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        gridnum_val_list =
+                decodebitPacking2(encoded, decode_pos, max_bit_width_gridnum_val, 0, grid_length);
+        decode_pos += max_bit_width_gridnum_val * grid_length / 8;
+
+        int grid = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+
+        int vi_pre = value0;
+        int gridnum_pre = 0;
+        int gridnum_pos = 0;
+        int g = 0;
+        for (int i = 0; i < remain_length - 1; i++) {
+          int gridnum = 1;
+          if (g < timestamp_gridnum_length && (gridnum_pos + gridnum_pos_list.get(g)) == i) {
+            gridnum = gridnum_val_list.get(g);
+            gridnum_pos = gridnum_pos + gridnum_pos_list.get(g);
+            g += 1;
+          }
+          int ti = time0 + (gridnum + gridnum_pre) * grid + time_list.get(i) + time_min;
+          time_list.set(i, ti);
+          gridnum_pre = gridnum + gridnum_pre;
+
+          int vi = vi_pre + value_list.get(i) + value_min;
+          value_list.set(i, vi);
+          vi_pre = vi;
+        }
+
+        ArrayList<Integer> ts_block_tmp0 = new ArrayList<>();
+        ts_block_tmp0.add(time0);
+        ts_block_tmp0.add(value0);
+        ts_block.add(ts_block_tmp0);
+        for (int i = 0; i < remain_length - 1; i++) {
+          ArrayList<Integer> ts_block_tmp = new ArrayList<>();
+          ts_block_tmp.add(time_list.get(i));
+          ts_block_tmp.add(value_list.get(i));
+          ts_block.add(ts_block_tmp);
+        }
+
+        for (int i = 0; i < remain_length; i++) {
+          data.add(ts_block.get(i));
+        }
+      } else {
+        int time0 = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        int value0 = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+
+        int time_min = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        int value_min = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+
+        int max_bit_width_time = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        time_list =
+                decodebitPacking(
+                        encoded, decode_pos, max_bit_width_time, 0, remain_length + zero_number);
+        decode_pos += max_bit_width_time * (remain_length + zero_number - 1) / 8;
+
+        int max_bit_width_value = bytes2Integer(encoded, decode_pos, 4);
+        decode_pos += 4;
+        value_list =
+                decodebitPacking(
+                        encoded, decode_pos, max_bit_width_value, 0, remain_length + zero_number);
+        decode_pos += max_bit_width_value * (remain_length + zero_number - 1) / 8;
+
+        int ti_pre = time0;
+        int vi_pre = value0;
+        for (int i = 0; i < remain_length - 1; i++) {
+          int ti = ti_pre + time_list.get(i) + time_min;
+          time_list.set(i, ti);
+          ti_pre = ti;
+
+          int vi = vi_pre + value_list.get(i) + value_min;
+          value_list.set(i, vi);
+          vi_pre = vi;
+        }
+
+        ArrayList<Integer> ts_block_tmp0 = new ArrayList<>();
+        ts_block_tmp0.add(time0);
+        ts_block_tmp0.add(value0);
+        ts_block.add(ts_block_tmp0);
+        for (int i = 0; i < remain_length - 1; i++) {
+          ArrayList<Integer> ts_block_tmp = new ArrayList<>();
+          ts_block_tmp.add(time_list.get(i));
+          ts_block_tmp.add(value_list.get(i));
+          ts_block.add(ts_block_tmp);
+        }
+
+        for (int i = 0; i < remain_length; i++) {
+          data.add(ts_block.get(i));
+        }
       }
     }
     return data;
@@ -792,44 +1030,44 @@ public class TestMultipleGridNumRaw {
     ArrayList<Integer> dataset_block_size = new ArrayList<>();
 
     input_path_list.add(
-        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Metro-Traffic");
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Metro-Traffic");
     output_path_list.add(
-        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
-            + "\\compression_ratio\\rr_ratio\\Metro-Traffic_ratio.csv");
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+                    + "\\compression_ratio\\rr_ratio\\Metro-Traffic_ratio.csv");
     input_path_list.add(
-        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Nifty-Stocks");
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Nifty-Stocks");
     output_path_list.add(
-        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
-            + "\\compression_ratio\\rr_ratio\\Nifty-Stocks_ratio.csv");
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+                    + "\\compression_ratio\\rr_ratio\\Nifty-Stocks_ratio.csv");
     input_path_list.add(
-        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\USGS-Earthquakes");
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\USGS-Earthquakes");
     output_path_list.add(
-        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
-            + "\\compression_ratio\\rr_ratio\\USGS-Earthquakes_ratio.csv");
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+                    + "\\compression_ratio\\rr_ratio\\USGS-Earthquakes_ratio.csv");
     input_path_list.add(
-        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Cyber-Vehicle");
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Cyber-Vehicle");
     output_path_list.add(
-        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
-            + "\\compression_ratio\\rr_ratio\\Cyber-Vehicle_ratio.csv");
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+                    + "\\compression_ratio\\rr_ratio\\Cyber-Vehicle_ratio.csv");
     input_path_list.add(
-        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TH-Climate");
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TH-Climate");
     output_path_list.add(
-        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
-            + "\\compression_ratio\\rr_ratio\\TH-Climate_ratio.csv");
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+                    + "\\compression_ratio\\rr_ratio\\TH-Climate_ratio.csv");
     input_path_list.add(
-        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TY-Transport");
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TY-Transport");
     output_path_list.add(
-        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
-            + "\\compression_ratio\\rr_ratio\\TY-Transport_ratio.csv");
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+                    + "\\compression_ratio\\rr_ratio\\TY-Transport_ratio.csv");
     input_path_list.add("E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TY-Fuel");
     output_path_list.add(
-        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
-            + "\\compression_ratio\\rr_ratio\\TY-Fuel_ratio.csv");
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+                    + "\\compression_ratio\\rr_ratio\\TY-Fuel_ratio.csv");
     input_path_list.add(
-        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\GW-Magnetic");
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\GW-Magnetic");
     output_path_list.add(
-        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
-            + "\\compression_ratio\\rr_ratio\\GW-Magnetic_ratio.csv");
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+                    + "\\compression_ratio\\rr_ratio\\GW-Magnetic_ratio.csv");
 
     // input_path_list.add("E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\ZY");
     // output_path_list.add(
@@ -872,7 +1110,7 @@ public class TestMultipleGridNumRaw {
           ArrayList<Integer> tmp = new ArrayList<>();
           String s = loader.getValues()[0];
           tmp.add(Integer.valueOf(s));
-          // tmp.add(Integer.valueOf(s.substring(0,s.length()-2)));
+          // tmp.add(Integer.valueOf(s.substring(0,s.length()-2))); //ZY
           tmp.add(Integer.valueOf(loader.getValues()[1]));
           data.add(tmp);
         }
@@ -901,11 +1139,11 @@ public class TestMultipleGridNumRaw {
           decodeTime += ((e - s) / repeatTime2);
 
 //          for(int j=0;j<data_decoded.size();j++){
-//            System.out.print(j);
-//            System.out.print(" ");
-//            System.out.print(data.get(j).get(0));
-//            System.out.print(" ");
-//            System.out.println(data_decoded.get(j).get(0));
+//              System.out.print(j);
+//              System.out.print(" ");
+//              System.out.print(data.get(j).get(0));
+//              System.out.print(" ");
+//              System.out.println(data_decoded.get(j).get(0));
 //          }
 
         }
@@ -924,7 +1162,7 @@ public class TestMultipleGridNumRaw {
           String.valueOf(compressed_size),
           String.valueOf(ratio)
         };
-        //System.out.println(ratio);
+        System.out.println(ratio);
         writer.writeRecord(record);
       }
       writer.close();
