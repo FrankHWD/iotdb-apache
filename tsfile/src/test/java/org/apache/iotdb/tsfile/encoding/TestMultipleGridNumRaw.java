@@ -12,6 +12,9 @@ import java.util.ArrayList;
 import java.util.Collections;
 
 public class TestMultipleGridNumRaw {
+  static int a=0;
+  static int b=0;
+
   public static int getBitWith(int num) {
     return 32 - Integer.numberOfLeadingZeros(num);
   }
@@ -580,8 +583,10 @@ public class TestMultipleGridNumRaw {
 
       ArrayList<Byte> cur_encoded_result;
       if (raw_length.get(0) <= raw_length2.get(0)) {
+        a+=1;
         cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block);
       } else {
+        b+=1;
         cur_encoded_result = encode2Bytes2(ts_block_delta2, raw_length2);
       }
       encoded_result.addAll(cur_encoded_result);
@@ -639,8 +644,10 @@ public class TestMultipleGridNumRaw {
 
       ArrayList<Byte> cur_encoded_result;
       if (raw_length.get(0) <= raw_length2.get(0)) {
+        a+=1;
         cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block);
       } else {
+        b+=1;
         cur_encoded_result = encode2Bytes2(ts_block_delta2, raw_length2);
       }
       encoded_result.addAll(cur_encoded_result);
@@ -1020,6 +1027,8 @@ public class TestMultipleGridNumRaw {
 
     for (int file_i = 0; file_i < input_path_list.size(); file_i++) {
 
+      System.out.println(input_path_list.get(file_i));
+
       String inputPath = input_path_list.get(file_i);
       String Output = output_path_list.get(file_i);
 
@@ -1042,6 +1051,9 @@ public class TestMultipleGridNumRaw {
       writer.writeRecord(head);
 
       assert tempList != null;
+
+      a=0;
+      b=0;
 
       for (File f : tempList) {
         InputStream inputStream = Files.newInputStream(f.toPath());
@@ -1107,9 +1119,13 @@ public class TestMultipleGridNumRaw {
           String.valueOf(compressed_size),
           String.valueOf(ratio)
         };
-        System.out.println(ratio);
+        //System.out.println(ratio);
         writer.writeRecord(record);
       }
+
+      //System.out.println(a);
+      //System.out.println(b);
+
       writer.close();
     }
   }
