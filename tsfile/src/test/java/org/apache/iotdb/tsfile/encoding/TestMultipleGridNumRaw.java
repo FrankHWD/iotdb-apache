@@ -388,6 +388,55 @@ public class TestMultipleGridNumRaw {
     return ts_block_delta;
   }
 
+  public static double getRR2(ArrayList<ArrayList<Integer>> ts_block, int block_size) {
+
+    double x_avg = 0;
+    double y_avg = 0;
+    for (int j = 0; j < block_size; j++) {
+      x_avg += j;
+      y_avg += ts_block.get(j).get(0);
+    }
+    x_avg = x_avg/block_size;
+    y_avg = y_avg/block_size;
+
+    long sum1 = 0;
+    long sum2 = 0;
+    for (int j = 0; j < block_size; j++) {
+      sum1 += (ts_block.get(j).get(0) - y_avg) * (j - x_avg);
+      sum2 += (j - x_avg) * (j - x_avg);
+    }
+    double beta1;
+    beta1 = sum1 * 1.0 / sum2;
+    double beta2;
+    beta2 = y_avg - beta1 * x_avg;
+
+//    long r1 = 0;
+//    long r2 = 0;
+//    long r3 = 0;
+//    double r;
+//    for (int j = 0; j < block_size; j++) {
+//      r1 += ts_block.get(j).get(0) * j;
+//      r2 += (long) j *j;
+//      r3 += (long) ts_block.get(j).get(0) * ts_block.get(j).get(0);
+//    }
+//    r = (r1 - block_size * x_avg * y_avg) * (r1 - block_size * x_avg * y_avg) * 1.0 /
+//            ( (r2 - block_size * x_avg * x_avg) * (r3 - block_size * y_avg * y_avg) );
+//    System.out.println(r);
+
+    double r11 = 0;
+    double r22 = 0;
+    double r33 = 0;
+    double rr;
+    for (int j = 0; j < block_size; j++) {
+      r11 += (ts_block.get(j).get(0) - y_avg) * (j - x_avg);
+      r22 += (j - x_avg) * (j - x_avg);
+      r33 += (ts_block.get(j).get(0) - y_avg) * (ts_block.get(j).get(0) - y_avg);
+    }
+    rr = r11 * r11 * 1.0 / ( r22 * r33 );
+
+    return rr;
+  }
+
   public static ArrayList<Byte> encode2Bytes(
       ArrayList<ArrayList<Integer>> ts_block,
       ArrayList<Integer> raw_length,
@@ -468,6 +517,7 @@ public class TestMultipleGridNumRaw {
       ArrayList<Integer> raw_length =
           new ArrayList<>(); // length,max_bit_width_interval,max_bit_width_value
       ArrayList<ArrayList<Integer>> gridnum_block = new ArrayList<>();
+      double rr = getRR2(ts_block, block_size);
       ArrayList<ArrayList<Integer>> ts_block_delta =
           getEncodeBitsRegression(ts_block, block_size, grid, raw_length, gridnum_block);
 
@@ -498,6 +548,7 @@ public class TestMultipleGridNumRaw {
       ArrayList<Integer> raw_length =
           new ArrayList<>(); // length,max_bit_width_interval,max_bit_width_value
       ArrayList<ArrayList<Integer>> gridnum_block = new ArrayList<>();
+      double rr = getRR2(ts_block, remaining_length);
       ArrayList<ArrayList<Integer>> ts_block_delta =
           getEncodeBitsRegression(ts_block, remaining_length, grid, raw_length, gridnum_block);
 
@@ -873,7 +924,7 @@ public class TestMultipleGridNumRaw {
           String.valueOf(compressed_size),
           String.valueOf(ratio)
         };
-        System.out.println(ratio);
+        //System.out.println(ratio);
         writer.writeRecord(record);
       }
       writer.close();
