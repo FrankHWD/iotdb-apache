@@ -2,6 +2,9 @@ package org.apache.iotdb.tsfile.encoding;
 
 import com.csvreader.CsvReader;
 import com.csvreader.CsvWriter;
+import org.apache.iotdb.tsfile.compress.ICompressor;
+import org.apache.iotdb.tsfile.compress.IUnCompressor;
+import org.apache.iotdb.tsfile.file.metadata.enums.CompressionType;
 
 import java.io.File;
 import java.io.IOException;
@@ -631,7 +634,8 @@ public class TestMultipleGridNumRaw {
 
       ArrayList<Byte> cur_encoded_result;
       //if (raw_length.get(0) <= raw_length2.get(0)) {
-      if (rr > 0.9) {
+      //if (rr > 0.9) {
+      if (1>0.9) {
         cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block);
       } else {
         cur_encoded_result = encode2Bytes2(ts_block_delta2, raw_length2);
@@ -693,7 +697,8 @@ public class TestMultipleGridNumRaw {
 
       ArrayList<Byte> cur_encoded_result;
       //if (raw_length.get(0) <= raw_length2.get(0)) {
-      if (rr > 0.9) {
+      //if (rr > 0.9) {
+      if (1 > 0.9) {
         cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block);
       } else {
         cur_encoded_result = encode2Bytes2(ts_block_delta2, raw_length2);
@@ -1040,10 +1045,10 @@ public class TestMultipleGridNumRaw {
             "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
                     + "\\compression_ratio\\rr_ratio\\Nifty-Stocks_ratio.csv");
     input_path_list.add(
-            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\USGS-Earthquakes");
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\WC-Shanqi");
     output_path_list.add(
             "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
-                    + "\\compression_ratio\\rr_ratio\\USGS-Earthquakes_ratio.csv");
+                    + "\\compression_ratio\\rr_ratio\\WC-Shanqi_ratio.csv");
     input_path_list.add(
             "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Cyber-Vehicle");
     output_path_list.add(
@@ -1055,10 +1060,10 @@ public class TestMultipleGridNumRaw {
             "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
                     + "\\compression_ratio\\rr_ratio\\TH-Climate_ratio.csv");
     input_path_list.add(
-            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TY-Transport");
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Transport-Location");
     output_path_list.add(
             "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
-                    + "\\compression_ratio\\rr_ratio\\TY-Transport_ratio.csv");
+                    + "\\compression_ratio\\rr_ratio\\Transport-Location_ratio.csv");
     input_path_list.add("E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TY-Fuel");
     output_path_list.add(
             "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
@@ -1069,9 +1074,34 @@ public class TestMultipleGridNumRaw {
             "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
                     + "\\compression_ratio\\rr_ratio\\GW-Magnetic_ratio.csv");
 
+//    input_path_list.add("E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Syn-Delay");
+//    output_path_list.add(
+//            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+//                    + "\\compression_ratio\\rr_ratio\\Syn-Delay_ratio.csv");
+//    input_path_list.add("E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Syn-Missing");
+//    output_path_list.add(
+//            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+//                    + "\\compression_ratio\\rr_ratio\\Syn-Missing_ratio.csv");
+//    input_path_list.add("E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Syn-Repeat");
+//    output_path_list.add(
+//            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+//                    + "\\compression_ratio\\rr_ratio\\Syn-Repeat_ratio.csv");
+
     // input_path_list.add("E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\ZY");
     // output_path_list.add(
     // "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\rr_ratio\\ZY.csv");
+
+    //nput_path_list.add(
+    //        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\USGS-Earthquakes");
+    //output_path_list.add(
+    //        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+    //                + "\\compression_ratio\\rr_ratio\\USGS-Earthquakes_ratio.csv");
+
+//    input_path_list.add(
+//            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TY-Transport");
+//    output_path_list.add(
+//            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+//                    + "\\compression_ratio\\rr_ratio\\TY-Transport_ratio.csv");
 
     for (int file_i = 0; file_i < input_path_list.size(); file_i++) {
 
@@ -1120,6 +1150,11 @@ public class TestMultipleGridNumRaw {
         double ratio = 0;
         double compressed_size = 0;
         int repeatTime2 = 1;
+
+        //CompressionType comp = CompressionType.LZ4;
+        //ICompressor compressor = ICompressor.getCompressor(comp);
+        //IUnCompressor unCompressor = IUnCompressor.getUnCompressor(comp);
+
         for (int i = 0; i < repeatTime; i++) {
           long s = System.nanoTime();
           ArrayList<Byte> buffer = new ArrayList<>();
@@ -1128,6 +1163,9 @@ public class TestMultipleGridNumRaw {
           }
           long e = System.nanoTime();
           encodeTime += ((e - s) / repeatTime2);
+
+          //byte[] compressed = compressor.compress(elems);
+
           compressed_size += buffer.size();
           double ratioTmp = (double) buffer.size() / (double) (data.size() * Integer.BYTES * 2);
           ratio += ratioTmp;
