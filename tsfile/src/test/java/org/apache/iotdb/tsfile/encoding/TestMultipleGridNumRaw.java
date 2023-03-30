@@ -6,6 +6,7 @@ import org.apache.iotdb.tsfile.compress.ICompressor;
 import org.apache.iotdb.tsfile.compress.IUnCompressor;
 import org.apache.iotdb.tsfile.file.metadata.enums.CompressionType;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,6 +14,8 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 
 public class TestMultipleGridNumRaw {
   public static int getBitWith(int num) {
@@ -499,6 +502,24 @@ public class TestMultipleGridNumRaw {
     return rr;
   }
 
+  public static double getRatio(ArrayList<ArrayList<Integer>> ts_block, int block_size) {
+
+    Map<Integer, Integer> map = new HashMap<>();
+    int grid = getGrid(ts_block);
+
+    for (int j = 1; j < block_size; j++) {
+      int diff_tmp = (ts_block.get(j).get(0) - ts_block.get(j-1).get(0)) % grid;
+      if( map.containsKey(diff_tmp)){
+        map.put(diff_tmp,map.get(diff_tmp)+1);
+      }
+      else{
+        map.put(diff_tmp,1);
+      }
+    }
+
+    return map.get(0)*1.0 / block_size;
+  }
+
   public static ArrayList<Byte> encode2Bytes(
           ArrayList<ArrayList<Integer>> ts_block,
           ArrayList<Integer> raw_length,
@@ -621,7 +642,8 @@ public class TestMultipleGridNumRaw {
       ArrayList<Integer> raw_length2 = new ArrayList<>(); // parameters
       ArrayList<ArrayList<Integer>> gridnum_block = new ArrayList<>();
 
-      double rr = getRR2(ts_block, block_size);
+      //double rr = getRR2(ts_block, block_size);
+      double ratio = getRatio(ts_block, block_size);
 
       ArrayList<ArrayList<Integer>> ts_block_delta =
               getEncodeBitsRegression(ts_block, block_size, grid, raw_length, gridnum_block);
@@ -635,7 +657,7 @@ public class TestMultipleGridNumRaw {
       ArrayList<Byte> cur_encoded_result;
       //if (raw_length.get(0) <= raw_length2.get(0)) {
       //if (rr > 0.9) {
-      if (1>0.9) {
+      if (ratio>0.9) {
         cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block);
       } else {
         cur_encoded_result = encode2Bytes2(ts_block_delta2, raw_length2);
@@ -663,7 +685,8 @@ public class TestMultipleGridNumRaw {
       ArrayList<Integer> raw_length2 = new ArrayList<>(); // parameters
       ArrayList<ArrayList<Integer>> gridnum_block = new ArrayList<>();
 
-      double rr = getRR2(ts_block, remaining_length);
+      //double rr = getRR2(ts_block, remaining_length);
+      double ratio = getRatio(ts_block, remaining_length);
 
       ArrayList<ArrayList<Integer>> ts_block_delta =
               getEncodeBitsRegression(ts_block, remaining_length, grid, raw_length, gridnum_block);
@@ -698,7 +721,7 @@ public class TestMultipleGridNumRaw {
       ArrayList<Byte> cur_encoded_result;
       //if (raw_length.get(0) <= raw_length2.get(0)) {
       //if (rr > 0.9) {
-      if (1 > 0.9) {
+      if (ratio > 0.9) {
         cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block);
       } else {
         cur_encoded_result = encode2Bytes2(ts_block_delta2, raw_length2);
@@ -1044,11 +1067,11 @@ public class TestMultipleGridNumRaw {
     output_path_list.add(
             "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
                     + "\\compression_ratio\\rr_ratio\\Nifty-Stocks_ratio.csv");
-    input_path_list.add(
-            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\WC-Shanqi");
-    output_path_list.add(
-            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
-                    + "\\compression_ratio\\rr_ratio\\WC-Shanqi_ratio.csv");
+//    input_path_list.add(
+//            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\WC-Shanqi");
+//    output_path_list.add(
+//            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+//                    + "\\compression_ratio\\rr_ratio\\WC-Shanqi_ratio.csv");
     input_path_list.add(
             "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Cyber-Vehicle");
     output_path_list.add(
@@ -1059,11 +1082,11 @@ public class TestMultipleGridNumRaw {
     output_path_list.add(
             "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
                     + "\\compression_ratio\\rr_ratio\\TH-Climate_ratio.csv");
-    input_path_list.add(
-            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Transport-Location");
-    output_path_list.add(
-            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
-                    + "\\compression_ratio\\rr_ratio\\Transport-Location_ratio.csv");
+//    input_path_list.add(
+//            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Transport-Location");
+//    output_path_list.add(
+//            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+//                    + "\\compression_ratio\\rr_ratio\\Transport-Location_ratio.csv");
     input_path_list.add("E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TY-Fuel");
     output_path_list.add(
             "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
@@ -1091,17 +1114,17 @@ public class TestMultipleGridNumRaw {
     // output_path_list.add(
     // "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\rr_ratio\\ZY.csv");
 
-    //nput_path_list.add(
-    //        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\USGS-Earthquakes");
-    //output_path_list.add(
-    //        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
-    //                + "\\compression_ratio\\rr_ratio\\USGS-Earthquakes_ratio.csv");
+    input_path_list.add(
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\USGS-Earthquakes");
+    output_path_list.add(
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+                    + "\\compression_ratio\\rr_ratio\\USGS-Earthquakes_ratio.csv");
 
-//    input_path_list.add(
-//            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TY-Transport");
-//    output_path_list.add(
-//            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
-//                    + "\\compression_ratio\\rr_ratio\\TY-Transport_ratio.csv");
+    input_path_list.add(
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TY-Transport");
+    output_path_list.add(
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+                    + "\\compression_ratio\\rr_ratio\\TY-Transport_ratio.csv");
 
     for (int file_i = 0; file_i < input_path_list.size(); file_i++) {
 
@@ -1151,9 +1174,11 @@ public class TestMultipleGridNumRaw {
         double compressed_size = 0;
         int repeatTime2 = 1;
 
+        //CompressionType comp = CompressionType.UNCOMPRESSED;
         //CompressionType comp = CompressionType.LZ4;
-        //ICompressor compressor = ICompressor.getCompressor(comp);
-        //IUnCompressor unCompressor = IUnCompressor.getUnCompressor(comp);
+        CompressionType comp = CompressionType.GZIP;
+        ICompressor compressor = ICompressor.getCompressor(comp);
+        IUnCompressor unCompressor = IUnCompressor.getUnCompressor(comp);
 
         for (int i = 0; i < repeatTime; i++) {
           long s = System.nanoTime();
@@ -1164,10 +1189,17 @@ public class TestMultipleGridNumRaw {
           long e = System.nanoTime();
           encodeTime += ((e - s) / repeatTime2);
 
-          //byte[] compressed = compressor.compress(elems);
+          byte[] elems = new byte[buffer.size()];
+          for(int b = 0; b < buffer.size(); b++) {
+            elems[i] = buffer.get(i);
+          }
+          byte[] compressed = compressor.compress(elems);
+          compressed_size += compressed.length;
+          double ratioTmp = (double) compressed.length / (double) (data.size() * Integer.BYTES * 2);
 
-          compressed_size += buffer.size();
-          double ratioTmp = (double) buffer.size() / (double) (data.size() * Integer.BYTES * 2);
+          //compressed_size += buffer.size();
+          //double ratioTmp = (double) buffer.size() / (double) (data.size() * Integer.BYTES * 2);
+
           ratio += ratioTmp;
           s = System.nanoTime();
           for (int repeat = 0; repeat < repeatTime2; repeat++) {
