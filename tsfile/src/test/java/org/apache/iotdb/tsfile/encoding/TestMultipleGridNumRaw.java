@@ -297,11 +297,10 @@ public class TestMultipleGridNumRaw {
     tmp0.add(ts_block.get(0).get(1));
     ts_block_delta.add(tmp0);
 
-    //int pre_gridNum_r = 0;
+    int pre_gridNum_r = 0;
     for (int j = 1; j < block_size; j++) {
       int gridNum_r =
               (int) Math.round((ts_block.get(j).get(0) - ts_block.get(0).get(0)) * 1.0 / grid);
-      gridNum_r = 0;
       int epsilon_r = ts_block.get(j).get(0) - ts_block.get(0).get(0) - gridNum_r * grid;
       int epsilon_v = ts_block.get(j).get(1) - ts_block.get(j - 1).get(1);
 
@@ -314,19 +313,17 @@ public class TestMultipleGridNumRaw {
       ArrayList<Integer> tmp = new ArrayList<>();
       tmp.add(epsilon_r);
       tmp.add(epsilon_v);
-      //tmp.add(gridNum_r - pre_gridNum_r);
-      tmp.add(gridNum_r);
+      tmp.add(gridNum_r - pre_gridNum_r);
       ts_block_delta.add(tmp);
 
-      //pre_gridNum_r = gridNum_r;
+      pre_gridNum_r = gridNum_r;
     }
 
     int max_gridnum_pos = Integer.MIN_VALUE;
     int max_gridnum_val = Integer.MIN_VALUE;
     int pre_pos = 1;
-    int flag=0;
     for (int j = 1; j < block_size; j++) {
-      if (ts_block_delta.get(j).get(2) != 1 && flag==1) {
+      if (ts_block_delta.get(j).get(2) != 1) {
         ArrayList<Integer> tmp_gridnum = new ArrayList<>();
         tmp_gridnum.add(j - pre_pos);
         tmp_gridnum.add(ts_block_delta.get(j).get(2));
@@ -410,7 +407,7 @@ public class TestMultipleGridNumRaw {
     tmp0.add(ts_block.get(0).get(1));
     ts_block_delta.add(tmp0);
 
-    int pre_gridNum_r = 0;
+    //int pre_gridNum_r = 0;
     for (int j = 1; j < block_size; j++) {
       int gridNum_r =
               (int) Math.round((ts_block.get(j).get(0) - ts_block.get(j - 1).get(0)) * 1.0 / grid);
@@ -426,10 +423,11 @@ public class TestMultipleGridNumRaw {
       ArrayList<Integer> tmp = new ArrayList<>();
       tmp.add(epsilon_r);
       tmp.add(epsilon_v);
-      tmp.add(gridNum_r - pre_gridNum_r);
+      //tmp.add(gridNum_r - pre_gridNum_r);
+      tmp.add(gridNum_r);
       ts_block_delta.add(tmp);
 
-      pre_gridNum_r = gridNum_r;
+      //pre_gridNum_r = gridNum_r;
     }
 
     int max_gridnum_pos = Integer.MIN_VALUE;
@@ -450,6 +448,7 @@ public class TestMultipleGridNumRaw {
         pre_pos = j;
       }
     }
+
     int timestamp_gridnum_length = gridnum_block.size();
     int timestamp_gridnum_remain_length;
     if (timestamp_gridnum_length % 8 == 0) {
