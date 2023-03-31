@@ -30,10 +30,6 @@ public class CompareDBTest {
         "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Nifty-Stocks");
     output_path_list.add(
         "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\Nifty-Stocks_ratio.csv");
-//    input_path_list.add(
-//        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\WC-Shanqi");
-//    output_path_list.add(
-//        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\WC-Shanqi_ratio.csv");
     input_path_list.add(
         "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Cyber-Vehicle");
     output_path_list.add(
@@ -42,10 +38,6 @@ public class CompareDBTest {
         "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TH-Climate");
     output_path_list.add(
         "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\TH-Climate_ratio.csv");
-//    input_path_list.add(
-//        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Transport-Location");
-//    output_path_list.add(
-//        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\Transport-Location_ratio.csv");
     input_path_list.add("E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TY-Fuel");
     output_path_list.add(
         "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\TY-Fuel_ratio.csv");
@@ -53,6 +45,24 @@ public class CompareDBTest {
         "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\GW-Magnetic");
     output_path_list.add(
         "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\GW-Magnetic_ratio.csv");
+
+    input_path_list.add(
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\USGS-Earthquakes");
+    output_path_list.add(
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\USGS-Earthquakes_ratio.csv");
+    input_path_list.add(
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TY-Transport");
+    output_path_list.add(
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\TY-Transport_ratio.csv");
+
+//    input_path_list.add(
+//        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Transport-Location");
+//    output_path_list.add(
+//        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\Transport-Location_ratio.csv");
+//    input_path_list.add(
+//        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\WC-Shanqi");
+//    output_path_list.add(
+//        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\WC-Shanqi_ratio.csv");
 
 //    input_path_list.add(
 //            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Syn-Delay");
@@ -70,17 +80,6 @@ public class CompareDBTest {
     // input_path_list.add("E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\ZY");
     // output_path_list.add("E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\ZY.csv");
 
-    input_path_list.add(
-            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\USGS-Earthquakes");
-    output_path_list.add(
-            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\USGS-Earthquakes_ratio.csv");
-
-
-    input_path_list.add(
-            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TY-Transport");
-    output_path_list.add(
-            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
-                    + "\\compression_ratio\\java_ratio\\TY-Transport_ratio.csv");
 
     for (int file_i = 0; file_i < input_path_list.size(); file_i++) {
       String inputPath = input_path_list.get(file_i);
@@ -101,9 +100,9 @@ public class CompareDBTest {
       };
       // select compression algorithms
       CompressionType[] compressList = {
-        //CompressionType.UNCOMPRESSED,
+        CompressionType.UNCOMPRESSED,
         //CompressionType.LZ4,
-        CompressionType.GZIP
+        //CompressionType.GZIP
       };
       CsvWriter writer = new CsvWriter(Output, ',', StandardCharsets.UTF_8);
 
