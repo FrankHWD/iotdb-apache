@@ -6,7 +6,6 @@ import org.apache.iotdb.tsfile.compress.ICompressor;
 import org.apache.iotdb.tsfile.compress.IUnCompressor;
 import org.apache.iotdb.tsfile.file.metadata.enums.CompressionType;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -119,6 +118,22 @@ public class TestMultipleGridNumRaw {
         int tmp_int = 0;
         for (int k = 0; k < 8; k++) {
           tmp_int += (((numbers.get(i * 8 + k + 1).get(index) >> j) % 2) << k);
+        }
+        result[i * bit_width + j] = (byte) tmp_int;
+      }
+    }
+    return result;
+  }
+
+  public static byte[] bitPacking1(
+          ArrayList<Integer> numbers, int bit_width) {
+    int block_num = numbers.size() / 8;
+    byte[] result = new byte[bit_width * block_num];
+    for (int i = 0; i < block_num; i++) {
+      for (int j = 0; j < bit_width; j++) {
+        int tmp_int = 0;
+        for (int k = 0; k < 8; k++) {
+          tmp_int += (((numbers.get(i * 8 + k) >> j) % 2) << k);
         }
         result[i * bit_width + j] = (byte) tmp_int;
       }
@@ -397,7 +412,8 @@ public class TestMultipleGridNumRaw {
           int block_size,
           int grid,
           ArrayList<Integer> result,
-          ArrayList<ArrayList<Integer>> gridnum_block) {
+          ArrayList<Integer> gridnum_block,
+          ArrayList<Integer> bitmap) {
     int timestamp_delta_min = Integer.MAX_VALUE;
     int value_delta_min = Integer.MAX_VALUE;
     ArrayList<ArrayList<Integer>> ts_block_delta = new ArrayList<>();
@@ -430,22 +446,17 @@ public class TestMultipleGridNumRaw {
       //pre_gridNum_r = gridNum_r;
     }
 
-    int max_gridnum_pos = Integer.MIN_VALUE;
     int max_gridnum_val = Integer.MIN_VALUE;
-    int pre_pos = 1;
     for (int j = 1; j < block_size; j++) {
       if (ts_block_delta.get(j).get(2) != 1) {
-        ArrayList<Integer> tmp_gridnum = new ArrayList<>();
-        tmp_gridnum.add(j - pre_pos);
-        tmp_gridnum.add(ts_block_delta.get(j).get(2));
-        gridnum_block.add(tmp_gridnum);
-        if (j - pre_pos > max_gridnum_pos) {
-          max_gridnum_pos = j - pre_pos;
-        }
+        bitmap.add(1);
+        gridnum_block.add(ts_block_delta.get(j).get(2));
         if (ts_block_delta.get(j).get(2) > max_gridnum_val) {
           max_gridnum_val = ts_block_delta.get(j).get(2);
         }
-        pre_pos = j;
+      }
+      else{
+        bitmap.add(0);
       }
     }
 
@@ -457,10 +468,8 @@ public class TestMultipleGridNumRaw {
       timestamp_gridnum_remain_length = 8 - timestamp_gridnum_length % 8;
     }
     for (int j = 0; j < timestamp_gridnum_remain_length; j++) {
-      ArrayList<Integer> tmp_gridnum0 = new ArrayList<>();
-      tmp_gridnum0.add(0);
-      tmp_gridnum0.add(0);
-      gridnum_block.add(tmp_gridnum0);
+      gridnum_block.add(0);
+      bitmap.add(0);
     }
 
     int max_interval = Integer.MIN_VALUE;
@@ -481,25 +490,20 @@ public class TestMultipleGridNumRaw {
     }
 
     if(gridnum_block.size()==0){
-      max_gridnum_pos=0;
       max_gridnum_val=0;
     }
 
     int max_bit_width_interval = getBitWith(max_interval);
     int max_bit_width_value = getBitWith(max_value);
-    int max_bit_width_gridnum_pos = getBitWith(max_gridnum_pos);
     int max_bit_width_gridnum_val = getBitWith(max_gridnum_val);
 
-    int length =
-            (max_bit_width_interval + max_bit_width_value) * (block_size - 1)
-                    + (max_bit_width_gridnum_pos + max_bit_width_gridnum_val)
-                    * (timestamp_gridnum_length + timestamp_gridnum_remain_length);
+    int length = (max_bit_width_interval + max_bit_width_value) * (block_size - 1)
+                    + (max_bit_width_gridnum_val + 1) * (timestamp_gridnum_length + timestamp_gridnum_remain_length);
     result.clear();
 
     result.add(length);
     result.add(max_bit_width_interval);
     result.add(max_bit_width_value);
-    result.add(max_bit_width_gridnum_pos);
     result.add(max_bit_width_gridnum_val);
 
     result.add(timestamp_delta_min);
@@ -641,7 +645,8 @@ public class TestMultipleGridNumRaw {
           ArrayList<ArrayList<Integer>> ts_block,
           ArrayList<Integer> raw_length,
           int grid,
-          ArrayList<ArrayList<Integer>> gridnum_block) {
+          ArrayList<Integer> gridnum_block,
+          ArrayList<Integer> bitmap) {
 
     ArrayList<Byte> encoded_result = new ArrayList<>();
 
@@ -658,12 +663,12 @@ public class TestMultipleGridNumRaw {
     for (byte b : value0_byte) encoded_result.add(b);
 
     // encode interval_min and value_min
-    byte[] interval_min_byte = int2Bytes(raw_length.get(5));
+    byte[] interval_min_byte = int2Bytes(raw_length.get(4));
     for (byte b : interval_min_byte) encoded_result.add(b);
-    byte[] value_min_byte = int2Bytes(raw_length.get(6));
+    byte[] value_min_byte = int2Bytes(raw_length.get(5));
     for (byte b : value_min_byte) encoded_result.add(b);
 
-    byte[] timestamp_gridnum_length_byte = int2Bytes(raw_length.get(7));
+    byte[] timestamp_gridnum_length_byte = int2Bytes(raw_length.get(6));
     for (byte b : timestamp_gridnum_length_byte) encoded_result.add(b);
 
     // encode interval
@@ -678,16 +683,13 @@ public class TestMultipleGridNumRaw {
     byte[] value_bytes = bitPacking(ts_block, 1, raw_length.get(2));
     for (byte b : value_bytes) encoded_result.add(b);
 
-    // encode gridnum_pos
-    byte[] max_bit_width_gridnum_pos_byte = int2Bytes(raw_length.get(3));
-    for (byte b : max_bit_width_gridnum_pos_byte) encoded_result.add(b);
-    byte[] gridnum_pos_bytes = bitPacking2(gridnum_block, 0, raw_length.get(3));
-    for (byte b : gridnum_pos_bytes) encoded_result.add(b);
-
     // encode gridnum_value
-    byte[] max_bit_width_gridnum_value_byte = int2Bytes(raw_length.get(4));
+    byte[] max_bit_width_gridnum_value_byte = int2Bytes(raw_length.get(3));
     for (byte b : max_bit_width_gridnum_value_byte) encoded_result.add(b);
-    byte[] gridnum_val_bytes = bitPacking2(gridnum_block, 1, raw_length.get(4));
+    byte[] gridnum_val_bytes = bitPacking1(gridnum_block, raw_length.get(3));
+    for (byte b : gridnum_val_bytes) encoded_result.add(b);
+
+    byte[] gridnum_pos_bytes = bitPacking1(bitmap, raw_length.get(3));
     for (byte b : gridnum_val_bytes) encoded_result.add(b);
 
     byte[] grid_byte = int2Bytes(grid);
@@ -757,13 +759,14 @@ public class TestMultipleGridNumRaw {
 
       ArrayList<Integer> raw_length = new ArrayList<>(); // parameters
       ArrayList<Integer> raw_length2 = new ArrayList<>(); // parameters
-      ArrayList<ArrayList<Integer>> gridnum_block = new ArrayList<>();
+      ArrayList<Integer> gridnum_block = new ArrayList<>();
+      ArrayList<Integer> bitmap = new ArrayList<>();
 
       //double rr = getRR2(ts_block, block_size);
       double ratio = getRatio(ts_block, block_size);
 
       ArrayList<ArrayList<Integer>> ts_block_delta =
-              getEncodeBitsRegression2(ts_block, block_size, grid, raw_length, gridnum_block);
+              getEncodeBitsRegression2(ts_block, block_size, grid, raw_length, gridnum_block,bitmap);
       ArrayList<ArrayList<Integer>> ts_block_delta2 =
               getEncodeBitsRegressionTs2diff(ts_block, block_size, raw_length2);
 
@@ -775,7 +778,7 @@ public class TestMultipleGridNumRaw {
       //if (raw_length.get(0) <= raw_length2.get(0)) {
       //if (rr > 0.9) {
       if (ratio>0.9) {
-        cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block);
+        cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block,bitmap);
       } else {
         cur_encoded_result = encode2Bytes2(ts_block_delta2, raw_length2);
       }
@@ -800,13 +803,14 @@ public class TestMultipleGridNumRaw {
 
       ArrayList<Integer> raw_length = new ArrayList<>(); // parameters
       ArrayList<Integer> raw_length2 = new ArrayList<>(); // parameters
-      ArrayList<ArrayList<Integer>> gridnum_block = new ArrayList<>();
+      ArrayList<Integer> gridnum_block = new ArrayList<>();
+      ArrayList<Integer> bitmap = new ArrayList<>();
 
       //double rr = getRR2(ts_block, remaining_length);
       double ratio = getRatio(ts_block, remaining_length);
 
       ArrayList<ArrayList<Integer>> ts_block_delta =
-              getEncodeBitsRegression2(ts_block, remaining_length, grid, raw_length, gridnum_block);
+              getEncodeBitsRegression2(ts_block, remaining_length, grid, raw_length, gridnum_block, bitmap);
       ArrayList<ArrayList<Integer>> ts_block_delta2 =
               getEncodeBitsRegressionTs2diff(ts_block, remaining_length, raw_length2);
 
@@ -839,7 +843,7 @@ public class TestMultipleGridNumRaw {
       //if (raw_length.get(0) <= raw_length2.get(0)) {
       //if (rr > 0.9) {
       if (ratio > 0.9) {
-        cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block);
+        cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block,bitmap);
       } else {
         cur_encoded_result = encode2Bytes2(ts_block_delta2, raw_length2);
       }
@@ -1327,7 +1331,7 @@ public class TestMultipleGridNumRaw {
           ratio += ratioTmp;
           s = System.nanoTime();
           for (int repeat = 0; repeat < repeatTime2; repeat++) {
-            data_decoded = ReorderingRegressionDecoder(buffer);
+            //data_decoded = ReorderingRegressionDecoder(buffer);
           }
           e = System.nanoTime();
           decodeTime += ((e - s) / repeatTime2);
