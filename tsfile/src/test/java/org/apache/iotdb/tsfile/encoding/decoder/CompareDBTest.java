@@ -22,38 +22,39 @@ public class CompareDBTest {
     ArrayList<String> input_path_list = new ArrayList<>();
     ArrayList<String> output_path_list = new ArrayList<>();
 
-    input_path_list.add(
-        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Metro-Traffic");
-    output_path_list.add(
-        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\Metro-Traffic_ratio.csv");
-    input_path_list.add(
-        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Nifty-Stocks");
-    output_path_list.add(
-        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\Nifty-Stocks_ratio.csv");
-    input_path_list.add(
-        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Cyber-Vehicle");
-    output_path_list.add(
-        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\Cyber-Vehicle_ratio.csv");
-    input_path_list.add(
-        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TH-Climate");
-    output_path_list.add(
-        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\TH-Climate_ratio.csv");
-    input_path_list.add("E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TY-Fuel");
-    output_path_list.add(
-        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\TY-Fuel_ratio.csv");
+//    input_path_list.add(
+//        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Metro-Traffic");
+//    output_path_list.add(
+//        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\Metro-Traffic_ratio.csv");
+//    input_path_list.add(
+//        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Nifty-Stocks");
+//    output_path_list.add(
+//        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\Nifty-Stocks_ratio.csv");
+//    input_path_list.add(
+//        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Cyber-Vehicle");
+//    output_path_list.add(
+//        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\Cyber-Vehicle_ratio.csv");
+//    input_path_list.add(
+//        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TH-Climate");
+//    output_path_list.add(
+//        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\TH-Climate_ratio.csv");
+//    input_path_list.add("E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TY-Fuel");
+//    output_path_list.add(
+//        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\TY-Fuel_ratio.csv");
     input_path_list.add(
         "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\GW-Magnetic");
     output_path_list.add(
         "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\GW-Magnetic_ratio.csv");
+//
+//    input_path_list.add(
+//            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\USGS-Earthquakes");
+//    output_path_list.add(
+//            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\USGS-Earthquakes_ratio.csv");
+//    input_path_list.add(
+//            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TY-Transport");
+//    output_path_list.add(
+//            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\TY-Transport_ratio.csv");
 
-    input_path_list.add(
-            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\USGS-Earthquakes");
-    output_path_list.add(
-            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\USGS-Earthquakes_ratio.csv");
-    input_path_list.add(
-            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TY-Transport");
-    output_path_list.add(
-            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\TY-Transport_ratio.csv");
 
 //    input_path_list.add(
 //        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Transport-Location");
