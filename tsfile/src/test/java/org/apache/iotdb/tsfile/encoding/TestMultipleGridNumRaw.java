@@ -251,7 +251,7 @@ public class TestMultipleGridNumRaw {
     return n;
   }
 
-  public static int getGrid(ArrayList<ArrayList<Integer>> ts_block) {
+  public static int getGridMed(ArrayList<ArrayList<Integer>> ts_block) {
     int grid = 1;
     ArrayList<Integer> diff_block = new ArrayList<>();
     for (int i = 1; i < ts_block.size(); i++) {
@@ -260,6 +260,26 @@ public class TestMultipleGridNumRaw {
     Collections.sort(diff_block);
     grid = diff_block.get(diff_block.size() / 2);
     return grid;
+  }
+
+  public static int getGridMax(ArrayList<ArrayList<Integer>> ts_block) {
+    int grid = 1;
+    ArrayList<Integer> diff_block = new ArrayList<>();
+    for (int i = 1; i < ts_block.size(); i++) {
+      diff_block.add(ts_block.get(i).get(0) - ts_block.get(i - 1).get(0));
+    }
+    Collections.sort(diff_block);
+    grid = diff_block.get(diff_block.size() - 1);
+    return grid;
+  }
+
+  public static ArrayList<Integer> getGrid(ArrayList<ArrayList<Integer>> ts_block) {
+    ArrayList<Integer> diff_block = new ArrayList<>();
+    for (int i = 1; i < ts_block.size(); i++) {
+      diff_block.add(ts_block.get(i).get(0) - ts_block.get(i - 1).get(0));
+    }
+    Collections.sort(diff_block);
+    return diff_block;
   }
 
   public static void splitTimeStamp3(
@@ -736,7 +756,7 @@ public class TestMultipleGridNumRaw {
   public static double getRatio(ArrayList<ArrayList<Integer>> ts_block, int block_size) {
 
     Map<Integer, Integer> map = new HashMap<>();
-    int grid = getGrid(ts_block);
+    int grid = getGridMed(ts_block);
 
     for (int j = 1; j < block_size; j++) {
       int diff_tmp = (ts_block.get(j).get(0) - ts_block.get(j - 1).get(0)) % grid;
@@ -864,20 +884,152 @@ public class TestMultipleGridNumRaw {
         ts_block.add(data.get(j + i * block_size));
       }
 
-      int grid = getGrid(ts_block);
+      int gridMed = getGridMed(ts_block);
+      int gridMax = getGridMax(ts_block);
+      ArrayList<Integer> gridCandidate = getGrid(ts_block);
+
+      ArrayList<Integer> raw_length0 = new ArrayList<>(); // parameters
+      ArrayList<Integer> gridnum_block0 = new ArrayList<>();
+      ArrayList<Integer> gridpos0 = new ArrayList<>();
+      int k0 = gridMed;
+      ArrayList<ArrayList<Integer>> ts_block_delta0 =
+          getEncodeBitsRegression2(ts_block, block_size, k0, raw_length0, gridnum_block0, gridpos0);
+
+      for (int j = 0; j < gridCandidate.size(); j++) {
+        int k = gridCandidate.get(j);
+        ArrayList<Integer> raw_length = new ArrayList<>(); // parameters
+        ArrayList<Integer> gridnum_block = new ArrayList<>();
+        ArrayList<Integer> gridpos = new ArrayList<>();
+
+        ArrayList<ArrayList<Integer>> ts_block_delta =
+            getEncodeBitsRegression2(ts_block, block_size, k, raw_length, gridnum_block, gridpos);
+
+        if (raw_length.get(0) < raw_length0.get(0)) {
+          ts_block_delta0 = ts_block_delta;
+          k0 = k;
+          raw_length0 = raw_length;
+          gridnum_block0 = gridnum_block;
+          gridpos0 = gridpos;
+        }
+      }
+
+      ArrayList<Byte> cur_encoded_result;
+      cur_encoded_result = encode2Bytes(ts_block_delta0, raw_length0, k0, gridnum_block0, gridpos0);
+      encoded_result.addAll(cur_encoded_result);
+    }
+
+    int remaining_length = length_all - block_num * block_size;
+    if (remaining_length == 1) {
+      byte[] timestamp_end_bytes = int2Bytes(data.get(data.size() - 1).get(0));
+      for (byte b : timestamp_end_bytes) encoded_result.add(b);
+      byte[] value_end_bytes = int2Bytes(data.get(data.size() - 1).get(1));
+      for (byte b : value_end_bytes) encoded_result.add(b);
+    }
+    if (remaining_length != 0 && remaining_length != 1) {
+      ArrayList<ArrayList<Integer>> ts_block = new ArrayList<>();
+
+      for (int j = block_num * block_size; j < length_all; j++) {
+        ts_block.add(data.get(j));
+      }
+
+      int gridMed = getGridMed(ts_block);
 
       ArrayList<Integer> raw_length = new ArrayList<>(); // parameters
       ArrayList<Integer> raw_length2 = new ArrayList<>(); // parameters
       ArrayList<Integer> gridnum_block = new ArrayList<>();
+      ArrayList<Integer> gridnum_block2 = new ArrayList<>();
       ArrayList<Integer> gridpos = new ArrayList<>();
+      ArrayList<Integer> gridpos2 = new ArrayList<>();
+
+      ArrayList<ArrayList<Integer>> ts_block_delta =
+          getEncodeBitsRegression(
+              ts_block, remaining_length, gridMed, raw_length, gridnum_block, gridpos);
+      ArrayList<ArrayList<Integer>> ts_block_delta2 =
+          getEncodeBitsRegression(
+              ts_block, remaining_length, gridMed, raw_length2, gridnum_block, gridpos);
+      // ArrayList<ArrayList<Integer>> ts_block_delta2 =
+      //    getEncodeBitsRegressionTs2diff(ts_block, remaining_length, raw_length2);
+
+      int supple_length;
+      if (remaining_length % 8 == 0) {
+        supple_length = 1;
+      } else if (remaining_length % 8 == 1) {
+        supple_length = 0;
+      } else {
+        supple_length = 9 - remaining_length % 8;
+      }
+
+      for (int s = 0; s < supple_length; s++) {
+        ArrayList<Integer> tmp = new ArrayList<>();
+        tmp.add(0);
+        tmp.add(0);
+        tmp.add(0);
+        ts_block_delta.add(tmp);
+      }
+
+      for (int s = 0; s < supple_length; s++) {
+        ArrayList<Integer> tmp = new ArrayList<>();
+        tmp.add(0);
+        tmp.add(0);
+        tmp.add(0);
+        ts_block_delta2.add(tmp);
+      }
+
+      ArrayList<Byte> cur_encoded_result;
+      if (raw_length.get(0) < raw_length2.get(0)) {
+        cur_encoded_result =
+            encode2Bytes(ts_block_delta, raw_length, gridMed, gridnum_block, gridpos);
+      } else {
+        cur_encoded_result =
+            encode2Bytes(ts_block_delta2, raw_length2, gridMed, gridnum_block2, gridpos2);
+        // cur_encoded_result = encode2Bytes2(ts_block_delta2, raw_length2);
+      }
+      encoded_result.addAll(cur_encoded_result);
+    }
+    return encoded_result;
+  }
+
+  public static ArrayList<Byte> ReorderingRegressionEncoderSimple(
+      ArrayList<ArrayList<Integer>> data, int block_size) {
+    block_size++;
+    ArrayList<Byte> encoded_result = new ArrayList<>();
+    int length_all = data.size();
+    byte[] length_all_bytes = int2Bytes(length_all);
+    for (byte b : length_all_bytes) encoded_result.add(b);
+    int block_num = length_all / block_size;
+
+    // encode block size (Integer)
+    byte[] block_size_byte = int2Bytes(block_size);
+    for (byte b : block_size_byte) encoded_result.add(b);
+
+    for (int i = 0; i < block_num; i++) {
+      ArrayList<ArrayList<Integer>> ts_block = new ArrayList<>();
+      for (int j = 0; j < block_size; j++) {
+        ts_block.add(data.get(j + i * block_size));
+      }
+
+      int grid = getGridMed(ts_block);
+      int gridMax = getGridMax(ts_block);
+
+      ArrayList<Integer> raw_length = new ArrayList<>(); // parameters
+      ArrayList<Integer> raw_length2 = new ArrayList<>(); // parameters
+      ArrayList<Integer> gridnum_block = new ArrayList<>();
+      ArrayList<Integer> gridnum_block2 = new ArrayList<>();
+      ArrayList<Integer> gridpos = new ArrayList<>();
+      ArrayList<Integer> gridpos2 = new ArrayList<>();
 
       // double rr = getRR2(ts_block, block_size);
       double ratio = getRatio(ts_block, block_size);
 
       ArrayList<ArrayList<Integer>> ts_block_delta =
-          getEncodeBitsRegression(ts_block, block_size, grid, raw_length, gridnum_block, gridpos);
+          getEncodeBitsRegression2(ts_block, block_size, grid, raw_length, gridnum_block, gridpos);
+
       ArrayList<ArrayList<Integer>> ts_block_delta2 =
-          getEncodeBitsRegressionTs2diff(ts_block, block_size, raw_length2);
+          getEncodeBitsRegression2(
+              ts_block, block_size, 2 * gridMax + 1, raw_length2, gridnum_block2, gridpos2);
+
+      // ArrayList<ArrayList<Integer>> ts_block_delta2 =
+      //    getEncodeBitsRegressionTs2diff(ts_block, block_size, raw_length2);
 
       // System.out.print(raw_length.get(0));
       // System.out.print(" ");
@@ -887,10 +1039,13 @@ public class TestMultipleGridNumRaw {
       // if (raw_length.get(0) <= raw_length2.get(0)) {
       // if (rr > 0.9) {
       ratio = 1;
-      if (ratio > 0.9) {
+      //      if (raw_length.get(0)<raw_length2.get(0)) { //ratio > 0.9
+      if (raw_length.get(0) < raw_length2.get(0)) { // ratio > 0.9
         cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block, gridpos);
       } else {
-        cur_encoded_result = encode2Bytes2(ts_block_delta2, raw_length2);
+        cur_encoded_result =
+            encode2Bytes(ts_block_delta2, raw_length2, grid, gridnum_block2, gridpos2);
+        // cur_encoded_result = encode2Bytes2(ts_block_delta2, raw_length2);
       }
       encoded_result.addAll(cur_encoded_result);
     }
@@ -909,12 +1064,14 @@ public class TestMultipleGridNumRaw {
         ts_block.add(data.get(j));
       }
 
-      int grid = getGrid(ts_block);
+      int grid = getGridMed(ts_block);
 
       ArrayList<Integer> raw_length = new ArrayList<>(); // parameters
       ArrayList<Integer> raw_length2 = new ArrayList<>(); // parameters
       ArrayList<Integer> gridnum_block = new ArrayList<>();
+      ArrayList<Integer> gridnum_block2 = new ArrayList<>();
       ArrayList<Integer> gridpos = new ArrayList<>();
+      ArrayList<Integer> gridpos2 = new ArrayList<>();
 
       // double rr = getRR2(ts_block, remaining_length);
       double ratio = getRatio(ts_block, remaining_length);
@@ -923,7 +1080,10 @@ public class TestMultipleGridNumRaw {
           getEncodeBitsRegression(
               ts_block, remaining_length, grid, raw_length, gridnum_block, gridpos);
       ArrayList<ArrayList<Integer>> ts_block_delta2 =
-          getEncodeBitsRegressionTs2diff(ts_block, remaining_length, raw_length2);
+          getEncodeBitsRegression(
+              ts_block, remaining_length, grid, raw_length2, gridnum_block, gridpos);
+      // ArrayList<ArrayList<Integer>> ts_block_delta2 =
+      //    getEncodeBitsRegressionTs2diff(ts_block, remaining_length, raw_length2);
 
       int supple_length;
       if (remaining_length % 8 == 0) {
@@ -954,10 +1114,13 @@ public class TestMultipleGridNumRaw {
       // if (raw_length.get(0) <= raw_length2.get(0)) {
       // if (rr > 0.9) {
       ratio = 1;
-      if (ratio > 0.9) {
+      // if (raw_length.get(0)<raw_length2.get(0)) { //ratio > 0.9
+      if (raw_length.get(0) < raw_length2.get(0)) {
         cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block, gridpos);
       } else {
-        cur_encoded_result = encode2Bytes2(ts_block_delta2, raw_length2);
+        cur_encoded_result =
+            encode2Bytes(ts_block_delta2, raw_length2, grid, gridnum_block2, gridpos2);
+        // cur_encoded_result = encode2Bytes2(ts_block_delta2, raw_length2);
       }
       encoded_result.addAll(cur_encoded_result);
     }
@@ -1290,57 +1453,54 @@ public class TestMultipleGridNumRaw {
     ArrayList<String> output_path_list = new ArrayList<>();
     ArrayList<Integer> dataset_block_size = new ArrayList<>();
 
-    //    input_path_list.add(
-    //            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Metro-Traffic");
-    //    output_path_list.add(
-    //            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
-    //                    + "\\compression_ratio\\rr_ratio\\Metro-Traffic_ratio.csv");
-    //
-    //    input_path_list.add(
-    //            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Nifty-Stocks");
-    //    output_path_list.add(
-    //            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
-    //                    + "\\compression_ratio\\rr_ratio\\Nifty-Stocks_ratio.csv");
-    //
+    input_path_list.add(
+        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Metro-Traffic");
+    output_path_list.add(
+        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+            + "\\compression_ratio\\rr_ratio\\Metro-Traffic_ratio.csv");
+
+    input_path_list.add(
+        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Nifty-Stocks");
+    output_path_list.add(
+        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+            + "\\compression_ratio\\rr_ratio\\Nifty-Stocks_ratio.csv");
+
     input_path_list.add(
         "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Cyber-Vehicle");
     output_path_list.add(
         "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
             + "\\compression_ratio\\rr_ratio\\Cyber-Vehicle_ratio.csv");
-    //
-    //    input_path_list.add(
-    //            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TH-Climate");
-    //    output_path_list.add(
-    //            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
-    //                    + "\\compression_ratio\\rr_ratio\\TH-Climate_ratio.csv");
-    //
-    //    input_path_list.add(
-    //
-    // "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\USGS-Earthquakes");
-    //    output_path_list.add(
-    //            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
-    //                    + "\\compression_ratio\\rr_ratio\\USGS-Earthquakes_ratio.csv");
-    //
-    //    input_path_list.add(
-    //            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TY-Transport");
-    //    output_path_list.add(
-    //            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
-    //                    + "\\compression_ratio\\rr_ratio\\TY-Transport_ratio.csv");
-    //
-    //    input_path_list.add(
-    //            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\GW-Magnetic");
-    //    output_path_list.add(
-    //            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
-    //                    + "\\compression_ratio\\rr_ratio\\GW-Magnetic_ratio.csv");
-    //
-    //    input_path_list.add(
-    //            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TY-Fuel");
-    //    output_path_list.add(
-    //            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
-    //                    + "\\compression_ratio\\rr_ratio\\TY-Fuel_ratio.csv");
+
+    input_path_list.add(
+        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TH-Climate");
+    output_path_list.add(
+        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+            + "\\compression_ratio\\rr_ratio\\TH-Climate_ratio.csv");
+
+    input_path_list.add(
+        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\USGS-Earthquakes");
+    output_path_list.add(
+        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+            + "\\compression_ratio\\rr_ratio\\USGS-Earthquakes_ratio.csv");
+
+    input_path_list.add(
+        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TY-Transport");
+    output_path_list.add(
+        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+            + "\\compression_ratio\\rr_ratio\\TY-Transport_ratio.csv");
+
+    input_path_list.add(
+        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\GW-Magnetic");
+    output_path_list.add(
+        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+            + "\\compression_ratio\\rr_ratio\\GW-Magnetic_ratio.csv");
+
+    input_path_list.add("E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TY-Fuel");
+    output_path_list.add(
+        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+            + "\\compression_ratio\\rr_ratio\\TY-Fuel_ratio.csv");
 
     //    input_path_list.add(
-    //
     // "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Transport-Location");
     //    output_path_list.add(
     //            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
