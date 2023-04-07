@@ -47,39 +47,43 @@ public class CompareDBTest {
         "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\GW-Magnetic_ratio.csv");
 
     input_path_list.add(
-            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\USGS-Earthquakes");
+        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\USGS-Earthquakes");
     output_path_list.add(
-            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\USGS-Earthquakes_ratio.csv");
+        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\USGS-Earthquakes_ratio.csv");
     input_path_list.add(
-            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TY-Transport");
+        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\TY-Transport");
     output_path_list.add(
-            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\TY-Transport_ratio.csv");
+        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\TY-Transport_ratio.csv");
 
-//    input_path_list.add(
-//        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Transport-Location");
-//    output_path_list.add(
-//        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\Transport-Location_ratio.csv");
-//    input_path_list.add(
-//        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\WC-Shanqi");
-//    output_path_list.add(
-//        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\WC-Shanqi_ratio.csv");
+    //    input_path_list.add(
+    //        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Transport-Location");
+    //    output_path_list.add(
+    //
+    // "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\Transport-Location_ratio.csv");
+    //    input_path_list.add(
+    //        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\WC-Shanqi");
+    //    output_path_list.add(
+    //
+    // "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\WC-Shanqi_ratio.csv");
 
-//    input_path_list.add(
-//            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Syn-Delay");
-//    output_path_list.add(
-//            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\Syn-Delay_ratio.csv");
-//    input_path_list.add(
-//            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Syn-Missing");
-//    output_path_list.add(
-//            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\Syn-Missing_ratio.csv");
-//    input_path_list.add(
-//            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Syn-Repeat");
-//    output_path_list.add(
-//            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\Syn-Repeat_ratio.csv");
+    //    input_path_list.add(
+    //            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Syn-Delay");
+    //    output_path_list.add(
+    //
+    // "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\Syn-Delay_ratio.csv");
+    //    input_path_list.add(
+    //            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Syn-Missing");
+    //    output_path_list.add(
+    //
+    // "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\Syn-Missing_ratio.csv");
+    //    input_path_list.add(
+    //            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Syn-Repeat");
+    //    output_path_list.add(
+    //
+    // "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\Syn-Repeat_ratio.csv");
 
     // input_path_list.add("E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\ZY");
     // output_path_list.add("E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\ZY.csv");
-
 
     for (int file_i = 0; file_i < input_path_list.size(); file_i++) {
       String inputPath = input_path_list.get(file_i);
@@ -95,14 +99,14 @@ public class CompareDBTest {
       // select encoding algorithms
       TSEncoding[] encodingList = {
         TSEncoding.TS_2DIFF,
-        //TSEncoding.RLE,
-        //TSEncoding.GORILLA,
+        // TSEncoding.RLE,
+        // TSEncoding.GORILLA,
       };
       // select compression algorithms
       CompressionType[] compressList = {
         CompressionType.UNCOMPRESSED,
-        //CompressionType.LZ4,
-        //CompressionType.GZIP
+        // CompressionType.LZ4,
+        // CompressionType.GZIP
       };
       CsvWriter writer = new CsvWriter(Output, ',', StandardCharsets.UTF_8);
 
