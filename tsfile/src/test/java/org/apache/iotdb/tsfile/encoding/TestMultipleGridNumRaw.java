@@ -273,6 +273,17 @@ public class TestMultipleGridNumRaw {
     return grid;
   }
 
+  public static int getGridMin(ArrayList<ArrayList<Integer>> ts_block) {
+    int grid = 1;
+    ArrayList<Integer> diff_block = new ArrayList<>();
+    for (int i = 1; i < ts_block.size(); i++) {
+      diff_block.add(ts_block.get(i).get(0) - ts_block.get(i - 1).get(0));
+    }
+    Collections.sort(diff_block);
+    grid = diff_block.get(0);
+    return grid;
+  }
+
   public static ArrayList<Integer> getGrid(ArrayList<ArrayList<Integer>> ts_block) {
     ArrayList<Integer> diff_block = new ArrayList<>();
     for (int i = 1; i < ts_block.size(); i++) {
@@ -280,6 +291,40 @@ public class TestMultipleGridNumRaw {
     }
     Collections.sort(diff_block);
     return diff_block;
+  }
+
+  public static ArrayList<Integer> getGridKSigma(ArrayList<ArrayList<Integer>> ts_block, double k) {
+    ArrayList<Integer> diff_block = new ArrayList<>();
+    ArrayList<Integer> res_block = new ArrayList<>();
+    for (int i = 1; i < ts_block.size(); i++) {
+      diff_block.add(ts_block.get(i).get(0) - ts_block.get(i - 1).get(0));
+    }
+    Collections.sort(diff_block);
+
+    int med = diff_block.get(diff_block.size() / 2);
+
+    double sum = 0;
+    for (int i = 0; i < diff_block.size(); i++) {
+      sum += diff_block.get(i);
+    }
+    double avg = sum / diff_block.size();
+    sum = 0;
+    for (int i = 0; i < diff_block.size(); i++) {
+      sum += Math.pow(diff_block.get(i) - avg, 2);
+    }
+    double std = Math.sqrt(sum / diff_block.size());
+
+    int left = (int) (med - k * std);
+    int right = (int) (med + k * std);
+    if (2 * k * std > 1000) {
+      left = med - 500;
+      right = med + 500;
+    }
+
+    for (int j = left; j <= right; j++) {
+      res_block.add(j);
+    }
+    return res_block;
   }
 
   public static void splitTimeStamp3(
@@ -886,7 +931,14 @@ public class TestMultipleGridNumRaw {
 
       int gridMed = getGridMed(ts_block);
       int gridMax = getGridMax(ts_block);
-      ArrayList<Integer> gridCandidate = getGrid(ts_block);
+      int gridMin = getGridMin(ts_block);
+      ArrayList<Integer> gridCandidate = new ArrayList<>();
+      gridCandidate = getGrid(ts_block);
+      // for(int j=1;j<=gridMax;j++){
+      //  gridCandidate.add(j);
+      // }
+      gridCandidate = getGridKSigma(ts_block, 1);
+      gridCandidate.add(2 * gridMax + 1);
 
       ArrayList<Integer> raw_length0 = new ArrayList<>(); // parameters
       ArrayList<Integer> gridnum_block0 = new ArrayList<>();
