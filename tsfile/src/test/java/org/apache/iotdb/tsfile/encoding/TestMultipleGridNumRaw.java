@@ -892,7 +892,7 @@ public class TestMultipleGridNumRaw {
         ts_block.add(data.get(j + i * block_size));
       }
 
-      int grid = getGrid(ts_block);
+      int grid = getGridMed(ts_block);
 
       ArrayList<Integer> raw_length = new ArrayList<>(); // parameters
       ArrayList<Integer> raw_length2 = new ArrayList<>(); // parameters
@@ -937,7 +937,7 @@ public class TestMultipleGridNumRaw {
         ts_block.add(data.get(j));
       }
 
-      int grid = getGrid(ts_block);
+      int grid = getGridMed(ts_block);
 
       ArrayList<Integer> raw_length = new ArrayList<>(); // parameters
       ArrayList<Integer> raw_length2 = new ArrayList<>(); // parameters
@@ -1365,6 +1365,30 @@ public class TestMultipleGridNumRaw {
     output_path_list.add(
             "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
                     + "\\compression_ratio\\rr_ratio\\TY-Fuel_ratio.csv");
+
+    input_path_list.add(
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\air_quality");
+    output_path_list.add(
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+                    + "\\compression_ratio\\rr_ratio\\air_quality_ratio.csv");
+
+    input_path_list.add(
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\dirty_energy");
+    output_path_list.add(
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+                    + "\\compression_ratio\\rr_ratio\\dirty_energy_ratio.csv");
+
+    input_path_list.add(
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\energy");
+    output_path_list.add(
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+                    + "\\compression_ratio\\rr_ratio\\energy_ratio.csv");
+
+    input_path_list.add(
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\pm");
+    output_path_list.add(
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+                    + "\\compression_ratio\\rr_ratio\\pm_ratio.csv");
 
     //    input_path_list.add(
     //
