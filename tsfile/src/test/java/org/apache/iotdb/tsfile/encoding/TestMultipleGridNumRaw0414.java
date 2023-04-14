@@ -17,7 +17,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-public class TestMultipleGridNumRaw {
+public class TestMultipleGridNumRaw0414 {
   public static int getBitWith(int num) {
     return 32 - Integer.numberOfLeadingZeros(num);
   }

@@ -55,6 +55,30 @@ public class CompareDBTest {
     output_path_list.add(
         "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation\\compression_ratio\\java_ratio\\TY-Transport_ratio.csv");
 
+    input_path_list.add(
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\air_quality");
+    output_path_list.add(
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+                    + "\\compression_ratio\\java_ratio\\air_quality_ratio.csv");
+
+    input_path_list.add(
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\dirty_energy");
+    output_path_list.add(
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+                    + "\\compression_ratio\\java_ratio\\dirty_energy_ratio.csv");
+
+    input_path_list.add(
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\energy");
+    output_path_list.add(
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+                    + "\\compression_ratio\\java_ratio\\energy_ratio.csv");
+
+    input_path_list.add(
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\pm");
+    output_path_list.add(
+            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
+                    + "\\compression_ratio\\java_ratio\\pm_ratio.csv");
+
     //    input_path_list.add(
     //        "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Transport-Location");
     //    output_path_list.add(
