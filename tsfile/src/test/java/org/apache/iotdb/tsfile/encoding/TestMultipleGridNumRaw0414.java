@@ -786,7 +786,11 @@ public class TestMultipleGridNumRaw0414 {
   public static double getRatio(ArrayList<ArrayList<Integer>> ts_block, int block_size) {
 
     Map<Integer, Integer> map = new HashMap<>();
-    int grid = getGridMed(ts_block);
+    int grid = getGridMode(ts_block);
+
+    if(grid==0 || grid==1){
+      return 0;
+    }
 
     for (int j = 1; j < block_size; j++) {
       int diff_tmp = (ts_block.get(j).get(0) - ts_block.get(j - 1).get(0)) % grid;
@@ -798,6 +802,23 @@ public class TestMultipleGridNumRaw0414 {
     }
 
     return map.get(0) * 1.0 / block_size;
+  }
+
+  public static double getRatio2(ArrayList<ArrayList<Integer>> ts_block, int block_size) {
+
+    Map<Integer, Integer> map = new HashMap<>();
+    int grid = getGridMode(ts_block);
+    int res=0;
+    if(grid==0 || grid==1){
+      return 0;
+    }
+    for (int j = 1; j < block_size; j++) {
+      int diff_tmp = (ts_block.get(j).get(0) - ts_block.get(j - 1).get(0)) ;
+      if (diff_tmp == grid) {
+        res+=1;
+      }
+    }
+    return res * 1.0 / block_size;
   }
 
   public static ArrayList<Byte> encode2Bytes(
@@ -923,26 +944,21 @@ public class TestMultipleGridNumRaw0414 {
       ArrayList<Integer> gridpos = new ArrayList<>();
 
       // double rr = getRR2(ts_block, block_size);
-      //double ratio = getRatio(ts_block, block_size);
+      double ratio = getRatio(ts_block, block_size);
+      double ratio2 = getRatio2(ts_block, block_size);
 
       ArrayList<ArrayList<Integer>> ts_block_delta =
           getEncodeBitsRegression(ts_block, block_size, grid, raw_length, gridnum_block, gridpos);
       ArrayList<ArrayList<Integer>> ts_block_delta2 =
           getEncodeBitsRegressionTs2diff(ts_block, block_size, raw_length2);
 
-      // System.out.print(raw_length.get(0));
-      // System.out.print(" ");
-      // System.out.println(raw_length2.get(0));
-
       ArrayList<Byte> cur_encoded_result;
-      // if (raw_length.get(0) <= raw_length2.get(0)) {
-      // if (rr > 0.9) {
-//      ratio = 1;
-//      if (ratio > 0.9) {
+
+      if (ratio > 0.2) {
       cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block, gridpos);
-//      } else {
-//        cur_encoded_result = encode2Bytes2(ts_block_delta2, raw_length2);
-//      }
+      } else {
+        cur_encoded_result = encode2Bytes2(ts_block_delta2, raw_length2);
+      }
       encoded_result.addAll(cur_encoded_result);
     }
 
@@ -969,7 +985,8 @@ public class TestMultipleGridNumRaw0414 {
       ArrayList<Integer> gridpos = new ArrayList<>();
 
       // double rr = getRR2(ts_block, remaining_length);
-      //double ratio = getRatio(ts_block, remaining_length);
+      double ratio = getRatio(ts_block, remaining_length);
+      double ratio2 = getRatio2(ts_block, remaining_length);
 
       ArrayList<ArrayList<Integer>> ts_block_delta =
           getEncodeBitsRegression(
@@ -1003,14 +1020,11 @@ public class TestMultipleGridNumRaw0414 {
       }
 
       ArrayList<Byte> cur_encoded_result;
-      // if (raw_length.get(0) <= raw_length2.get(0)) {
-      // if (rr > 0.9) {
-//      ratio = 1;
-//      if (ratio > 0.9) {
+      if (ratio > 0.2) {
       cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block, gridpos);
-//      } else {
-//        cur_encoded_result = encode2Bytes2(ts_block_delta2, raw_length2);
-//      }
+      } else {
+        cur_encoded_result = encode2Bytes2(ts_block_delta2, raw_length2);
+      }
       encoded_result.addAll(cur_encoded_result);
     }
     return encoded_result;
