@@ -17,7 +17,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-public class TestMultipleGridNumRaw {
+public class TestMultipleGridNumRawFast {
   public static int getBitWith(int num) {
     return 32 - Integer.numberOfLeadingZeros(num);
   }
@@ -892,7 +892,8 @@ public class TestMultipleGridNumRaw {
         ts_block.add(data.get(j + i * block_size));
       }
 
-      int grid = getGrid(ts_block);
+      //int grid = getGridMed(ts_block);
+      int grid = getGridMode(ts_block);
 
       ArrayList<Integer> raw_length = new ArrayList<>(); // parameters
       ArrayList<Integer> raw_length2 = new ArrayList<>(); // parameters
@@ -912,14 +913,7 @@ public class TestMultipleGridNumRaw {
       // System.out.println(raw_length2.get(0));
 
       ArrayList<Byte> cur_encoded_result;
-      // if (raw_length.get(0) <= raw_length2.get(0)) {
-      // if (rr > 0.9) {
-      ratio = 1;
-      if (ratio > 0.9) {
-        cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block, gridpos);
-      } else {
-        cur_encoded_result = encode2Bytes2(ts_block_delta2, raw_length2);
-      }
+      cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block, gridpos);
       encoded_result.addAll(cur_encoded_result);
     }
 
@@ -936,8 +930,9 @@ public class TestMultipleGridNumRaw {
       for (int j = block_num * block_size; j < length_all; j++) {
         ts_block.add(data.get(j));
       }
-
-      int grid = getGrid(ts_block);
+      //int grid = getGridMed(ts_block);
+      int grid = getGridMode(ts_block);
+      //int grid = getGridMed(ts_block);
 
       ArrayList<Integer> raw_length = new ArrayList<>(); // parameters
       ArrayList<Integer> raw_length2 = new ArrayList<>(); // parameters
@@ -979,14 +974,7 @@ public class TestMultipleGridNumRaw {
       }
 
       ArrayList<Byte> cur_encoded_result;
-      // if (raw_length.get(0) <= raw_length2.get(0)) {
-      // if (rr > 0.9) {
-      ratio = 1;
-      if (ratio > 0.9) {
-        cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block, gridpos);
-      } else {
-        cur_encoded_result = encode2Bytes2(ts_block_delta2, raw_length2);
-      }
+      cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block, gridpos);
       encoded_result.addAll(cur_encoded_result);
     }
     return encoded_result;
