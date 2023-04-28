@@ -17,7 +17,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-public class TextLocation {
+public class TextLocationRaw {
   public static int getBitWith(int num) {
     return 32 - Integer.numberOfLeadingZeros(num);
   }
@@ -211,120 +211,6 @@ public class TextLocation {
     return result_list;
   }
 
-  public static void quickSort(
-      ArrayList<ArrayList<Integer>> ts_block, int index, int low, int high) {
-    if (low >= high) return;
-    ArrayList<Integer> pivot = ts_block.get(low);
-    int l = low;
-    int r = high;
-    ArrayList<Integer> temp;
-    while (l < r) {
-      while (l < r && ts_block.get(r).get(index) >= pivot.get(index)) {
-        r--;
-      }
-      while (l < r && ts_block.get(l).get(index) <= pivot.get(index)) {
-        l++;
-      }
-      if (l < r) {
-        temp = ts_block.get(l);
-        ts_block.set(l, ts_block.get(r));
-        ts_block.set(r, temp);
-      }
-    }
-    ts_block.set(low, ts_block.get(l));
-    ts_block.set(l, pivot);
-    if (low < l) {
-      quickSort(ts_block, index, low, l - 1);
-    }
-    if (r < high) {
-      quickSort(ts_block, index, r + 1, high);
-    }
-  }
-
-  public static int getCommon(int m, int n) {
-    int z;
-    while (m % n != 0) {
-      z = m % n;
-      m = n;
-      n = z;
-    }
-    return n;
-  }
-
-  public static int getGridMed(ArrayList<ArrayList<Integer>> ts_block) {
-    int grid = 1;
-    ArrayList<Integer> diff_block = new ArrayList<>();
-    for (int i = 1; i < ts_block.size(); i++) {
-      diff_block.add(ts_block.get(i).get(0) - ts_block.get(i - 1).get(0));
-    }
-    Collections.sort(diff_block);
-    grid = diff_block.get(diff_block.size() / 2);
-    return grid;
-  }
-
-  public static int getGridMode(ArrayList<ArrayList<Integer>> ts_block) {
-    int grid;
-    int grid_res=0;
-    int res=0;
-    ArrayList<Integer> diff_block = new ArrayList<>();
-    for (int i = 1; i < ts_block.size(); i++) {
-      diff_block.add(ts_block.get(i).get(0) - ts_block.get(i - 1).get(0));
-    }
-    Collections.sort(diff_block);
-    int target=diff_block.get(0);
-    grid=target;
-    grid_res=1;
-    for(int i=0;i<diff_block.size();i++){
-      if(diff_block.get(i)==target){
-        res+=1;
-        if(res>grid_res){
-          grid_res=res;
-          grid=target;
-        }
-      }
-      else{
-        target=diff_block.get(i);
-        res=1;
-      }
-    }
-    return grid;
-  }
-
-  public static void splitTimeStamp3(
-      ArrayList<ArrayList<Integer>> ts_block, ArrayList<Integer> result) {
-    int td_common = 0;
-    for (int i = 1; i < ts_block.size(); i++) {
-      int time_diffi = ts_block.get(i).get(0) - ts_block.get(i - 1).get(0);
-      if (td_common == 0) {
-        if (time_diffi != 0) {
-          td_common = time_diffi;
-          continue;
-        } else {
-          continue;
-        }
-      }
-      if (time_diffi != 0) {
-        td_common = getCommon(time_diffi, td_common);
-        if (td_common == 1) {
-          break;
-        }
-      }
-    }
-    if (td_common == 0) {
-      td_common = 1;
-    }
-
-    int t0 = ts_block.get(0).get(0);
-    for (int i = 0; i < ts_block.size(); i++) {
-      ArrayList<Integer> tmp = new ArrayList<>();
-      int interval_i = (ts_block.get(i).get(0) - t0) / td_common;
-      tmp.add(t0 + interval_i);
-      tmp.add(ts_block.get(i).get(1));
-      ts_block.set(i, tmp);
-    }
-    result.add(td_common);
-  }
-
   public static ArrayList<ArrayList<Integer>> getEncodeBitsRegression(
       ArrayList<ArrayList<Integer>> ts_block,
       int block_size,
@@ -441,7 +327,6 @@ public class TextLocation {
     tmp0.add(ts_block.get(0).get(1));
     ts_block_delta.add(tmp0);
 
-    // int pre_gridNum_r = 0;
     for (int j = 1; j < block_size; j++) {
       int gridNum_r =
           (int) Math.round((ts_block.get(j).get(0) - ts_block.get(j - 1).get(0)) * 1.0 / grid);
@@ -457,11 +342,8 @@ public class TextLocation {
       ArrayList<Integer> tmp = new ArrayList<>();
       tmp.add(epsilon_r);
       tmp.add(epsilon_v);
-      // tmp.add(gridNum_r - pre_gridNum_r);
       tmp.add(gridNum_r);
       ts_block_delta.add(tmp);
-
-      // pre_gridNum_r = gridNum_r;
     }
 
     int max_gridnum_val = Integer.MIN_VALUE;
@@ -549,7 +431,6 @@ public class TextLocation {
     tmp0.add(ts_block.get(0).get(1));
     ts_block_delta.add(tmp0);
 
-    // int pre_gridNum_r = 0;
     for (int j = 1; j < block_size; j++) {
       int gridNum_r1 =
           (int) Math.round((ts_block.get(j).get(0) - ts_block.get(j - 1).get(0)) * 1.0 / grid);
@@ -576,11 +457,8 @@ public class TextLocation {
       ArrayList<Integer> tmp = new ArrayList<>();
       tmp.add(epsilon_r);
       tmp.add(epsilon_v);
-      // tmp.add(gridNum_r - pre_gridNum_r);
       tmp.add(gridNum_r1);
       ts_block_delta.add(tmp);
-
-      // pre_gridNum_r = gridNum_r;
     }
 
     int max_gridnum_val = Integer.MIN_VALUE;
@@ -651,144 +529,13 @@ public class TextLocation {
     return ts_block_delta;
   }
 
-  public static ArrayList<ArrayList<Integer>> getEncodeBitsRegressionTs2diff(
-      ArrayList<ArrayList<Integer>> ts_block, int block_size, ArrayList<Integer> result) {
-    int timestamp_delta_min = Integer.MAX_VALUE;
-    int value_delta_min = Integer.MAX_VALUE;
-    ArrayList<ArrayList<Integer>> ts_block_delta = new ArrayList<>();
-
-    ArrayList<Integer> tmp0 = new ArrayList<>();
-    tmp0.add(ts_block.get(0).get(0));
-    tmp0.add(ts_block.get(0).get(1));
-    ts_block_delta.add(tmp0);
-
-    for (int j = 1; j < block_size; j++) {
-      int epsilon_r = ts_block.get(j).get(0) - ts_block.get(j - 1).get(0);
-      int epsilon_v = ts_block.get(j).get(1) - ts_block.get(j - 1).get(1);
-
-      if (epsilon_r < timestamp_delta_min) {
-        timestamp_delta_min = epsilon_r;
-      }
-      if (epsilon_v < value_delta_min) {
-        value_delta_min = epsilon_v;
-      }
-      ArrayList<Integer> tmp = new ArrayList<>();
-      tmp.add(epsilon_r);
-      tmp.add(epsilon_v);
-      ts_block_delta.add(tmp);
-    }
-
-    int max_interval = Integer.MIN_VALUE;
-    int max_value = Integer.MIN_VALUE;
-    for (int j = block_size - 1; j > 0; j--) {
-      int epsilon_r = ts_block_delta.get(j).get(0) - timestamp_delta_min;
-      int epsilon_v = ts_block_delta.get(j).get(1) - value_delta_min;
-      if (epsilon_r > max_interval) {
-        max_interval = epsilon_r;
-      }
-      if (epsilon_v > max_value) {
-        max_value = epsilon_v;
-      }
-      ArrayList<Integer> tmp = new ArrayList<>();
-      tmp.add(epsilon_r);
-      tmp.add(epsilon_v);
-      ts_block_delta.set(j, tmp);
-    }
-
-    int max_bit_width_interval = getBitWith(max_interval);
-    int max_bit_width_value = getBitWith(max_value);
-
-    int length = (max_bit_width_interval + max_bit_width_value) * (block_size - 1);
-
-    result.clear();
-
-    result.add(length);
-    result.add(max_bit_width_interval);
-    result.add(max_bit_width_value);
-
-    result.add(timestamp_delta_min);
-    result.add(value_delta_min);
-
-    return ts_block_delta;
-  }
-
-  public static double getRR2(ArrayList<ArrayList<Integer>> ts_block, int block_size) {
-
-    double x_avg = 0;
-    double y_avg = 0;
-    for (int j = 0; j < block_size; j++) {
-      x_avg += j;
-      y_avg += ts_block.get(j).get(0);
-    }
-    x_avg = x_avg / block_size;
-    y_avg = y_avg / block_size;
-
-    long sum1 = 0;
-    long sum2 = 0;
-    for (int j = 0; j < block_size; j++) {
-      sum1 += (ts_block.get(j).get(0) - y_avg) * (j - x_avg);
-      sum2 += (j - x_avg) * (j - x_avg);
-    }
-    double beta1;
-    beta1 = sum1 * 1.0 / sum2;
-    double beta2;
-    beta2 = y_avg - beta1 * x_avg;
-
-    //    long r1 = 0;
-    //    long r2 = 0;
-    //    long r3 = 0;
-    //    double r;
-    //    for (int j = 0; j < block_size; j++) {
-    //      r1 += ts_block.get(j).get(0) * j;
-    //      r2 += (long) j *j;
-    //      r3 += (long) ts_block.get(j).get(0) * ts_block.get(j).get(0);
-    //    }
-    //    r = (r1 - block_size * x_avg * y_avg) * (r1 - block_size * x_avg * y_avg) * 1.0 /
-    //            ( (r2 - block_size * x_avg * x_avg) * (r3 - block_size * y_avg * y_avg) );
-    //    System.out.println(r);
-
-    double r11 = 0;
-    double r22 = 0;
-    double r33 = 0;
-    double rr;
-    for (int j = 0; j < block_size; j++) {
-      r11 += (ts_block.get(j).get(0) - y_avg) * (j - x_avg);
-      r22 += (j - x_avg) * (j - x_avg);
-      r33 += (ts_block.get(j).get(0) - y_avg) * (ts_block.get(j).get(0) - y_avg);
-    }
-    rr = r11 * r11 * 1.0 / (r22 * r33);
-
-    return rr;
-  }
-
-  public static double getRatio(ArrayList<ArrayList<Integer>> ts_block, int block_size) {
-
-    Map<Integer, Integer> map = new HashMap<>();
-    int grid = getGridMed(ts_block);
-
-    for (int j = 1; j < block_size; j++) {
-      int diff_tmp = (ts_block.get(j).get(0) - ts_block.get(j - 1).get(0)) % grid;
-      if (map.containsKey(diff_tmp)) {
-        map.put(diff_tmp, map.get(diff_tmp) + 1);
-      } else {
-        map.put(diff_tmp, 1);
-      }
-    }
-
-    return map.get(0) * 1.0 / block_size;
-  }
-
   public static ArrayList<Byte> encode2Bytes(
       ArrayList<ArrayList<Integer>> ts_block,
       ArrayList<Integer> raw_length,
-      int grid,
       ArrayList<Integer> gridnum_block,
       ArrayList<Integer> gridpos) {
 
     ArrayList<Byte> encoded_result = new ArrayList<>();
-
-    //    byte flag = 1;
-    //    encoded_result.add(flag);
 
     byte[] flag_byte = int2Bytes(1);
     for (byte b : flag_byte) encoded_result.add(b);
@@ -804,9 +551,6 @@ public class TextLocation {
     for (byte b : interval_min_byte) encoded_result.add(b);
     byte[] value_min_byte = int2Bytes(raw_length.get(5));
     for (byte b : value_min_byte) encoded_result.add(b);
-
-    // byte[] timestamp_gridnum_length_byte = int2Bytes(raw_length.get(6));
-    // for (byte b : timestamp_gridnum_length_byte) encoded_result.add(b);
 
     // encode interval
     byte[] max_bit_width_interval_byte = int2Bytes(raw_length.get(1));
@@ -829,47 +573,6 @@ public class TextLocation {
     byte[] gridnum_pos_bytes = bitPacking1(gridpos, 1);
     for (byte b : gridnum_pos_bytes) encoded_result.add(b);
 
-    byte[] grid_byte = int2Bytes(grid);
-    for (byte b : grid_byte) encoded_result.add(b);
-
-    return encoded_result;
-  }
-
-  public static ArrayList<Byte> encode2Bytes2(
-      ArrayList<ArrayList<Integer>> ts_block, ArrayList<Integer> raw_length) {
-
-    ArrayList<Byte> encoded_result = new ArrayList<>();
-
-    // byte flag = 0;
-    // encoded_result.add(flag);
-
-    byte[] flag_byte = int2Bytes(0);
-    for (byte b : flag_byte) encoded_result.add(b);
-
-    // encode interval0 and value0
-    byte[] interval0_byte = int2Bytes(ts_block.get(0).get(0));
-    for (byte b : interval0_byte) encoded_result.add(b);
-    byte[] value0_byte = int2Bytes(ts_block.get(0).get(1));
-    for (byte b : value0_byte) encoded_result.add(b);
-
-    // encode interval_min and value_min
-    byte[] interval_min_byte = int2Bytes(raw_length.get(3));
-    for (byte b : interval_min_byte) encoded_result.add(b);
-    byte[] value_min_byte = int2Bytes(raw_length.get(4));
-    for (byte b : value_min_byte) encoded_result.add(b);
-
-    // encode interval
-    byte[] max_bit_width_interval_byte = int2Bytes(raw_length.get(1));
-    for (byte b : max_bit_width_interval_byte) encoded_result.add(b);
-    byte[] timestamp_bytes = bitPacking(ts_block, 0, raw_length.get(1));
-    for (byte b : timestamp_bytes) encoded_result.add(b);
-
-    // encode value
-    byte[] max_bit_width_value_byte = int2Bytes(raw_length.get(2));
-    for (byte b : max_bit_width_value_byte) encoded_result.add(b);
-    byte[] value_bytes = bitPacking(ts_block, 1, raw_length.get(2));
-    for (byte b : value_bytes) encoded_result.add(b);
-
     return encoded_result;
   }
 
@@ -882,7 +585,6 @@ public class TextLocation {
     for (byte b : length_all_bytes) encoded_result.add(b);
     int block_num = length_all / block_size;
 
-    // encode block size (Integer)
     byte[] block_size_byte = int2Bytes(block_size);
     for (byte b : block_size_byte) encoded_result.add(b);
 
@@ -892,28 +594,15 @@ public class TextLocation {
         ts_block.add(data.get(j + i * block_size));
       }
 
-      int grid = getGridMed(ts_block);
-      //int grid = getGridMode(ts_block);
-
       ArrayList<Integer> raw_length = new ArrayList<>(); // parameters
-      ArrayList<Integer> raw_length2 = new ArrayList<>(); // parameters
       ArrayList<Integer> gridnum_block = new ArrayList<>();
       ArrayList<Integer> gridpos = new ArrayList<>();
 
-      // double rr = getRR2(ts_block, block_size);
-      double ratio = getRatio(ts_block, block_size);
-
       ArrayList<ArrayList<Integer>> ts_block_delta =
-          getEncodeBitsRegression(ts_block, block_size, grid, raw_length, gridnum_block, gridpos);
-      ArrayList<ArrayList<Integer>> ts_block_delta2 =
-          getEncodeBitsRegressionTs2diff(ts_block, block_size, raw_length2);
-
-      // System.out.print(raw_length.get(0));
-      // System.out.print(" ");
-      // System.out.println(raw_length2.get(0));
+          getEncodeBitsRegression(ts_block, block_size, 1, raw_length, gridnum_block, gridpos);
 
       ArrayList<Byte> cur_encoded_result;
-      cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block, gridpos);
+      cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, gridnum_block, gridpos);
       encoded_result.addAll(cur_encoded_result);
     }
 
@@ -930,22 +619,13 @@ public class TextLocation {
       for (int j = block_num * block_size; j < length_all; j++) {
         ts_block.add(data.get(j));
       }
-      int grid = getGridMed(ts_block);
-      //int grid = getGridMode(ts_block);
 
       ArrayList<Integer> raw_length = new ArrayList<>(); // parameters
-      ArrayList<Integer> raw_length2 = new ArrayList<>(); // parameters
       ArrayList<Integer> gridnum_block = new ArrayList<>();
       ArrayList<Integer> gridpos = new ArrayList<>();
 
-      // double rr = getRR2(ts_block, remaining_length);
-      double ratio = getRatio(ts_block, remaining_length);
-
       ArrayList<ArrayList<Integer>> ts_block_delta =
-          getEncodeBitsRegression(
-              ts_block, remaining_length, grid, raw_length, gridnum_block, gridpos);
-      ArrayList<ArrayList<Integer>> ts_block_delta2 =
-          getEncodeBitsRegressionTs2diff(ts_block, remaining_length, raw_length2);
+          getEncodeBitsRegression(ts_block, remaining_length, 1, raw_length, gridnum_block, gridpos);
 
       int supple_length;
       if (remaining_length % 8 == 0) {
@@ -964,16 +644,8 @@ public class TextLocation {
         ts_block_delta.add(tmp);
       }
 
-      for (int s = 0; s < supple_length; s++) {
-        ArrayList<Integer> tmp = new ArrayList<>();
-        tmp.add(0);
-        tmp.add(0);
-        tmp.add(0);
-        ts_block_delta2.add(tmp);
-      }
-
       ArrayList<Byte> cur_encoded_result;
-      cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, grid, gridnum_block, gridpos);
+      cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, gridnum_block, gridpos);
       encoded_result.addAll(cur_encoded_result);
     }
     return encoded_result;
@@ -1005,9 +677,6 @@ public class TextLocation {
       ArrayList<Integer> gridnum_val_list = new ArrayList<>();
 
       ArrayList<ArrayList<Integer>> ts_block = new ArrayList<>();
-
-      // int flag = encoded.get(decode_pos);
-      // decode_pos += 1;
 
       int flag = bytes2Integer(encoded, decode_pos, 4);
       decode_pos += 4;
@@ -1305,8 +974,7 @@ public class TextLocation {
     ArrayList<String> output_path_list = new ArrayList<>();
     ArrayList<Integer> dataset_block_size = new ArrayList<>();
 
-    input_path_list.add(
-            "E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Metro-Traffic");
+    input_path_list.add("E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\iotdb_test\\Metro-Traffic");
     output_path_list.add("E:\\thu\\TimeEncoding\\TestTimeGrid\\result_python\\result_evaluation"
                     + "\\compression_ratio\\rr_ratio\\Metro-Traffic_ratio.csv");
 
