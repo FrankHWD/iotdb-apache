@@ -96,21 +96,6 @@ public class TextLocationRaw {
     return value;
   }
 
-  public static byte[] bitPacking(ArrayList<Integer> numbers, int bit_width) {
-    int block_num = numbers.size() / 8;
-    byte[] result = new byte[bit_width * block_num];
-    for (int i = 0; i < block_num; i++) {
-      for (int j = 0; j < bit_width; j++) {
-        int tmp_int = 0;
-        for (int k = 0; k < 8; k++) {
-          tmp_int += (((numbers.get(i * 8 + k) >> j) % 2) << k);
-        }
-        result[i * bit_width + j] = (byte) tmp_int;
-      }
-    }
-    return result;
-  }
-
   public static byte[] bitPacking(ArrayList<ArrayList<Integer>> numbers, int index, int bit_width) {
     int block_num = (numbers.size() - 1) / 8;
     byte[] result = new byte[bit_width * block_num];
@@ -134,22 +119,6 @@ public class TextLocationRaw {
         int tmp_int = 0;
         for (int k = 0; k < 8; k++) {
           tmp_int += (((numbers.get(i * 8 + k) >> j) % 2) << k);
-        }
-        result[i * bit_width + j] = (byte) tmp_int;
-      }
-    }
-    return result;
-  }
-
-  public static byte[] bitPacking2(
-      ArrayList<ArrayList<Integer>> numbers, int index, int bit_width) {
-    int block_num = numbers.size() / 8;
-    byte[] result = new byte[bit_width * block_num];
-    for (int i = 0; i < block_num; i++) {
-      for (int j = 0; j < bit_width; j++) {
-        int tmp_int = 0;
-        for (int k = 0; k < 8; k++) {
-          tmp_int += (((numbers.get(i * 8 + k).get(index) >> j) % 2) << k);
         }
         result[i * bit_width + j] = (byte) tmp_int;
       }
@@ -214,7 +183,6 @@ public class TextLocationRaw {
   public static ArrayList<ArrayList<Integer>> getEncodeBitsRegression(
       ArrayList<ArrayList<Integer>> ts_block,
       int block_size,
-      int grid,
       ArrayList<Integer> result,
       ArrayList<Integer> gridnum_block,
       ArrayList<Integer> gridpos) {
@@ -227,12 +195,10 @@ public class TextLocationRaw {
     tmp0.add(ts_block.get(0).get(1));
     ts_block_delta.add(tmp0);
 
-    int pre_gridNum_r = 0;
     for (int j = 1; j < block_size; j++) {
-      int gridNum_r =
-          (int) Math.round((ts_block.get(j).get(0) - ts_block.get(0).get(0)) * 1.0 / grid);
-      int epsilon_r = ts_block.get(j).get(0) - ts_block.get(0).get(0) - gridNum_r * grid;
-      int epsilon_v = ts_block.get(j).get(1) - ts_block.get(j - 1).get(1);
+      int gridNum_r = ts_block.get(j).get(0);
+      int epsilon_r = ts_block.get(j).get(1);
+      int epsilon_v = ts_block.get(j).get(1);
       if (epsilon_r < timestamp_delta_min) {
         timestamp_delta_min = epsilon_r;
       }
@@ -242,10 +208,8 @@ public class TextLocationRaw {
       ArrayList<Integer> tmp = new ArrayList<>();
       tmp.add(epsilon_r);
       tmp.add(epsilon_v);
-      tmp.add(gridNum_r - pre_gridNum_r);
+      tmp.add(gridNum_r);
       ts_block_delta.add(tmp);
-
-      pre_gridNum_r = gridNum_r;
     }
 
     int max_gridnum_val = Integer.MIN_VALUE;
@@ -261,16 +225,6 @@ public class TextLocationRaw {
       }
     }
     int timestamp_gridnum_length = gridnum_block.size();
-    int timestamp_gridnum_remain_length;
-    if (timestamp_gridnum_length % 8 == 0) {
-      timestamp_gridnum_remain_length = 0;
-    } else {
-      timestamp_gridnum_remain_length = 8 - timestamp_gridnum_length % 8;
-    }
-    for (int j = 0; j < timestamp_gridnum_remain_length; j++) {
-      gridpos.add(0);
-      gridnum_block.add(0);
-    }
 
     int max_interval = Integer.MIN_VALUE;
     int max_value = Integer.MIN_VALUE;
@@ -295,8 +249,7 @@ public class TextLocationRaw {
 
     int length =
         (max_bit_width_interval + max_bit_width_value) * (block_size - 1)
-            + (max_bit_width_gridnum_val + 1)
-                * (timestamp_gridnum_length + timestamp_gridnum_remain_length);
+            + (max_bit_width_gridnum_val + 1) * timestamp_gridnum_length;
     result.clear();
 
     result.add(length);
@@ -381,7 +334,7 @@ public class TextLocationRaw {
       ArrayList<Integer> gridpos = new ArrayList<>();
 
       ArrayList<ArrayList<Integer>> ts_block_delta =
-          getEncodeBitsRegression(ts_block, block_size, 1, raw_length, gridnum_block, gridpos);
+          getEncodeBitsRegression(ts_block, block_size, raw_length, gridnum_block, gridpos);
 
       ArrayList<Byte> cur_encoded_result;
       cur_encoded_result = encode2Bytes(ts_block_delta, raw_length, gridnum_block, gridpos);
