@@ -73,6 +73,14 @@ public abstract class TSEncodingBuilder {
         return new Freq();
       case ZIGZAG:
         return new Zigzag();
+      case CHIMP:
+        return new Chimp();
+      case SPRINTZ:
+        return new Sprintz();
+      case RLBE:
+        return new RLBE();
+      case BUFF:
+        return new BUFF();
       default:
         throw new UnsupportedOperationException(type.toString());
     }
@@ -391,6 +399,100 @@ public abstract class TSEncodingBuilder {
           return new LongZigzagEncoder();
         default:
           throw new UnSupportedDataTypeException("GORILLA doesn't support data type: " + type);
+      }
+    }
+
+    @Override
+    public void initFromProps(Map<String, String> props) {
+      // do nothing
+    }
+  }
+
+  /** for FLOAT, DOUBLE, INT, LONG. */
+  public static class Chimp extends TSEncodingBuilder {
+
+    @Override
+    public Encoder getEncoder(TSDataType type) {
+      switch (type) {
+        case FLOAT:
+          return new SinglePrecisionChimpEncoder();
+        case DOUBLE:
+          return new DoublePrecisionChimpEncoder();
+        case INT32:
+          return new IntChimpEncoder();
+        case INT64:
+          return new LongChimpEncoder();
+        default:
+          throw new UnSupportedDataTypeException("CHIMP doesn't support data type: " + type);
+      }
+    }
+
+    @Override
+    public void initFromProps(Map<String, String> props) {
+      // allowed do nothing
+    }
+  }
+
+  public static class Sprintz extends TSEncodingBuilder {
+    @Override
+    public Encoder getEncoder(TSDataType type) {
+      switch (type) {
+        case INT32:
+          return new IntSprintzEncoder();
+        case INT64:
+          return new LongSprintzEncoder();
+        case FLOAT:
+          return new FloatSprintzEncoder();
+        case DOUBLE:
+          return new DoubleSprintzEncoder();
+        default:
+          throw new UnSupportedDataTypeException("Sprintz doesn't support data type: " + type);
+      }
+    }
+
+    @Override
+    public void initFromProps(Map<String, String> props) {
+      // do nothing
+    }
+  }
+
+  public static class RLBE extends TSEncodingBuilder {
+    @Override
+    public Encoder getEncoder(TSDataType type) {
+      switch (type) {
+        case INT32:
+          return new IntRLBE();
+        case INT64:
+          return new LongRLBE();
+        case FLOAT:
+          return new FloatRLBE();
+        case DOUBLE:
+          return new DoubleRLBE();
+        default:
+          throw new UnSupportedDataTypeException("RLBE doesn't support data type: " + type);
+      }
+    }
+
+    @Override
+    public void initFromProps(Map<String, String> props) {
+      // do nothing
+    }
+  }
+
+  public static class BUFF extends TSEncodingBuilder {
+    @Override
+    public Encoder getEncoder(TSDataType type) {
+      switch (type) {
+        case INT32:
+          return new IntBUFFEncoder();
+        case INT64:
+          return new LongBUFFEncoder();
+        case FLOAT:
+          return new FloatBUFFEncoder();
+        case DOUBLE:
+          return new DoubleBUFFEncoder();
+        default:
+          throw new UnSupportedDataTypeException("BUFF doesn't support data type: " + type);
       }
     }
 
