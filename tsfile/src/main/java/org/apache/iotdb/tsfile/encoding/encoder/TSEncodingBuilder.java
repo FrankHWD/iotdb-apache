@@ -81,6 +81,8 @@ public abstract class TSEncodingBuilder {
         return new RLBE();
       case BUFF:
         return new BUFF();
+      case TIM:
+        return new TIM();
       default:
         throw new UnsupportedOperationException(type.toString());
     }
@@ -295,6 +297,59 @@ public abstract class TSEncodingBuilder {
           logger.warn(
               "cannot set max point number to negative value, replaced with default value:{}",
               maxPointNumber);
+        }
+      }
+    }
+
+    @Override
+    public String toString() {
+      return JsonFormatConstant.MAX_POINT_NUMBER + ":" + maxPointNumber;
+    }
+  }
+
+  /** for INT32, INT64, FLOAT, DOUBLE. */
+  public static class TIM extends TSEncodingBuilder {
+
+    private int maxPointNumber = 0;
+
+    @Override
+    public Encoder getEncoder(TSDataType type) {
+      switch (type) {
+        case INT32:
+          return new TIMEncoder.IntTIMEncoder();
+        case INT64:
+          return new TIMEncoder.LongTIMEncoder();
+        case FLOAT:
+        case DOUBLE:
+          return new FloatEncoder(TSEncoding.TS_2DIFF, type, maxPointNumber);
+        default:
+          throw new UnSupportedDataTypeException("TS_2DIFF doesn't support data type: " + type);
+      }
+    }
+
+    @Override
+    /**
+     * TS_2DIFF could specify <b>max_point_number</b> in given JSON Object, which means the maximum
+     * decimal digits for float or double data.
+     */
+    public void initFromProps(Map<String, String> props) {
+      // set max error from initialized map or default value if not set
+      if (props == null || !props.containsKey(Encoder.MAX_POINT_NUMBER)) {
+        maxPointNumber = TSFileDescriptor.getInstance().getConfig().getFloatPrecision();
+      } else {
+        try {
+          this.maxPointNumber = Integer.parseInt(props.get(Encoder.MAX_POINT_NUMBER));
+        } catch (NumberFormatException e) {
+          logger.warn(
+                  "The format of max point number {} is not correct."
+                          + " Using default float precision.",
+                  props.get(Encoder.MAX_POINT_NUMBER));
+        }
+        if (maxPointNumber < 0) {
+          maxPointNumber = TSFileDescriptor.getInstance().getConfig().getFloatPrecision();
+          logger.warn(
+                  "cannot set max point number to negative value, replaced with default value:{}",
+                  maxPointNumber);
         }
       }
     }

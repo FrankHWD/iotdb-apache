@@ -33,7 +33,8 @@ public enum TSEncoding {
   CHIMP((byte) 11),
   SPRINTZ((byte) 12),
   RLBE((byte) 13),
-  BUFF((byte) 14);
+  BUFF((byte) 14),
+  TIM((byte) 15);
 
   private final byte type;
 
@@ -83,6 +84,8 @@ public enum TSEncoding {
         return TSEncoding.RLBE;
       case 14:
         return TSEncoding.BUFF;
+      case 15:
+        return TSEncoding.TIM;
       default:
         throw new IllegalArgumentException("Invalid input: " + encoding);
     }
