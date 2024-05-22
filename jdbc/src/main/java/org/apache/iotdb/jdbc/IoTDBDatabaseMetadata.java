@@ -191,6 +191,7 @@ public class IoTDBDatabaseMetadata implements DatabaseMetaData {
       "SNAPSHOT",
       "SCHEMA",
       "TO",
+      "TIM",
       "TIMESERIES",
       "TIMESTAMP",
       "TEXT",

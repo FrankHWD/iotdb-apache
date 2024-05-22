@@ -59,6 +59,7 @@ class TSEncoding(Enum):
     GORILLA_V1 = 6
     REGULAR = 7
     GORILLA = 8
+    TIM = 15
 
     # this method is implemented to avoid the issue reported by:
     # https://bugs.python.org/issue30545
