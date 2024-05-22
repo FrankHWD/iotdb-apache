@@ -341,15 +341,15 @@ public abstract class TSEncodingBuilder {
           this.maxPointNumber = Integer.parseInt(props.get(Encoder.MAX_POINT_NUMBER));
         } catch (NumberFormatException e) {
           logger.warn(
-                  "The format of max point number {} is not correct."
-                          + " Using default float precision.",
-                  props.get(Encoder.MAX_POINT_NUMBER));
+              "The format of max point number {} is not correct."
+                  + " Using default float precision.",
+              props.get(Encoder.MAX_POINT_NUMBER));
         }
         if (maxPointNumber < 0) {
           maxPointNumber = TSFileDescriptor.getInstance().getConfig().getFloatPrecision();
           logger.warn(
-                  "cannot set max point number to negative value, replaced with default value:{}",
-                  maxPointNumber);
+              "cannot set max point number to negative value, replaced with default value:{}",
+              maxPointNumber);
         }
       }
     }
