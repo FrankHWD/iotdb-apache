@@ -27,7 +27,13 @@ public enum TSEncoding {
   BITMAP((byte) 5),
   GORILLA_V1((byte) 6),
   REGULAR((byte) 7),
-  GORILLA((byte) 8);
+  GORILLA((byte) 8),
+  ZIGZAG((byte) 9),
+  FREQ((byte) 10),
+  CHIMP((byte) 11),
+  SPRINTZ((byte) 12),
+  RLBE((byte) 13),
+  BUFF((byte) 14);
 
   private final byte type;
 
@@ -65,6 +71,18 @@ public enum TSEncoding {
         return TSEncoding.REGULAR;
       case 8:
         return TSEncoding.GORILLA;
+      case 9:
+        return TSEncoding.ZIGZAG;
+      case 10:
+        return TSEncoding.FREQ;
+      case 11:
+        return TSEncoding.CHIMP;
+      case 12:
+        return TSEncoding.SPRINTZ;
+      case 13:
+        return TSEncoding.RLBE;
+      case 14:
+        return TSEncoding.BUFF;
       default:
         throw new IllegalArgumentException("Invalid input: " + encoding);
     }
